@@ -8,7 +8,7 @@
 %
 % Sept 30, 2015 - initial commit
 
-classdef MotionLearner
+classdef MotionLearner < matlab.maxin.SetGet
     properties
         data
     end
