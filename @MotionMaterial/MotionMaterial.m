@@ -23,14 +23,15 @@ classdef MotionMaterial < hgsetget
         whiteningCutoffRatio = 1 / 80;
         whiteningEncodeMatrix
         whiteningDecodeMatrix
+        whiteningNoiseFacotr
         biasVector
     end
     
     methods
         % constructor from data path
-        function self = MotionMaterial(dataPath, varargin)
-            self.path = dataPath;
-            self.paramSetup(varargin);
+        function obj = MotionMaterial(dataPath, varargin)
+            obj.path = dataPath;
+            obj.paramSetup(varargin);
         end      
     end
     
