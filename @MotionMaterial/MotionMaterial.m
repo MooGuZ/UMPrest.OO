@@ -2,163 +2,219 @@
 % 1. added input argument parser for properties setting [X]
 % 2. make 'whiteningIsActived' a dependent property with value returned by
 %    a status check function
+% 3. add support for cache mechanism [x]
+% 4. re-organize program structure
 
 classdef MotionMaterial < hgsetget
-    properties
-        % fundamental information
-        path                      % data location in file system
-        dataBlock                 % loaded video data
-        memoryLimit = 1e9;        % memory limitation in pixels
-        dataUnitIDList = {};      % list of data units (video)
+    properties (Access = public)
+        % FUNDAMENTAL SETTING
+        memoryLimit = 1e9;          % memory limitation in pixels
         
-        % intermediate parameters
-        nSampleInSizeEstimation = 12;
-        pixelPerFrame
-        pixelPerUnit
+        % FILE SYSTEM
+        path                        % data location in file system
         
-        % data processing modules
-        enableWhitening = false;
+        
+
+        % MODULE : WHITENING
+        enableWhitening = false;    % data preprocessing : whitening
+        whiteningCutoffRatio = 1 / 80;  % cutoff ratio of eigen value in whitening process
+        
+        % MODULE : CROP
+        enableCrop    = false;      % data formation : frame crop
+        patchSize     = nan;        % size of crop patch (2/3 elements vector)
+        patchPerBlock = 13;         % average patches fetched from data block before refresh
     end
     
+    properties (Hidden)
+        % DATA BLOCK
+        maxSampleInSizeEstimation = 13; % number of sample files used to estimate data size
+    end
+    
+    % properties keep temperory status
     properties (Access = private)
-        iLoadedDataUnit = 0
-        iterator = 0
+        iterDataFile  = 0           % iterator of data files
+        iterDataBlock = 0           % iterator of data blocks
     end
-    
-    properties (GetAccess = public, SetAccess = private)
+
+    % properties works as underlying structure
+    properties (SetAccess = protected, Hidden)
+        % FILE SYSTEM
+        dataFileIDList = {};        % list of data units (video)
+        
+        % DATA BLOCK
+        dataBlock                   % loaded video data
+        pixelPerBlock = nan;        % result storage of function 'dataBlockSizeEstimate'
+        
+        % MODULE : WHITENING
         whiteningIsActivated = false;
-        whiteningCutoffRatio = 1 / 80;
         whiteningEncodeMatrix
         whiteningDecodeMatrix
         whiteningNoiseFacotr
         biasVector
     end
-    
-    properties (Dependent, SetAccess = protected )
-        dataCount
-        nPreloadDataUnit
-        nLoadedDataUnit
-    end
-    
+
+    % properties need realtime calculation
+    properties (Dependent, Hidden, SetAccess = private)
+        pixelPerFrame               % quantity of pixels in a frame of data matrix
+        nInitDataBlock              % quantity of files load in initialization of data block
+        nLoadedDataBlock            % quantity of files have already loaded in data block
+    end 
+
+    % get and set methods of dependent properties
     methods
-        function value = get.dataCount(obj)
-            value = 0;
-            for i = 1 : obj.nLoadedDataUnit
-                value = value + numel(obj.dataBlock{i});
+        function value = get.pixelPerFrame(obj)
+            if obj.enableCrop
+                value = obj.patchSize(1) * obj.patchSize(2);
+            else
+                value = size(obj.dataBlock{1}, 1) * size(obj.dataBlock{1}, 2);
             end
         end
-        
-        function value = get.nPreloadDataUnit(obj)
-            value = floor(obj.memoryLimit / obj.dataUnitSizeEstimate());
+
+        function value = get.nInitDataBlock(obj)
+            value = floor(obj.memoryLimit / obj.dataBlockSizeEstimate());
+            if value <= 0
+                warning('[MOTIONMATERIAL] memory is not sufficient for the program running');
+                value = 1;
+            end
         end
-        
-        function value = get.nLoadedDataUnit(obj)
-            value = obj.nLoadedDataUnit;
+
+        function value = get.nLoadedDataBlock(obj)
+            value = numel(obj.dataBlock);
         end
     end
-    
+
     methods
-        % constructor from data path
         function obj = MotionMaterial(dataPath, varargin)
             obj.path = dataPath;
-            obj.paramSetup(varargin);
-            obj.preloadData();
-            % load data processing modules
-            if obj.enableWhitening
-                obj.calcWhiteningParam();
-            end
-        end      
+            obj.paramSetup(varargin{:});
+            obj.initDataBlock();
+            obj.initModule();
+            obj.consistancyCheck();
+        end
     end
-    
+
     methods (Access = protected)
         function paramSetup(obj, varargin)
-            [keys, values] = propertyParse(varargin{:});
+            [keys, values] = propertyParse(varargin);
             for i = 1 : numel(keys)
                 obj.set(keys{i}, values{i});
             end
         end
         
-        function loadData(obj, dataUnitIDSet)
-            obj.dataBlock = cell(1, numel(dataUnitIDSet));
-            for i = 1 : numel(dataUnitIDSet)
-                obj.dataBlock{i} = obj.readData(dataUnitIDSet{i});
-                if isempty(obj.pixelPerFrame)
-                    obj.pixelPerFrame = size(obj.dataBlock{i}, 1);
-                else
-                    assert(size(obj.dataBlock{i}, 1) == obj.pixelPerFrame, ...
-                        'Input materials are not consistant in pixel quantities per frame.');
-                end                
+        function initModule(obj)
+            if obj.enableWhitening
+                obj.calcWhiteningParam();
             end
         end
-            
-        function preloadData(obj)
-            if isempty(obj.dataUnitIDList)
-                obj.dataUnitIDList = obj.getDataList();
-            end
-            obj.dataUnitIDList = obj.dataUnitIDList(randperm(numel(obj.dataUnitIDList)));
-            obj.iLoadedDataUnit = min(numel(obj.dataUnitIDList), obj.nPreloadDataUnit);
-            obj.loadData(obj.dataUnitIDList(1 : obj.iLoadedDataUnit));
-            % if all data loaded at once, tag iLoadedDataUnit as Inf
-            if obj.iLoadedDataUnit >= numel(obj.dataUnitIDList)
-                obj.iLoadedDataUnit = inf;
+
+        function consistancyCheck(obj)
+            if obj.enableCrop
+                assert(~all(isnan(obj.patchSize)) && any(numel(obj.patchSize) == [2,3]));
             end
         end
-        
-        function refreshData(obj)
-            if isinf(obj.iLoadedDataUnit) % all data have been loaded in memory
-                obj.dataBlock = obj.dataBlock(randperm(obj.nLoadedDataUnit));
-            elseif obj.iLoadedDataUnit < numel(obj.dataUnitIDList) % load data from file system
-                nUnit = min(numel(obj.dataUnitIDList) - obj.iLoadedDataUnit, obj.nPreloadDataUnit);
-                obj.loadData(obj.dataUnitIDList(obj.iLoadDataUnit + 1 : obj.iLoadDataUnit + nUnit));
-                obj.iLoadedDataUnit = obj.iLoadedDataUnit + nUnit;
+
+        function loadData(obj, dataFileIDSet)
+            obj.dataBlock = cell(1, numel(dataFileIDSet));
+            for i = 1 : numel(dataFileIDSet)
+                obj.dataBlock{i} = im2uint8(obj.readData(dataFileIDSet{i}));
+                if ~obj.enableCrop
+                    assert(obj.pixelPerFrame == ...
+                        size(obj.dataBlock{i}, 1) * size(obj.dataBlock{i}, 2), ...
+                        '[%s] dimension of data does not match loaded ones', dataFileIDSet{i});
+                end
+            end
+        end
+
+        function initDataBlock(obj)
+            if isempty(obj.dataFileIDList)
+                obj.dataFileIDList = obj.getDataList();
+                assert(~isempty(obj.dataFileIDList), ...
+                    'no qualified data file found in specified path');
+            end
+            obj.dataFileIDList = obj.dataFileIDList(randperm(numel(obj.dataFileIDList)));
+            obj.iterDataFile = min(numel(obj.dataFileIDList), obj.nInitDataBlock);
+            obj.loadData(obj.dataFileIDList(1 : obj.iterDataFile));
+            % if all data loaded at once, tag iterDataFile as Inf
+            if obj.iterDataFile >= numel(obj.dataFileIDList)
+                obj.iterDataFile = inf;
+            end
+        end
+
+        function refreshDataBlock(obj)
+            if obj.enableCrop && rand() > (1.0 / obj.patchPerBlock)
+                % do nothing in this situation
+            elseif isinf(obj.iterDataFile) % all data have been loaded in memory
+                obj.dataBlock = obj.dataBlock(randperm(obj.nLoadedDataBlock));
+            elseif obj.iterDataFile < numel(obj.dataFileIDList) % load data from file system
+                n = min(numel(obj.dataFileIDList) - obj.iterDataFile, obj.nInitDataBlock);
+                obj.loadData(obj.dataFileIDList(obj.iterDataFile + (1 : n)));
+                obj.iterDataFile = obj.iterDataFile + n;
             else
-                obj.preloadData();
+                obj.initDataBlock();
             end
-            
-            obj.iterator = 0;
+
+            obj.iterDataBlock = 0;
         end
-                
-        function pixelPerUnit = dataUnitSizeEstimate(obj)
-            if isempty(obj.pixelPerUnit)
-                obj.pixelPerUnit = 0;
-                if isempty(obj.dataUnitIDList)
-                    obj.dataUnitIDList = obj.getDataList();
+
+        function pixelPerBlock = dataBlockSizeEstimate(obj)
+            if isnan(obj.pixelPerBlock)
+                obj.pixelPerBlock = 0;
+                if isempty(obj.dataFileIDList)
+                    obj.dataFileIDList = obj.getDataList();
+                    assert(~isempty(obj.dataFileIDList), ...
+                        'no qualified data file found in specified path');
                 end
-                for i = 1 : obj.nSampleInSizeEstimation
-                    obj.pixelPerUnit = obj.pixelPerUnit ...
-                        + numel(obj.readData(obj.dataUnitIDList{i}));
+                nSample = min(obj.maxSampleInSizeEstimation, round(numel(obj.dataFileIDList)/2)+1);
+                for i = 1 : nSample
+                    obj.pixelPerBlock = obj.pixelPerBlock ...
+                        + numel(obj.readData(obj.dataFileIDList{i}));
                 end
-                obj.pixelPerUnit = obj.pixelPerUnit / obj.nSampleInSizeEstimation;
+                obj.pixelPerBlock = obj.pixelPerBlock / obj.nSampleInSizeEstimation;
             end
-            
-            pixelPerUnit = obj.pixelPerUnit;
+
+            pixelPerBlock = obj.pixelPerBlock;
         end
-        
+
         function [dataMatrix, firstFrameIndex] = fetch(obj, indexList)
+            assert(obj.nLoadedDataBlock > 0);
             % FETCH would load all data units in buffer by default
-            if ~exist('index', 'var'), indexList = 1 : obj.nLoadedDataUnit; end
+            if ~exist('indexList', 'var'), indexList = 1 : obj.nLoadedDataBlock; end
             % check legality of index
             if min(indexList) < 1 || any(indexList ~= floor(indexList))
                 msgID = 'MotionMaterial:fetch:IllegalParameter';
                 msg = 'Number of Data Units has to be a integear greater than 0';
                 error(msgID, msg);
-            elseif max(indexList) > obj.nLoadedDataUnit
+            elseif max(indexList) > obj.nLoadedDataBlock
                 msgID = 'MotionMaterial:fetch:IllegalParameter';
                 msg = 'Index exceed boundary of data block';
                 error(msgID, msg);
             end
-            % initialize data matrix
-            framePerBlock = cellfun(@(b) size(b, 2), obj.dataBlock(indexList));
-            dataMatrix = zeros(obj.pixelPerFrame, sum(framePerBlock), ...
-                'like', obj.dataBlock{1});
+            % calculate frame quantity for each data unit
+            if obj.enableCrop && numel(obj.patchSize) >= 3
+                framePerUnit = obj.patchSize(3) * ones(1, numel(indexList));
+            else
+                framePerUnit = cellfun(@(b) size(b, 3), obj.dataBlock(indexList));
+            end
+            % initialize data matrix (collection of data units)
+            dataMatrix = zeros(obj.pixelPerFrame, sum(framePerUnit), 'uint8');
             % compose data matrix
             iframe = 1;
-            for i = 1 : numel(indexList)
-                dataMatrix(:, iframe : iframe + framePerBlock(i) - 1) = ...
-                    obj.dataBlock{indexList(i)};
+            if obj.enableCrop
+                for i = 1 : numel(indexList)
+                    dataMatrix(:, iframe : iframe + framePerUnit(i) - 1) = reshape( ...
+                        randcrop(obj.dataBlock{indexList(i)}, obj.patchSize), ...
+                        obj.pixelPerFrame, framePerUnit(i));
+                    iframe = iframe + framePerUnit(i);
+                end
+            else
+                for i = 1 : numel(indexList)
+                    dataMatrix(:, iframe : iframe + framePerUnit(i) - 1) = ...
+                        reshape(obj.dataBlock{indexList(i)}, obj.pixelPerFrame, framePerUnit(i));
+                    iframe = iframe + framePerUnit(i);
+                end
             end
             % generate index for first frame of each sequence
-            firstFrameIndex = [1, framePerBlock(1 : end-1) + 1];
+            firstFrameIndex = [1, framePerUnit(1 : end-1) + 1];
             % transform data into double for convenience of calculation
             dataMatrix = im2double(dataMatrix);
             % apply data processing modules
@@ -166,50 +222,52 @@ classdef MotionMaterial < hgsetget
                 dataMatrix = obj.whiteningEncodeMatrix * bsxfun(@minus, dataMatrix, obj.biasVector);
             end
         end
-        
-        toRaw(obj)
-        
+
         calcWhiteningParam(obj)
     end
-    
+
     methods
         function [dataMatrix, firstFrameIndex] = next(obj, n)
             if ~exist('n', 'var'), n = 1; end
             % N has to be a positive integer
             assert(n > 0 && n == floor(n));
+            % refresh data buffer if necessary
+            if obj.iterDataBlock >= obj.nLoadedDataBlock
+                obj.refreshDataBlock();
+            end
             % check whether or not need to refresh buffer
-            if n > obj.nLoadedDataUnit - obj.iterator
-                nRest = n + obj.iterator - obj.nLoadedDataUnit;
-                n = obj.nLoadedDataUnit - obj.iterator;
+            if n > obj.nLoadedDataBlock - obj.iterDataBlock
+                nRest = n + obj.iterDataBlock - obj.nLoadedDataBlock;
+                n = obj.nLoadedDataBlock - obj.iterDataBlock;
             end
             % get data available now
-            [dataMatrix, firstFrameIndex] = obj.fetch(obj.iterator + 1 : obj.iterator + n);
-            obj.iterator = obj.iterator + n;
+            [dataMatrix, firstFrameIndex] = obj.fetch(obj.iterDataBlock + (1 : n));
+            obj.iterDataBlock = obj.iterDataBlock + n;
             % get rest data if necessary
             if exist('nRest', 'var')
-                obj.refreshData();
+                obj.refreshDataBlock();
                 [dataMatrixRest, firstFrameIndexRest] = obj.next(nRest);
                 dataMatrix = [dataMatrix, dataMatrixRest];
                 firstFrameIndex = [firstFrameIndex, firstFrameIndexRest];
             end
         end
-        
+
         function [dataMatrix, firstFrameIndex] = all(obj)
-            if isinf(obj.iLoadedDataUnit)
+            if isinf(obj.iterDataFile)
                 [dataMatrix, firstFrameIndex] = obj.fetch();
             else
                 warning('MotionMatrial:all', ...
                     'This is a risky operation which may lead to memory and performance problems');
                 dataBlockBackup = obj.dataBlock;
-                obj.loadData(obj.dataUnitIDList);
+                obj.loadData(obj.dataFileIDList);
                 [dataMatrix, firstFrameIndex] = obj.fetch();
                 obj.dataBlock = dataBlockBackup;
             end
         end
     end
-    
+
     methods (Abstract)
-        dataUnitIDSet = getDataList(obj)
-        dataUnit = readData(obj, dataUnitID)
+        dataFileIDSet = getDataList(obj)
+        dataBlock = readData(obj, dataFileID)
     end
 end

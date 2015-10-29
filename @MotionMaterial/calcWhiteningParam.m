@@ -1,7 +1,7 @@
 function calcWhiteningParam(obj)
 
 % convert data into format DOUBLE
-data = obj.fetchData();
+data = obj.fetch();
 % bias : mean vector of all video frames
 obj.biasVector = mean(data, 2);
 % variance : variance of pixel values accross all frames
