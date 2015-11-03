@@ -10,28 +10,37 @@
 
 classdef MotionLearner < hgsetget
     properties
-        nEpoch = 10;
+        nEpoch = 3;
         unitInBatch = 1;
         iterOfTraining = 0;
         saveEvery = 5000;
-        savePath = './';
+        savePath
+        
+        % optimiation options
+        adaptOption = struct( ...
+            'nIterPerTurn', 1, ...
+            'step', 1e-4);
+        inferOption = struct( ...
+            'Method', 'bb', ...
+            'Display', 'off', ...
+            'MaxIter', 15, ...
+            'MaxFunEvals', 20);
     end
 
     properties (Access = protected)
-        timestamp = @() datastr(now, 30);
+        timestamp = @() datestr(now, 30);
     end
 
     methods
         % constructor from MotionMaterial instance
+        % @@@ check existance of savePath and create folder when necessary
         function obj = MotionLearner(savePath, varargin)
-            if exist('savePath', 'var')
-                obj.savePath = savePath;
-            end
+            obj.savePath = savePath;
             obj.paramSetup(varargin);
         end
     end
 
-    methods (Access = protected)
+    methods (Access = public)
         function paramSetup(obj, varargin)
             [keys, values] = propertyParse(varargin{:});
             for i = 1 : numel(keys)
@@ -44,29 +53,31 @@ classdef MotionLearner < hgsetget
         % a instance of class MotionMaterial. Related parameter setting are
         % finished in construction of this object.
             for i = 1 : obj.nEpoch % apply stochastic optimiation method here
-                data = dataset.next(obj.unitInBatch); % data have to be able to contain multiple sequences
-                while ~isnan(data)
-                    respond = obj.infer(data, obj.initialRespond(data));
-                    obj.adapt(data, respond);
-
+                newTurn = false;
+                while ~newTurn
+                    % fetch data sample from dataset
+                    [data, ffindex, newTurn] = dataset.next(obj.unitInBatch);
+                    % inference and adaptation
+                    respond = obj.infer(data, ffindex, obj.initialRespond(data));
+                    obj.adapt(data, ffindex, respond);
+                    % count iteration
                     obj.iterOfTraining = obj.iterOfTraining + 1;
-
+                    % show information and save current status
                     if rem(obj.iterOfTraining, obj.saveEvery) == 0
                         obj.showinfo();
                         obj.autosave();
                     end
-
-                    data = dataset.next(obj.unitInBatch);
                 end
             end
+            obj.autosave();
         end
 
         function EMLearn(obj, dataset)
-            data = dataset.all();
+            [data, ffindex] = dataset.all();
             respond = obj.initialRespond(data);
             for i = 1 : obj.nEpoch
-                respond = obj.infer(data, respond);
-                obj.adapt(data, respond);
+                respond = obj.infer(data, ffindex, respond);
+                obj.adapt(data, ffindex, respond);
 
                 obj.iterOfTraining = obj.iterOfTraining + 1;
 
@@ -75,6 +86,7 @@ classdef MotionLearner < hgsetget
                     obj.autosave();
                 end
             end
+            obj.autosave();
         end
 
         % INFER is a calculation framework to calculate most possible
@@ -83,29 +95,29 @@ classdef MotionLearner < hgsetget
         % to the function. This would support for determinant optimization
         % method for small dataset. Inference process generally utilize
         % standard optimiation method from MINFUNC library.
-        function respond = infer(obj, initRespond, data)
+        function respond = infer(obj, data, ffindex, initRespond)
             % @@@ respond and initRespond here need to be vectorized to match
             % the interface of minFunc
-            respond = minFunc(@obj.objfunc, initRespond, obj.inferOption, data);
+            respond = minFunc(@obj.objfunc, initRespond, obj.inferOption, data, ffindex);
             % !!! need test the temporal function handle created in this way
         end
 
-        function adapt(obj, respond, data)
+        function adapt(obj, data, ffindex, respond)
             % use structure adaptOption to provide unified interface for
             % different scheme of optimization process
             for i = 1 : obj.adaptOption.nIterPerTurn
                 err = data - obj.generate(respond);
-                mgrad = obj.modelGradient(obj, data, err);
+                mgrad = obj.modelGradient(respond, ffindex, err);
                 obj.modelModify(-obj.adaptOption.step * mgrad); % need composite the size of input data
                 obj.adjustAdaptStep(mgrad, err); % @@@ Interface Undetermined
             end
         end
 
-        function [objval, rgrad] = objfunc(obj, respond, data)
+        function [objval, rgrad] = objfunc(obj, respond, data, ffindex)
             err = data - obj.generate(respond);
-            objval = obj.evaluate(respond, data, err);
+            objval = obj.evaluate(respond, data, ffindex, err);
             if nargout > 1
-                rgrad = obj.respondGradient(respond, data, err);
+                rgrad = obj.respondGradient(respond, ffindex, err);
             end
         end
 
@@ -141,13 +153,13 @@ classdef MotionLearner < hgsetget
         % over given data and responds of the model. ERR should worked as
         % an optional parameter. When it is missing, EVALUATE should
         % calculate the error by itself.
-        objval = evaluate(obj, respond, data, err)
+        objval = evaluate(obj, respond, data, ffindex, err)
 
         % MODELGRADIENT and RESPONDGRADIENT calculate derivatives of model
         % and reponds in mathematical form and return the gradients
         % accordingly.
-        mgrad = modelGradient(obj, respond, err)
-        rgrad = respondGradient(obj, respond, err)
+        mgrad = modelGradient(obj, respond, ffindex, err)
+        rgrad = respondGradient(obj, respond, ffindex, err)
 
         % MODELMODIFY modify the model with given modification, while it
         % should adjust the model according to it characteristic.

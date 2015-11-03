@@ -1,3 +1,5 @@
+% added support to configure file under data path
+
 classdef MotionInRAW < MotionMaterial
     properties
         videoSize
@@ -5,23 +7,45 @@ classdef MotionInRAW < MotionMaterial
         readFormat = {'float'};
     end
     
+    properties (Access = private)
+        configFileName = 'umpooconfig.mat';
+    end
+    
     % constructor
     methods
-        function obj = MotionInRAW(dataPath, videoSize, activeArea, varargin)
-            obj = obj@MotionMaterial(dataPath, videoSize, activeArea, varargin{:});
+        function obj = MotionInRAW(dataPath, varargin)
+            obj = obj@MotionMaterial(dataPath, varargin{:});
         end
     end
     
     % modification of superclass method
     methods (Access = protected)
         function paramSetup(obj, varargin)
-            obj.videoSize = varargin{1};
-            obj.activeArea = varargin{2};
-            paramSetup@MotionMaterial(obj, varargin{3 : end});
-            obj.pixelPerBlock = obj.calcPixelPerBlock;
+            paramSetup@MotionMaterial(obj, varargin{:});
+            % load VIDEOSIZE from configuration file if necessary
+            if isempty(obj.videoSize)
+                assert(exist(fullfile(obj.path, obj.configFileName), 'file') == 2, ...
+                    'program cannot load data when video size is unknown');
+                conf = load(fullfile(obj.path, obj.configFileName));
+                assert(isfield(conf, 'videoSize'), ...
+                    'configuration file(%s) is incomplete', fullfile(obj.path, obj.configFileName));
+                obj.videoSize = conf.videoSize;
+            end
+            % initialize ACTIVEAREA when necessary
+            if isempty(obj.activeArea)
+                % load from configuration file
+                if exist('conf', 'var') && isfield(conf, 'activeArea')
+                    obj.activeArea = conf.activeArea;
+                else
+                    obj.activeArea = obj.videoSize;
+                end
+            end
+            % ensure READFORMAT encaptured in cell
             if ischar(obj.readFormat)
                 obj.readFormat = {obj.readFormat};
             end
+            % calculate pixel quantities in each data block
+            obj.pixelPerBlock = obj.calcPixelPerBlock;
         end
         
         function consistancyCheck(obj)

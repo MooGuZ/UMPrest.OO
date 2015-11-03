@@ -12,12 +12,13 @@ classdef MotionMaterial < hgsetget
         
         % FILE SYSTEM
         path                        % data location in file system
-        
-        
 
         % MODULE : WHITENING
         enableWhitening = false;    % data preprocessing : whitening
-        whiteningCutoffRatio = 1 / 80;  % cutoff ratio of eigen value in whitening process
+        whiteningSampleRatio = 0.3; % sample ratio to dataset
+        whiteningNoiseRatio = 100;  % estimated noise ratio of signal
+        whiteningCutoffRatio = 5/4; % cutoff ratio of eigen value in whitening process
+        whiteningRolloffFactor = 8; % factor of rolloff range in whitening spectrum
         
         % MODULE : CROP
         enableCrop    = false;      % data formation : frame crop
@@ -47,21 +48,31 @@ classdef MotionMaterial < hgsetget
         
         % MODULE : WHITENING
         whiteningIsActivated = false;
+        whiteningZeroPhaseMatrix
         whiteningEncodeMatrix
         whiteningDecodeMatrix
-        whiteningNoiseFacotr
+        whiteningNoiseFactor
         biasVector
     end
 
     % properties need realtime calculation
     properties (Dependent, Hidden, SetAccess = private)
-        pixelPerFrame               % quantity of pixels in a frame of data matrix
+        dimension                   % quantity of pixels in data matrix
+        pixelPerFrame               % quantity of pixels in a frame of data frame/patch
         nInitDataBlock              % quantity of files load in initialization of data block
         nLoadedDataBlock            % quantity of files have already loaded in data block
     end 
 
     % get and set methods of dependent properties
     methods
+        function value = get.dimension(obj)
+            if obj.enableWhitening
+                value = size(obj.whiteningEncodeMatrix, 1);
+            else
+                value = obj.pixelPerFrame();
+            end
+        end
+        
         function value = get.pixelPerFrame(obj)
             if obj.enableCrop
                 value = obj.patchSize(1) * obj.patchSize(2);
@@ -140,15 +151,18 @@ classdef MotionMaterial < hgsetget
             end
         end
 
-        function refreshDataBlock(obj)
+        function newTurn = refreshDataBlock(obj)
+            newTurn = true; % flag of new turn of all data
+            
             if obj.enableCrop && rand() > (1.0 / obj.patchPerBlock)
-                % do nothing in this situation
+                newTurn = false;
             elseif isinf(obj.iterDataFile) % all data have been loaded in memory
                 obj.dataBlock = obj.dataBlock(randperm(obj.nLoadedDataBlock));
             elseif obj.iterDataFile < numel(obj.dataFileIDList) % load data from file system
                 n = min(numel(obj.dataFileIDList) - obj.iterDataFile, obj.nInitDataBlock);
                 obj.loadData(obj.dataFileIDList(obj.iterDataFile + (1 : n)));
                 obj.iterDataFile = obj.iterDataFile + n;
+                newTurn = false;
             else
                 obj.initDataBlock();
             end
@@ -169,7 +183,7 @@ classdef MotionMaterial < hgsetget
                     obj.pixelPerBlock = obj.pixelPerBlock ...
                         + numel(obj.readData(obj.dataFileIDList{i}));
                 end
-                obj.pixelPerBlock = obj.pixelPerBlock / obj.nSampleInSizeEstimation;
+                obj.pixelPerBlock = obj.pixelPerBlock / nSample;
             end
 
             pixelPerBlock = obj.pixelPerBlock;
@@ -227,13 +241,15 @@ classdef MotionMaterial < hgsetget
     end
 
     methods
-        function [dataMatrix, firstFrameIndex] = next(obj, n)
+        function [dataMatrix, firstFrameIndex, newTurn] = next(obj, n)
             if ~exist('n', 'var'), n = 1; end
             % N has to be a positive integer
             assert(n > 0 && n == floor(n));
+            % initialize default value
+            newTurn = false;
             % refresh data buffer if necessary
             if obj.iterDataBlock >= obj.nLoadedDataBlock
-                obj.refreshDataBlock();
+                newTurn = obj.refreshDataBlock();
             end
             % check whether or not need to refresh buffer
             if n > obj.nLoadedDataBlock - obj.iterDataBlock
@@ -245,7 +261,7 @@ classdef MotionMaterial < hgsetget
             obj.iterDataBlock = obj.iterDataBlock + n;
             % get rest data if necessary
             if exist('nRest', 'var')
-                obj.refreshDataBlock();
+                newTurn = obj.refreshDataBlock();
                 [dataMatrixRest, firstFrameIndexRest] = obj.next(nRest);
                 dataMatrix = [dataMatrix, dataMatrixRest];
                 firstFrameIndex = [firstFrameIndex, firstFrameIndexRest];
