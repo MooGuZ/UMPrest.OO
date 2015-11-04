@@ -1,4 +1,4 @@
-% CLASS : MotionLearner
+% CLASS : GenerativeModel
 %
 % Basic class of UMPress.OO package that implement fundamental workflow control
 % of motion representation learning process. Concrete models should be defined
@@ -8,14 +8,14 @@
 %
 % Sept 30, 2015 - initial commit
 
-classdef MotionLearner < hgsetget
+classdef GenerativeModel< hgsetget
     properties
         nEpoch = 3;
         unitInBatch = 1;
         iterOfTraining = 0;
         saveEvery = 5000;
         savePath
-        
+
         % optimiation options
         adaptOption = struct( ...
             'nIterPerTurn', 1, ...
@@ -34,7 +34,7 @@ classdef MotionLearner < hgsetget
     methods
         % constructor from MotionMaterial instance
         % @@@ check existance of savePath and create folder when necessary
-        function obj = MotionLearner(savePath, varargin)
+        function obj = GenerativeModel(savePath, varargin)
             obj.savePath = savePath;
             obj.paramSetup(varargin);
         end
@@ -53,10 +53,9 @@ classdef MotionLearner < hgsetget
         % a instance of class MotionMaterial. Related parameter setting are
         % finished in construction of this object.
             for i = 1 : obj.nEpoch % apply stochastic optimiation method here
-                newTurn = false;
-                while ~newTurn
+                while ~dataset.istraversed()
                     % fetch data sample from dataset
-                    [data, ffindex, newTurn] = dataset.next(obj.unitInBatch);
+                    [data, ffindex] = dataset.next(obj.unitInBatch);
                     % inference and adaptation
                     respond = obj.infer(data, ffindex, obj.initialRespond(data));
                     obj.adapt(data, ffindex, respond);

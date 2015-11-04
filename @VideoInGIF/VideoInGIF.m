@@ -1,7 +1,7 @@
-classdef MotionInGIF < MotionMaterial
+classdef VideoInGIF < VideoDataset
     methods
-        function obj = MotionInGIF(dataPath, varargin)
-            obj = obj@MotionMaterial(dataPath, varargin{:});
+        function obj = VideoInGIF(dataPath, varargin)
+            obj = obj@VideoDataset(dataPath, varargin{:});
         end
     end
 

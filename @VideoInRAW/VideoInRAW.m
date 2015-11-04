@@ -1,23 +1,21 @@
-% added support to configure file under data path
-
-classdef MotionInRAW < MotionMaterial
+classdef VideoInRAW < VideoDataset
     properties
         videoSize
         activeArea
         readFormat = {'float'};
     end
-    
+
     properties (Access = private)
         configFileName = 'umpooconfig.mat';
     end
-    
+
     methods
-        function obj = MotionInRAW(dataPath, varargin)
-            obj = obj@MotionMaterial(dataPath, varargin{:});
+        function obj = VideoInRAW(dataPath, varargin)
+            obj = obj@VideoDataset(dataPath, varargin{:});
         end
-        
+
         function paramSetup(obj, varargin)
-            paramSetup@MotionMaterial(obj, varargin{:});
+            paramSetup@VideoDataset(obj, varargin{:});
             % load VIDEOSIZE from configuration file if necessary
             if isempty(obj.videoSize)
                 assert(exist(fullfile(obj.path, obj.configFileName), 'file') == 2, ...
@@ -43,15 +41,15 @@ classdef MotionInRAW < MotionMaterial
             % calculate pixel quantities in each data block
             obj.pixelPerBlock = obj.calcPixelPerBlock;
         end
-        
+
         function consistancyCheck(obj)
-            consistancyCheck@MotionMaterial(obj);
+            consistancyCheck@VideoDataset(obj);
             assert(isnumeric(obj.videoSize) && numel(obj.videoSize) == 3, ...
                 'VIDEOSIZE need to be a 3 element vector to specify size of video in pixels');
             assert(iscell(obj.readFormat), ...
                 'READFORMAT should be a string or cell array of strings as defined in FREAD');
         end
-        
+
         function value = calcPixelPerBlock(obj)
             dims = size(obj.videoSize);
             cropdims = diff(reshape(obj.activeArea, 2, numel(obj.activeArea) / 2));
@@ -59,14 +57,14 @@ classdef MotionInRAW < MotionMaterial
             value = prod(dims);
         end
     end
-    
+
     % implementation of interface
-    methods        
+    methods
         % @@@ deal with single file situation
         function dataFileIDSet = getDataList(obj)
             dataFileIDSet = listFileWithExt(obj.path, '');
         end
-        
+
         function dataBlock = readData(obj, dataFileID)
             fid = fopen(fullfile(obj.path, dataFileID), 'r', 'b');
             dataBlock = reshape(fread(fid, prod(obj.videoSize), obj.readFormat{:}), obj.videoSize);
