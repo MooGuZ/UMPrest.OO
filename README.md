@@ -19,3 +19,12 @@ If crop is inactivated, this program would require all input data frame in the s
 
 #### Data format
 In this program, video data are stored as **uint8**, while convert to **double** (**gsingle** when GPU acceleration is enabled) before calculation.
+
+### Patch Module in MotionMaterial
+**patchSize** set to **NaN** as default, which means disable patch module. In this case, output frame should be in the same dimension of input data.
+
+#### Auto-Load System with cache
+Input dimension (**dimin**) is fixed when patch module is off to ensure output dimension (**dimout**) be consist. Function **loadData** would check the dimension of loaded data to enfore this requirement.
+
+#### MotionMaterial.istraversed
+This function would check whether or not the input data is traversed. However, this property would update itself for next round after you check the value of it. So, if you call this function twice after you traversed a dataset, the first would return TRUE, while the other return FALSE.

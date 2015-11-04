@@ -11,15 +11,11 @@ classdef MotionInRAW < MotionMaterial
         configFileName = 'umpooconfig.mat';
     end
     
-    % constructor
     methods
         function obj = MotionInRAW(dataPath, varargin)
             obj = obj@MotionMaterial(dataPath, varargin{:});
         end
-    end
-    
-    % modification of superclass method
-    methods (Access = protected)
+        
         function paramSetup(obj, varargin)
             paramSetup@MotionMaterial(obj, varargin{:});
             % load VIDEOSIZE from configuration file if necessary
