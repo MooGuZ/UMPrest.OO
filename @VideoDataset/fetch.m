@@ -1,5 +1,5 @@
 function [dataMatrix, firstFrameIndex] = fetch(obj, indexList)
-    assert(obj.nDataBlock > 0);
+    if obj.nDataBlock == 0, obj.initDataBlock(); end
     % FETCH would load a random data units by default
     if ~exist('indexList', 'var'), indexList = randi(obj.nDataBlock); end
     % check legality of index

@@ -1,4 +1,4 @@
-function [dataMatrix, firstFrameIndex] = next(obj, n)
+function varargout = next(obj, n)
     if ~exist('n', 'var'), n = 1; end
     % N has to be a positive integer
     assert(n > 0 && n == floor(n));
@@ -21,5 +21,14 @@ function [dataMatrix, firstFrameIndex] = next(obj, n)
         dataMatrix      = [dataMatrix, dataMatrixRest];
         firstFrameIndex = [firstFrameIndex, firstFrameIndexRest];
         clear dataMatrixRest firstFrameIndexRest
+    end
+    % return values according to number of output arguments
+    if nargout == 1
+        varargout{1} = struct('data', dataMatrix, 'ffindex', firstFrameIndex); % sample
+    elseif nargout == 2
+        varargout{1} = dataMatrix;
+        varargout{2} = firstFrameIndex;
+    else
+        error('[VIDEODATASET.NEXT] wrong number of output arguments.');
     end
 end

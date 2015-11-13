@@ -1,21 +1,50 @@
-classdef VideoInRAW < VideoDataset
+classdef VideoInRAW < VideoDataset & LibUtility
+    % ================= VIDEODATASET IMPLEMENTATION =================
+    methods
+        % @@@ deal with single file situation
+        function dataFileIDSet = getDataList(obj)
+            dataFileIDSet = listFileWithExt(obj.path, '');
+        end
+
+        function dataBlock = readData(obj, dataFileID)
+            fid = fopen(fullfile(obj.path, dataFileID), 'r', 'b');
+            dataBlock = reshape(fread(fid, prod(obj.videoSize), obj.readFormat{:}), obj.videoSize);
+            dataBlock = crop(dataBlock, obj.activeArea) + 0.5;
+        end
+    end
+    
+    % ================= SUPPORT FUNCTIONS =================
+    methods (Access = private)
+        function value = calcPixelPerBlock(obj)
+            dims = size(obj.videoSize);
+            cropdims = diff(reshape(obj.activeArea, 2, numel(obj.activeArea) / 2));
+            dims(1 : numel(cropdims)) = cropdims(:);
+            value = prod(dims);
+        end
+    end
+    
+    % ================= DATA STRUCTURE =================
     properties
         videoSize
         activeArea
         readFormat = {'float'};
     end
-
     properties (Access = private)
         configFileName = 'umpooconfig.mat';
     end
 
+    % ================= UTILITY =================
     methods
         function obj = VideoInRAW(dataPath, varargin)
-            obj = obj@VideoDataset(dataPath, varargin{:});
+            obj.path = dataPath;
+            obj.paramSetup(varargin{:});
+            obj.consistencyCheck();
+            obj.initDataBlock();
         end
-
+    end
+    methods (Access = protected)
         function paramSetup(obj, varargin)
-            paramSetup@VideoDataset(obj, varargin{:});
+            obj.setupByArg(varargin{:});
             % load VIDEOSIZE from configuration file if necessary
             if isempty(obj.videoSize)
                 assert(exist(fullfile(obj.path, obj.configFileName), 'file') == 2, ...
@@ -42,33 +71,12 @@ classdef VideoInRAW < VideoDataset
             obj.pixelPerBlock = obj.calcPixelPerBlock;
         end
 
-        function consistancyCheck(obj)
-            consistancyCheck@VideoDataset(obj);
+        function consistencyCheck(obj)
+            consistencyCheck@VideoDataset(obj);
             assert(isnumeric(obj.videoSize) && numel(obj.videoSize) == 3, ...
                 'VIDEOSIZE need to be a 3 element vector to specify size of video in pixels');
             assert(iscell(obj.readFormat), ...
                 'READFORMAT should be a string or cell array of strings as defined in FREAD');
-        end
-
-        function value = calcPixelPerBlock(obj)
-            dims = size(obj.videoSize);
-            cropdims = diff(reshape(obj.activeArea, 2, numel(obj.activeArea) / 2));
-            dims(1 : numel(cropdims)) = cropdims(:);
-            value = prod(dims);
-        end
-    end
-
-    % implementation of interface
-    methods
-        % @@@ deal with single file situation
-        function dataFileIDSet = getDataList(obj)
-            dataFileIDSet = listFileWithExt(obj.path, '');
-        end
-
-        function dataBlock = readData(obj, dataFileID)
-            fid = fopen(fullfile(obj.path, dataFileID), 'r', 'b');
-            dataBlock = reshape(fread(fid, prod(obj.videoSize), obj.readFormat{:}), obj.videoSize);
-            dataBlock = crop(dataBlock, obj.activeArea) + 0.5;
         end
     end
 end
