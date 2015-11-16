@@ -1,5 +1,12 @@
 % Help information
 classdef ComplexICA < GenerativeModel
+    % ================= OVERRIDE FUNCTIONS =================
+    methods
+        function n = dimout(obj)
+            assert(obj.ready());
+            n = 2 * obj.nbase;
+        end
+    end
     % ================= GENERATIVEMODEL IMPLEMENTATION =================
     methods
         function initBase(obj, dataset)
@@ -18,7 +25,7 @@ classdef ComplexICA < GenerativeModel
         end
 
         function respond = initRespond(obj, sample)
-            % copy assistant information 
+            % copy assistant information
             respond = sample;
             % randomly initialization
             Z = .2 * complex(randn(obj.nbase, size(sample.data, 2)), ...
@@ -82,7 +89,7 @@ classdef ComplexICA < GenerativeModel
                 obj.adaptStep = obj.adaptStep * obj.stepDownFactor;
             end
         end
-        
+
         function respdata = respdataVectorize(~, respdata)
             assert(all(size(respdata.amplitude) == size(respdata.phase)), ...
                 'COMODEL : size of responds does not match (amplitude and phase)');
@@ -113,7 +120,7 @@ classdef ComplexICA < GenerativeModel
         stepUpFactor
         stepDownFactor
     end
-    
+
     % ================= UTILITY =================
     methods
         function consistencyCheck(obj)

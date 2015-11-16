@@ -49,13 +49,23 @@ classdef GenerativeModel < DPModule & LearningModule & LibExperiment & LibUtilit
             obj.adapt(sample, respond);
         end
 
+        function learn(obj, sample)
+            % pre-processing
+            sample = obj.preproc.proc(sample);
+            % generate initial responds
+            respond = obj.initRespond(sample);
+            % update model by learning from sample
+            for i = 1 : obj.updatePerSample
+                respond = obj.infer(sample, respond);
+                obj.adapt(sample, respond);
+            end
+        end
+
         function train(obj, dataset)
             % ensure necessary paramter have been setup
             if ~obj.ready(), obj.setup(dataset); end
             % train model by given dataset
             switch lower(obj.trainingMethod)
-                case {'em'}
-                    obj.EMAlgo(dataset);
                 case {'minibatch', 'stochastic'}
                     obj.miniBatch(dataset);
                 otherwise
@@ -121,41 +131,42 @@ classdef GenerativeModel < DPModule & LearningModule & LibExperiment & LibUtilit
     methods (Access = protected)
         % learn through mini-batch to adapt model sample by sample
         function miniBatch(obj, dataset)
-            for i = 1 : obj.nLearningEpoch
-                while ~dataset.istraversed()
+            for i = 1 : obj.traversePerTrain
+                while not(dataset.istraversed())
                     % fetch data sample from dataset
-                    sample = obj.preproc.proc(dataset.next(obj.samplePerBatch));
-                    % inference and adaptation
-                    respond = obj.infer(sample);
-                    obj.adapt(sample, respond);
+                    sample = dataset.next(obj.samplePerBatch);
+                    % involve model by learn sample
+                    obj.learn(sample);
                     % count iteration
-                    obj.count = obj.count + 1;
+                    obj.count = obj.count + obj.samplePerBatch;
                     % show information and save current status
-                    obj.autosave();
+                    if obj.autosave(obj.count), obj.info(); end
                 end
-                obj.info();
             end
-            obj.autosave();
+            obj.autosave(true);
+            obj.info();
         end
-        % learn model by Estimate-Modify mechanism
-        function EMAlgo(obj, dataset)
-            sample = obj.preproc.proc(dataset.all());
-            respond = obj.initialRespond(sample);
-            for i = 1 : obj.nLearningEpoch
-                respond = obj.infer(sample, respond);
-                obj.adapt(sample, respond);
-                obj.count = obj.count + dataset.volumn();
-                obj.autosave();
-                obj.info();
-            end
-        end
+        % % learn model by Estimate-Modify mechanism
+        % function EMAlgo(obj, dataset)
+        %     sample = obj.preproc.proc(dataset.traverse());
+        %     respond = obj.initialRespond(sample);
+        %     for i = 1 : obj.nLearningEpoch
+        %         respond = obj.infer(sample, respond);
+        %         obj.adapt(sample, respond);
+        %         obj.count = obj.count + dataset.volumn();
+        %         obj.autosave();
+        %         obj.info();
+        %     end
+        % end
     end
 
     % ================= DATA STRUCTURE =================
     properties
         count = 0;
+        % ------- LEARN -------
+        updatePerSample = 1;
         % ------- LEARNING ALGORITHM -------
-        nLearningEpoch = 10;
+        traversePerTrain = 3;
         samplePerBatch = 1;
         % ------- LEARNING MODULE IMPLEMENTATION -------
         trainingMethod = 'minibatch';

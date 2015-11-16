@@ -5,8 +5,8 @@ classdef LearningStack < Stack & DPModule & LearningModule
         n = push(obj, unit)
         unit = pop(obj)
 
-        data = proc(obj, data)
-        data = invp(obj, data)
+        sample = proc(obj, sample)
+        sample = invp(obj, sample)
 
         learn(obj, dataset)
         info(obj)

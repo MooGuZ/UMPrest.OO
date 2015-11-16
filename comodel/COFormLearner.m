@@ -37,11 +37,11 @@ classdef COFormLearner < RealICA
     
     % ================= PROBABILITY DESCRIPTION =================
     methods (Access = private)
-        function prob = noise(obj, error)
-            prob = obj.nlGauss(error, obj.sigmaNoise) / size(error, 2);
+        function prob = noise(obj, data)
+            prob = obj.nlGauss(data, obj.sigmaNoise) / size(data, 2);
         end
-        function grad = dnoise(obj, error)
-            grad = obj.dNLGauss(obj, error) / size(error, 2);
+        function grad = dnoise(obj, data)
+            grad = obj.dNLGauss(obj, data) / size(data, 2);
         end
         
         function prob = sparse(obj, data)

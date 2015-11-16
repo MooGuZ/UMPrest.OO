@@ -20,13 +20,13 @@ classdef DPStack < Stack & DPModule & LibUtility
     methods
         function sample = proc(obj, sample)
             for i = 1 : numel(obj.stack)
-                sample.data = obj.stack{i}.proc(sample.data);
+                sample = obj.stack{i}.proc(sample);
             end
         end
 
         function sample = invp(obj, sample)
             for i = 1 : numel(obj.stack)
-                sample.data = obj.stack{i}.invp(sample.data);
+                sample = obj.stack{i}.invp(sample);
             end
         end
 
@@ -34,17 +34,17 @@ classdef DPStack < Stack & DPModule & LibUtility
             assert(isa(dataset, 'Dataset'));
             % each module in the stack only setup once
             if isempty(obj.stack) || obj.ready()
-                return;
+                return
             end
             % setup level by level
-            data = dataset.next(dataset.volumn() * obj.setupSampleRatio).data;
+            sample = dataset.next(dataset.volumn() * obj.setupSampleRatio);
             for i = 1 : numel(obj.stack)
                 if ~obj.stack{i}.ready()
-                    obj.stack{i}.setup(data);
+                    obj.stack{i}.setup(sample);
                 end
                 % generate data for next level
                 if i ~= numel(obj.stack)
-                    data = obj.stack{i}.proc(data);
+                    sample = obj.stack{i}.proc(sample);
                 end
             end
         end
@@ -76,9 +76,9 @@ classdef DPStack < Stack & DPModule & LibUtility
         end
     end
     % ================= COMPONENT FUNCTION =================
-    methods
+    methods (Access = protected)
         function tof = isqualified(~, unit)
-            tof = isa(unit, 'DPModule') && ~(isa(unit, 'LearningModule') || isa(unit, 'Stack')) ;
+            tof = isa(unit, 'DPModule') ;
         end
     end
     % ================= DATA STRUCTURE =================
@@ -86,7 +86,7 @@ classdef DPStack < Stack & DPModule & LibUtility
         setupSampleRatio = 0.3;
     end
     properties (Hidden, SetAccess = private)
-        stack = cell(0)
+        stack = cell(0);
     end
     % ================= LANGUAGE UTILITY =================
     methods

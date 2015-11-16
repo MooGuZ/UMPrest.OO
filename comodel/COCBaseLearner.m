@@ -72,15 +72,15 @@ classdef COCBaseLearner < ComplexICA
 
     % ================= PROBABILITY DESCRIPTION =================
     methods (Access = private)
-        function prob = noise(obj, error)
+        function prob = noise(obj, data)
             % this portion is described by Gaussian Distribution, however,
             % with sigma = 1. Due to the performance concern, use the
             % simplest calculation method here. Noted the error is weighted
             % with noise factor calculated from whitening module.
-            prob = obj.nlGauss(bsxfun(@times, sqrt(obj.noiseFactor), error), 1) / size(error, 2);
+            prob = obj.nlGauss(bsxfun(@times, sqrt(obj.noiseFactor), data), 1) / size(data, 2);
         end
-        function grad = dnoise(obj, error)
-            grad = bsxfun(@times, obj.noiseFactor, error) / size(error, 2);
+        function grad = dnoise(obj, data)
+            grad = bsxfun(@times, obj.noiseFactor, data) / size(data, 2);
         end
 
         function prob = sparse(obj, data)
@@ -141,7 +141,7 @@ classdef COCBaseLearner < ComplexICA
             obj.nbase = nbase;
             obj.setupByArg(varargin{:});
             obj.preproc.setupByArg(varargin{:});
-            obj.preproc.push(Recenter());
+            obj.preproc.push(Recenter(varargin{:}));
             obj.preproc.push(Whitening(varargin{:}));
             obj.consistencyCheck();
         end

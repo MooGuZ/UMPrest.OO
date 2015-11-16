@@ -1,19 +1,19 @@
 classdef Whitening < DPModule & LibUtility
     % ================= DPMODULE IMPLEMENTATION =================
     methods
-        function dataOut = proc(obj, dataIn)
-            dataOut = obj.encodeMatrix * dataIn;
+        function sample = proc(obj, sample)
+            sample.data = obj.encodeMatrix * sample.data;
         end
-        
-        function dataIn = invp(obj, dataOut)
-            dataIn = obj.decodeMatrix * dataOut;
+
+        function sample = invp(obj, sample)
+            sample.data = obj.decodeMatrix * sample.data;
         end
-        
-        function setup(obj, data)
+
+        function setup(obj, sample)
             % variance : variance of noise values accross all frames
-            noiseVar = var(data(:)) * obj.noiseRatio;
+            noiseVar = var(sample.data(:)) * obj.noiseRatio;
             % covariance matrix of all frames
-            covMatrix = data * data'; clear data;
+            covMatrix = sample.data * sample.data';
             % principle components analysis
             [eigVec, eigVal] = eig(covMatrix);
             [eigVal, index]  = sort(diag(eigVal), 'descend');
@@ -34,17 +34,17 @@ classdef Whitening < DPModule & LibUtility
                 0.5 * (1 + cos( linspace(0, pi, iCutoff - iRolloff)));
             obj.noiseFactor = obj.noiseFactor / obj.noiseRatio;
         end
-        
+
         function tof = ready(obj)
             tof = ~(isempty(obj.encodeMatrix) || isempty(obj.decodeMatrix) ...
                 || isempty(obj.noiseFactor));
         end
-        
+
         function n = dimin(obj)
             assert(obj.ready());
             n = size(obj.decodeMatrix, 1);
         end
-        
+
         function n = dimout(obj)
             assert(obj.ready());
             n = size(obj.encodeMatrix, 1);
