@@ -132,7 +132,7 @@ classdef VideoDataset < Dataset
         end
         function value = get.patchPerBlock(obj)
             assert(obj.isOutputInPatch);
-            value = round(obj.dimin / prod(obj.patchSize(1:2)));
+            value = round(obj.dimin / sqrt(prod(obj.patchSize(1:2))));
         end
     end
 
