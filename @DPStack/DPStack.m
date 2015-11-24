@@ -1,51 +1,51 @@
-classdef DPStack < Stack & DPModule & LibUtility
+% DPStack < Stack & DPModule & GPUModule
+%   DPStack provides a way to concatenate data processing modules.
+%   It very suit for modulized extendable preprocess (or postprocess)
+%   This class implement all interface of it super-class, while add
+%   nothing, including interfaces and properties.
+%
+% see also, Stack, DPModule, GPUModule
+%
+% MooGu Z. <hzhu@case.edu>
+% Nov 20, 2015
+%
+% [Change Log]
+% Nov 20, 2015 - initial commit
+classdef DPStack < Stack & DPModule & GPUModule
     % ================= STACK IMPLEMENTATION =================
-    methods
-        function push(obj, DPUnit)
-            assert(obj.isqualified(DPUnit), ...
-                'unit push into stack should be a DPModule, however, not LearningModule');
-            obj.stack{end + 1} = DPUnit;
-        end
-
-        function DPUnit = pop(obj)
-            DPUnit = obj.stack{end};
-            obj.stack = obj.stack(1 : end - 1);
-        end
-
-        function n = size(obj)
-            n = numel(obj.stack);
+    methods (Access = protected)
+        function tof = isqualified(~, unit)
+            tof = isa(unit, 'DPModule') ;
         end
     end
     % ================= DPMODULE IMPLEMENTATION =================
     methods
         function sample = proc(obj, sample)
+            sample.data = obj.toGPU(sample.data);
             for i = 1 : numel(obj.stack)
                 sample = obj.stack{i}.proc(sample);
             end
         end
 
         function sample = invp(obj, sample)
-            for i = 1 : numel(obj.stack)
+            sample.data = obj.toGPU(sample.data);
+            for i = numel(obj.stack) : -1 : 1
                 sample = obj.stack{i}.invp(sample);
             end
         end
 
-        function setup(obj, dataset)
-            assert(isa(dataset, 'Dataset'));
+        function setup(obj, sample)
+            sample.data = obj.toGPU(sample.data);
             % each module in the stack only setup once
             if isempty(obj.stack) || obj.ready()
                 return
             end
             % setup level by level
-            sample = dataset.next(dataset.volumn() * obj.setupSampleRatio);
             for i = 1 : numel(obj.stack)
                 if ~obj.stack{i}.ready()
                     obj.stack{i}.setup(sample);
                 end
-                % generate data for next level
-                if i ~= numel(obj.stack)
-                    sample = obj.stack{i}.proc(sample);
-                end
+                sample = obj.stack{i}.proc(sample);
             end
         end
 
@@ -63,7 +63,13 @@ classdef DPStack < Stack & DPModule & LibUtility
             if isempty(obj.stack)
                 n = nan;
             else
-                n = obj.stack{1}.dimin();
+                for i = 1 : numel(obj.stack)
+                    if isnan(obj.stack{i}.dimin()) && isnan(obj.stack{i}.dimout())
+                        continue
+                    end
+                    break
+                end
+                n = obj.stack{i}.dimin();
             end
         end
 
@@ -71,27 +77,42 @@ classdef DPStack < Stack & DPModule & LibUtility
             if isempty(obj.stack)
                 n = nan;
             else
-                n = obj.stack{end}.dimout();
+                for i = numel(obj.stack) : -1 : 1
+                    if isnan(obj.stack{i}.dimout())
+                        assert(isnan(obj.stack{i}.dimin()));
+                        continue
+                    end
+                    break
+                end
+                n = obj.stack{i}.dimout();
             end
         end
     end
-    % ================= COMPONENT FUNCTION =================
-    methods (Access = protected)
-        function tof = isqualified(~, unit)
-            tof = isa(unit, 'DPModule') ;
-        end
-    end
-    % ================= DATA STRUCTURE =================
-    properties
-        setupSampleRatio = 0.3;
-    end
-    properties (Hidden, SetAccess = private)
-        stack = cell(0);
-    end
-    % ================= LANGUAGE UTILITY =================
+    % ================= GPUMODULE IMPLEMENTATION =================
     methods
-        function obj = DPStack(varargin)
-            obj.setupByArg(varargin{:});
+        function activateGPU(obj)
+            for i = 1 : numel(obj.stack)
+                if isa(obj.stack{i}, 'GPUModule')
+                    obj.stack{i}.activateGPU();
+                end
+            end
+        end
+        function deactivateGPU(obj)
+            for i = 1 : numel(obj.stack)
+                if isa(obj.stack{i}, 'GPUModule')
+                    obj.stack{i}.deactivateGPU();
+                end
+            end
+        end
+        function copy = clone(obj)
+            copy = feval(class(obj));
+            for i = 1 : numel(obj.stack)
+                if isa(obj.stack{i}, 'GPUModule')
+                    copy.push(obj.stack{i}.clone());
+                else
+                    copy.push(obj.stack{i});
+                end
+            end
         end
     end
 end

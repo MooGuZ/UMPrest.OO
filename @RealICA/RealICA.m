@@ -1,21 +1,18 @@
 classdef RealICA < GenerativeModel
     % ================= GENERATIVEMODEL IMPLEMENTATION =================
     methods
-        function initBase(obj, dataset)
-            baseSize = [obj.preproc.dimout(), obj.nbase];
-            if isnan(baseSize(1))
-                baseSize(1) = dataset.dimout();
-            end
+        function initBase(obj, sample)
+            baseSize = [size(sample.data, 1), obj.nbase];
             % initialization
             obj.base = randn(baseSize);
             % normalize in column direction
-            obj.base = bsxfun(@rdivide, obj.base, sqrt(sum(obj.base.^2, 1)));
+            obj.base = obj.toGPU(bsxfun(@rdivide, obj.base, sqrt(sum(obj.base.^2, 1))));
         end
 
         function respond = initRespond(obj, sample)
             respond = sample;
             % randomly initialization
-            respond.data = randn(obj.nbase, size(sample.data, 2));
+            respond.data = obj.toGPU(randn(obj.nbase, size(sample.data, 2)));
         end
 
         function respond = infer(obj, sample, start)
@@ -23,7 +20,7 @@ classdef RealICA < GenerativeModel
             % copy assistant information
             respond = sample;
             % optimization by minFunc library
-            respond.data = respdataDevectorize(minFunc(@obj.objFunInfer, ...
+            respond.data = obj.respdataDevectorize(minFunc(@obj.objFunInfer, ...
                 obj.respdataVectorize(start.data), obj.inferOption, sample));
         end
 
@@ -47,6 +44,28 @@ classdef RealICA < GenerativeModel
         % objval = evaluate(obj, sample, respond)
         % mgrad = modelGradient(obj, sample, respond)
         % rgrad = respondGradient(obj, sample, respond)
+    end
+    % ================= GPUMODEL IMPLEMENTATION =================
+    methods
+        function obj = activateGPU(obj)
+            obj.activateGPU@GenerativeModel();
+            obj.base = obj.toGPU(obj.base);
+        end
+        function obj = deactivateGPU(obj)
+            obj.deactivateGPU@GenerativeModel();
+            obj.base = obj.toCPU(obj.base);
+        end
+        function copy = clone(obj)
+            copy = feval(class(obj), obj.nbase);
+            plist = properties(obj);
+            for i = 1 : numel(plist)
+                if isa(obj.(plist{i}), 'GPUModule')
+                    copy.(plist{i}) = obj.(plist{i}).clone();
+                else
+                    copy.(plist{i}) = obj.(plist{i});
+                end
+            end
+        end
     end
 
     % ================= COMPONENT FUNCTION =================
@@ -95,5 +114,13 @@ classdef RealICA < GenerativeModel
         etaTarget
         stepUpFactor
         stepDownFactor
+    end
+
+    % ================= DATA STRUCTURE =================
+    methods
+        function obj = RealICA(nbase)
+            obj = obj@GenerativeModel();
+            obj.nbase = nbase;
+        end
     end
 end

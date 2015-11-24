@@ -1,11 +1,11 @@
-classdef MotionSeparation < DPModule & LibUtility
+classdef MotionSeparation < DPModule & GPUModule & UtilityLib
     % ================= DPMODULE IMPLEMENTATION =================
     methods
         function motion = proc(obj, sample)
             % calculate phase change value between frames
             data = wrapToPi(segdiff(sample.data.phase, sample.ffindex, 2));
             % calculate mask of phase difference according to amplitude
-            index = false(1, size(sample.data.amplitude, 2)); 
+            index = false(1, size(sample.data.amplitude, 2));
             index(sample.ffindex) = true;
             mask = sample.data.amplitude > obj.amplitudeThreshold;
             mask = mask(:, 1 : end-1) & mask(:, 2 : end);
@@ -15,12 +15,12 @@ classdef MotionSeparation < DPModule & LibUtility
                 'fframe', sample.data.phase(:, sample.ffindex), ...
                 'ffindex', sample.ffindex - (0 : numel(sample.ffindex)-1));
         end
-        
-        function sample = invp(~, motion)
+
+        function sample = invp(obj, motion)
             [npixel, nframe] = size(motion.data);
             nsegment = numel(motion.ffindex);
             % initialize components
-            phase = zeros(npixel, nframe + nsegment);
+            phase = obj.toGPU(zeros(npixel, nframe + nsegment));
             % first frame index
             ffindex = motion.ffindex + (0 : nsegment - 1);
             % original phase information
@@ -38,26 +38,42 @@ classdef MotionSeparation < DPModule & LibUtility
             sample.data.phase = phase;
             sample.ffindex = ffindex;
         end
-        
+
         function setup(obj, sample)
             amp = sort(sample.data.amplitude(:), 'descend');
             obj.amplitudeThreshold = amp(ceil(p.ampQualifyFraction * numel(amp)));
         end
-        
+
         function tof = ready(obj)
-            tof = not(isempty(obj.amplitudeThreshold)); 
+            tof = not(isempty(obj.amplitudeThreshold));
         end
-        
+
         function n = dimin(~),    n = nan;    end
         function n = dimout(~),   n = nan;    end
     end
-    
+    % ================= GPUMODULE IMPLEMENTATION =================
+    methods
+        function activateGPU(~), end
+        function deactivateGPU(~), end
+        function copy = clone(obj)
+            copy = feval(class(obj));
+            plist = properties(obj);
+            for i = 1 : numel(plist)
+                if isa(obj.(plist{i}), 'GPUModule')
+                    copy.(plist{i}) = obj.(plist{i}).clone();
+                else
+                    copy.(plist{i}) = obj.(plist{i});
+                end
+            end
+        end
+    end
+
     % ================= DATA STRUCTURE =================
     properties
         ampQualifyFraction = 0.25;
         amplitudeThreshold
     end
-    
+
     % ================= UTILITY =================
     methods
         function obj = MotionSeparation(varargin)

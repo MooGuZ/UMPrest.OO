@@ -1,4 +1,4 @@
-classdef COMotionLearner < RealICA
+classdef COMotionLearner < RealICA & MathLib & UtilityLib
     % ================= GENERATIVEMODEL IMPLEMENTATION =================
     methods
         function update(obj, delta)
@@ -21,7 +21,7 @@ classdef COMotionLearner < RealICA
                 sample.error = obj.calcError(sample, respond);
             end
 
-            grad = - obj.dnoise(sample.error) * sample.data';
+            grad = - obj.dnoise(sample.error) * respond.data';
         end
 
         function grad = respondGradient(obj, sample, respond)
@@ -38,10 +38,20 @@ classdef COMotionLearner < RealICA
     % ================= PROBABILITY DESCRIPTION =================
     methods (Access = private)
         function prob = noise(obj, data)
-            prob = obj.nlGauss(data, obj.sigmaNoise) / size(data, 2);
+            switch lower(obj.priorNoise)
+            case {'vonmise'}
+                prob = obj.nlVonMise(data, obj.sigmaNoise) / size(data, 2);
+            case {'gauss', 'gaussian'}
+                prob = obj.nlGauss(data, obj.sigmaNoise) / size(data, 2);
+            end
         end
         function grad = dnoise(obj, data)
-            grad = obj.dNLGauss(obj, data) / size(data, 2);
+            switch lower(obj.priorNoise)
+            case {'vonmise'}
+                grad = obj.dNLVonMise(data, obj.sigmaNoise) / size(data, 2);
+            case {'gauss', 'gaussian'}
+                grad = obj.dNLGauss(data, obj.sigmaNoise) / size(data, 2);
+            end
         end
 
         function prob = sparse(obj, data)
@@ -81,6 +91,7 @@ classdef COMotionLearner < RealICA
         stepUpFactor   = 1.02;
         stepDownFactor = 0.95;
         % ------- PROBABILITY -------
+        priorNoise  = 'vonMise';
         sigmaNoise  = 0.5;
         sigmaSparse = sqrt(0.5);
         betaSparse  = 0.5;
@@ -90,15 +101,9 @@ classdef COMotionLearner < RealICA
     % ================= LANGUAGE UTILITY =================
     methods
         function obj = COMotionLearner(nbase, varargin)
-            obj.nbase = nbase;
+            obj = obj@RealICA(nbase);
             obj.setupByArg(varargin{:});
-            obj.preproc.setupByArg(varargin{:});
-            obj.preproc.push(MotionSeparation());
-            obj.consistencyCheck();
-        end
-
-        function consistencyCheck(obj)
-            obj.consistencyCheck@RealICA();
+            obj.preproc.push(MotionSeparation(varargin{:}));
         end
     end
 end

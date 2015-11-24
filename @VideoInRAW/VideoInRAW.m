@@ -1,4 +1,4 @@
-classdef VideoInRAW < VideoDataset & LibUtility
+classdef VideoInRAW < VideoDataset & UtilityLib
     % ================= VIDEODATASET IMPLEMENTATION =================
     methods
         % @@@ deal with single file situation

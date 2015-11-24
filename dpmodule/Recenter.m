@@ -1,4 +1,4 @@
-classdef Recenter < DPModule & LibUtility
+classdef Recenter < DPModule & GPUModule & UtilityLib
     % ================= DPMODULE IMPLEMENTATION =================
     methods
         function sample = proc(obj, sample)
@@ -9,9 +9,12 @@ classdef Recenter < DPModule & LibUtility
             sample.data = bsxfun(@plus, sample.data, obj.biasVector);
         end
 
-        function setup(obj, sample)
+        function sample = setup(obj, sample)
             assert(numel(size(sample.data)) == 2);
-            obj.biasVector = mean(sample.data, 2);
+            obj.biasVector = obj.toGPU(mean(sample.data, 2));
+            if nargout >= 1
+                sample = obj.proc(sample);
+            end
         end
 
         function tof = ready(obj)
@@ -27,9 +30,30 @@ classdef Recenter < DPModule & LibUtility
             n = obj.dimin();
         end
     end
-
+    % ================= GPUMODULE IMPLEMENTATION =================
+    methods
+        function obj = activateGPU(obj)
+            gpuVariable = {'biasVector'};
+            for i = 1 : numel(gpuVariable)
+                obj.(gpuVariable{i}) = obj.toGPU(obj.(gpuVariable{i}));
+            end
+        end
+        function obj = deactivateGPU(obj)
+            gpuVariable = {'biasVector'};
+            for i = 1 : numel(gpuVariable)
+                obj.(gpuVariable{i}) = obj.toCPU(obj.(gpuVariable{i}));
+            end
+        end
+        function copy = clone(obj)
+            copy = feval(class(obj));
+            plist = properties(obj);
+            for i = 1 : numel(plist)
+                copy.(plist{i}) = obj.(plist{i});
+            end
+        end
+    end
     % ================= DATA STRUCTURE =================
-    properties (Hidden)
+    properties
         biasVector
     end
 

@@ -11,7 +11,7 @@ classdef Dataset < hgsetget
         
         % TRAVERSE returns a set of data samples and information that could
         % represent the whole dataset
-        sample = traverse(obj, n)
+        sample = traverse(obj)
         
         % ISTRAVERSED returns true/false to the question whether or not the
         % data units have been traversed since last time this status been checked

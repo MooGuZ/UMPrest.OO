@@ -1,15 +1,4 @@
-% CLASS : COModel
-%
-% Class derived from base class MotionLearner that implementing Cadieu &
-% Olshausen's model in their 2012 paper. This program just implemented the
-% first layer of this two layers model. The first layer is a generative
-% model bases on complex bases.
-%
-% MooGu Z. <hzhu@case.edn>
-%
-% Oct 20, 2015 - Initial commit
-
-classdef COCBaseLearner < ComplexICA
+classdef COCBaseLearner < ComplexICA & MathLib & UtilityLib
     % ================= GENERATIVEMODEL IMPLEMENTATION =================
     methods
         function update(obj, delta)
@@ -30,7 +19,7 @@ classdef COCBaseLearner < ComplexICA
                 sample.error = obj.calcError(sample, respond);
             end
 
-            objval.noise  = obj.noise(sample.error);
+            objval.noise  = obj.noise(sample.error, sample.noiseFactor);
             objval.sparse = obj.sparse(respond.data.amplitude);
             objval.stable = obj.stable(respond.data.amplitude);
             objval.value  = objval.noise + objval.sparse + objval.stable;
@@ -41,7 +30,7 @@ classdef COCBaseLearner < ComplexICA
                 sample.error = obj.calcError(sample, respond);
             end
             % [dnoise/derror] : gradient of err under function noise
-            errGrad = obj.dnoise(sample.error);
+            errGrad = obj.dnoise(sample.error, sample.noiseFactor);
             % [dnoise/dA = - (dnoise/derror) * Z'] :  however, due to
             % performance concern, use a method involve only real number in
             % the calculation.
@@ -54,7 +43,7 @@ classdef COCBaseLearner < ComplexICA
                 sample.error = obj.calcError(sample, respond);
             end
             % (dnoise/derror) : gradient of err under function noise
-            errGrad = obj.dnoise(sample.error);
+            errGrad = obj.dnoise(sample.error, sample.noiseFactor);
             % gradient of respond.data.amplitude composed by three parts :
             % noise, sparse, and stable.
             rgrad.amplitude = obj.dsparse(respond.data.amplitude) ...
@@ -72,15 +61,15 @@ classdef COCBaseLearner < ComplexICA
 
     % ================= PROBABILITY DESCRIPTION =================
     methods (Access = private)
-        function prob = noise(obj, data)
+        function prob = noise(obj, data, noiseFactor)
             % this portion is described by Gaussian Distribution, however,
             % with sigma = 1. Due to the performance concern, use the
             % simplest calculation method here. Noted the error is weighted
             % with noise factor calculated from whitening module.
-            prob = obj.nlGauss(bsxfun(@times, sqrt(obj.noiseFactor), data), 1) / size(data, 2);
+            prob = obj.nlGauss(bsxfun(@times, sqrt(noiseFactor), data), 1) / size(data, 2);
         end
-        function grad = dnoise(obj, data)
-            grad = bsxfun(@times, obj.noiseFactor, data) / size(data, 2);
+        function grad = dnoise(~, data, noiseFactor)
+            grad = bsxfun(@times, noiseFactor, data) / size(data, 2);
         end
 
         function prob = sparse(obj, data)
@@ -126,21 +115,12 @@ classdef COCBaseLearner < ComplexICA
         sigmaSparse = 0.4;
         sigmaStable = sqrt(2);
     end
-    properties (Dependent, Access = private)
-        noiseFactor
-    end
-    methods
-        function value = get.noiseFactor(obj)
-            value = obj.preproc.stack{2}.noiseFactor;
-        end
-    end
 
     % ================= LANGUAGE UTILITY =================
     methods
         function obj = COCBaseLearner(nbase, varargin)
-            obj.nbase = nbase;
+            obj = obj@ComplexICA(nbase);
             obj.setupByArg(varargin{:});
-            obj.preproc.setupByArg(varargin{:});
             obj.preproc.push(Recenter(varargin{:}));
             obj.preproc.push(Whitening(varargin{:}));
             obj.consistencyCheck();

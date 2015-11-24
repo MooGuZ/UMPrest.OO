@@ -1,15 +1,17 @@
-classdef Whitening < DPModule & LibUtility
+classdef Whitening < DPModule & GPUModule & UtilityLib
     % ================= DPMODULE IMPLEMENTATION =================
     methods
         function sample = proc(obj, sample)
             sample.data = obj.encodeMatrix * sample.data;
+            % attach noise factor to sample
+            sample.noiseFactor = obj.noiseFactor;
         end
 
         function sample = invp(obj, sample)
             sample.data = obj.decodeMatrix * sample.data;
         end
 
-        function setup(obj, sample)
+        function sample = setup(obj, sample)
             % variance : variance of noise values accross all frames
             noiseVar = var(sample.data(:)) * obj.noiseRatio;
             % covariance matrix of all frames
@@ -33,6 +35,12 @@ classdef Whitening < DPModule & LibUtility
             obj.noiseFactor(iRolloff + 1 : end) = ...
                 0.5 * (1 + cos( linspace(0, pi, iCutoff - iRolloff)));
             obj.noiseFactor = obj.noiseFactor / obj.noiseRatio;
+            % enable GPU acceleration
+            obj.activateGPU();
+            % generate processed sample
+            if nargout >= 1
+                sample = obj.proc(sample);
+            end
         end
 
         function tof = ready(obj)
@@ -50,13 +58,34 @@ classdef Whitening < DPModule & LibUtility
             n = size(obj.encodeMatrix, 1);
         end
     end
+    % ================= GPUMODULE IMPLEMENTATION =================
+    methods
+        function obj = activateGPU(obj)
+            gpuVariable = {'encodeMatrix', 'decodeMatrix', 'noiseFactor'};
+            for i = 1 : numel(gpuVariable)
+                obj.(gpuVariable{i}) = obj.toGPU(obj.(gpuVariable{i}));
+            end
+        end
+        function obj = deactivateGPU(obj)
+            gpuVariable = {'encodeMatrix', 'decodeMatrix', 'noiseFactor'};
+            for i = 1 : numel(gpuVariable)
+                obj.(gpuVariable{i}) = obj.toCPU(obj.(gpuVariable{i}));
+            end
+        end
+        function copy = clone(obj)
+            copy = feval(class(obj));
+            plist = properties(obj);
+            for i = 1 : numel(plist)
+                copy.(plist{i}) = obj.(plist{i});
+            end
+        end
+    end
     % ================= DATA STRUCTURE =================
-    properties (Hidden)
+    properties
         encodeMatrix
         decodeMatrix
         noiseFactor
-    end
-    properties
+        % ------- SETTING -------
         noiseRatio    = 0.01;
         cutoffRatio   = 1.25;
         rolloffFactor = 8;

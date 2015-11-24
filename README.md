@@ -20,7 +20,7 @@ If crop is inactivated, this program would require all input data frame in the s
 #### Data format
 In this program, video data are stored as **uint8**, while convert to **double** (**gsingle** when GPU acceleration is enabled) before calculation.
 
-### Patch Module in MotionMaterial
+#### Patch Module in MotionMaterial
 **patchSize** set to **NaN** as default, which means disable patch module. In this case, output frame should be in the same dimension of input data.
 
 #### Auto-Load System with cache
@@ -28,3 +28,10 @@ Input dimension (**dimin**) is fixed when patch module is off to ensure output d
 
 #### MotionMaterial.istraversed
 This function would check whether or not the input data is traversed. However, this property would update itself for next round after you check the value of it. So, if you call this function twice after you traversed a dataset, the first would return TRUE, while the other return FALSE.
+
+#### GPU Acceleration Support
+GPU acceleration support is implemented by library 'GPUModule’.  It provides interfaces ‘toGPU’ and ‘toCPU’ for subclasses to transfer variables to or gather them from GPU. In this way, MATLAB will automatically call GPU version functions in the calculations that involve these variables. A internal property named ‘enableGPU’ in this library checks the availability of GPU devices when the class is loaded in MATLAB. The implementation of this library make operations of ‘toGPU’ and ‘toCPU’ depend on ‘enableGPU’. Therefore, if there is no GPU device available, these two functions do nothing.
+
+However, subclasses do not get GPU support for free here. They need to implement two functions : ‘clone’ and ‘gpuVariable’. The former one should create a new objects of this class, the later one is required to returns a cell array containing names of all fields that need to be transferred to GPU in calculation.
+
+**Due to performance property, all value use *single* format in GPU, while *double* in CPU.**

@@ -8,18 +8,18 @@ classdef VideoDataset < Dataset
                 n = obj.nDataFile;
             end
         end
-        
+
         sample = next(obj, n) % [external file]
-        
+
         sample = traverse(obj, n) % [external file]
-        
+
         function tof = istraversed(obj)
             tof = obj.flagTraversed;
             if tof
-                obj.flagTraversed = false; 
+                obj.flagTraversed = false;
             end
         end
-        
+
         function n = dimout(obj)
             if obj.isOutputInPatch
                 n = prod(obj.patchSize(1:2));
@@ -28,17 +28,17 @@ classdef VideoDataset < Dataset
             end
         end
     end
-    
+
     % ================= INTERFACES FOR SUBCLASS =================
     methods (Abstract)
         % GETDATALIST return a cell array of strings that containing all
         % file ids (typically, file name) under specified dataset path.
         dataFileIDList = getDataList(obj)
-        
+
         % READDATA return data block of the file specified by given file id
         dataBlock = readData(obj, dataFileID)
     end
-    
+
     % ================= SUPPORT FUNCTIONS =================
     methods (Access = protected)
         [dataMatrix, firstFrameIndex] = fetch(obj, indexList) % [external file]
@@ -47,14 +47,14 @@ classdef VideoDataset < Dataset
     methods (Access = protected)
         % LOADDATA load batch of files specified by DATAFILEIDSET
         loadData(obj, dataFileIDSet) % [external file]
-        
+
         % ESTIMATEDATABLOCKSIZE estimate average size of data blocks
         % corresponding to data file of current dataset path
         estimateDataBlockSize(obj) % [external file]
-        
+
         % INITDATABLOCK initialize DATABLOCK structure of object
         initDataBlock(obj) % [external file]
-        
+
         % REFRESHDATABLOCK reload new data file to DATABLOCK structure
         refreshDataBlock(obj) % [external file]
 
@@ -62,14 +62,14 @@ classdef VideoDataset < Dataset
             tof = isinf(obj.iterDataFile);
         end
     end
-    
+
     % ================= TEMPORARY&DEPENDENT FUNCTION =================
     properties (Access = private)
         % ------- AUTOLOAD SYSTEM -------
         countFramePixel = @(x) size(x,1) * size(x,2);
     end
-    
-    
+
+
     % ================= DATA STRUCTURE =================
     properties
         path                        % path of data files
@@ -89,7 +89,7 @@ classdef VideoDataset < Dataset
         flagTraversed = false; % flag assistant to record status of traverse
         % ------- AUTOLOAD SYSTEM -------
         iterDataFile  = 0; % iterator of data files
-        iterDataBlock = 0; % iterator of data blocks        
+        iterDataBlock = 0; % iterator of data blocks
     end
     properties (Dependent, SetAccess = private, Hidden)
         nDataFile
@@ -132,10 +132,10 @@ classdef VideoDataset < Dataset
         end
         function value = get.patchPerBlock(obj)
             assert(obj.isOutputInPatch);
-            value = round(0.3 * obj.dimin / prod(obj.patchSize(1:2)));
+            value = round(obj.dimin / prod(obj.patchSize(1:2)));
         end
     end
-    
+
     % ================= UTILITY =================
     methods (Access = protected)
         function consistencyCheck(obj)

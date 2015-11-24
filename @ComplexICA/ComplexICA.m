@@ -1,19 +1,45 @@
-% Help information
+% ComplexICA < GenerativeModel
+%   COMPLEXICA is the abstraction of ICA model with complex bases. This class
+%   provides general functions that support the operation of ICA learning process.
+%   Subclass should add definition of probability description to get a Completed
+%   learning module.
+%
+% [METHOD INTERFACE]
+%   update(obj, delta)
+%   objval = evaluate(obj, sample, respond)
+%   mgrad = modelGradient(obj, sample, respond)
+%   rgrad = respondGradient(obj, sample, respond)
+%
+% [PROPERTY INTERFACE]
+%   inferOption
+%   adaptStep
+%   etaTarget
+%   stepUpFactor
+%   stepDownFactor
+%
+% [NOTE]
+%   Constructor of this class require a input parameter specify the number of
+%   bases of this ICA model.
+%
+% see also, DPModule, LearningModule, GPUModule, UtilityLib
+%
+% MooGu Z. <hzhu@case.edu>
+% Nov 21, 2015
+%
+% [Change Log]
+% Nov 21, 2015 - initial commit
 classdef ComplexICA < GenerativeModel
-    % ================= OVERRIDE FUNCTIONS =================
+    % ================= DPMODULE IMPLEMENTATION =================
     methods
         function n = dimout(obj)
             assert(obj.ready());
-            n = 2 * obj.nbase;
+            n = obj.nbase * [1,1];
         end
     end
     % ================= GENERATIVEMODEL IMPLEMENTATION =================
     methods
-        function initBase(obj, dataset)
-            baseSize = [obj.preproc.dimout(), obj.nbase];
-            if isnan(baseSize(1))
-                baseSize(1) = dataset.dimout();
-            end
+        function initBase(obj, sample)
+            baseSize = [size(sample.data, 1), obj.nbase];
             % initialization
             tmp.real = randn(baseSize);
             tmp.imag = randn(baseSize);
@@ -21,7 +47,7 @@ classdef ComplexICA < GenerativeModel
             tmp.real = bsxfun(@rdivide, tmp.real, sqrt(sum(tmp.real.^2, 1)));
             tmp.imag = bsxfun(@rdivide, tmp.imag, sqrt(sum(tmp.imag.^2, 1)));
             % compose complex base
-            obj.base = complex(tmp.real, tmp.imag);
+            obj.base = obj.toGPU(complex(tmp.real, tmp.imag));
         end
 
         function respond = initRespond(obj, sample)
@@ -30,8 +56,8 @@ classdef ComplexICA < GenerativeModel
             % randomly initialization
             Z = .2 * complex(randn(obj.nbase, size(sample.data, 2)), ...
                 randn(obj.nbase, size(sample.data, 2)));
-            respond.data.amplitude = abs(Z);
-            respond.data.phase = angle(Z);
+            respond.data.amplitude = obj.toGPU(abs(Z));
+            respond.data.phase     = obj.toGPU(angle(Z));
         end
 
         function respond = infer(obj, sample, start)
@@ -64,6 +90,28 @@ classdef ComplexICA < GenerativeModel
         % objval = evaluate(obj, sample, respond)
         % mgrad = modelGradient(obj, sample, respond)
         % rgrad = respondGradient(obj, sample, respond)
+    end
+    % ================= GPUMODEL IMPLEMENTATION =================
+    methods
+        function obj = activateGPU(obj)
+            obj.activateGPU@GenerativeModel();
+            obj.base = obj.toGPU(obj.base);
+        end
+        function obj = deactivateGPU(obj)
+            obj.deactivateGPU@GenerativeModel();
+            obj.base = obj.toCPU(obj.base);
+        end
+        function copy = clone(obj)
+            copy = feval(class(obj), obj.nbase);
+            plist = properties(obj);
+            for i = 1 : numel(plist)
+                if isa(obj.(plist{i}), 'GPUModule')
+                    copy.(plist{i}) = obj.(plist{i}).clone();
+                else
+                    copy.(plist{i}) = obj.(plist{i});
+                end
+            end
+        end
     end
 
     % ================= COMPONENT FUNCTION =================
@@ -123,8 +171,12 @@ classdef ComplexICA < GenerativeModel
 
     % ================= UTILITY =================
     methods
+        function obj = ComplexICA(nbase)
+            obj = obj@GenerativeModel();
+            obj.nbase = nbase;
+        end
+
         function consistencyCheck(obj)
-            obj.consistencyCheck@GenerativeModel();
             assert(numel(obj.nbase) == 1 && isnumeric(obj.nbase));
         end
     end

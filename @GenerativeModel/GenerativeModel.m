@@ -1,14 +1,33 @@
-% CLASS : GenerativeModel
+% GenerativeModel < DPModule & LearningModule & GPUModule & UtilityLib
+%   Basic class of UMPress.OO package that implement fundamental workflow control
+%   of motion representation learning process. Concrete models should be defined
+%   as subclasses to implement required interfaces.
 %
-% Basic class of UMPress.OO package that implement fundamental workflow control
-% of motion representation learning process. Concrete models should be defined
-% as subclasses to implement required interfaces.
+% [INTERFACE]
+%   initBase(obj, sample)
+%   respond = initRespond(obj, sample)
+%   respond = infer(obj, sample, start)
+%   sample = generate(obj, respond)
+%   adapt(obj, sample, respond)
+%   update(obj, delta)
+%   objval = evaluate(obj, sample, respond)
+%   mgrad = modelGradient(obj, sample, respond)
+%   rgrad = respondGradient(obj, sample, respond)
+%
+% [CONFIGURABLE PROPERTY]
+%   updatePerSample  : 1
+%   traversePerTrain : 3
+%   samplePerBatch   : 1
+%   trainingMethod   : 'minibatch'
+%
+% see also, DPModule, LearningModule, GPUModule, UtilityLib
 %
 % MooGu Z. <hzhu@case.edu>
+% Sept 30, 2015
 %
+% [Change Log]
 % Sept 30, 2015 - initial commit
-
-classdef GenerativeModel < DPModule & LearningModule & LibExperiment & LibUtility & LibProbability
+classdef GenerativeModel < DPModule & LearningModule & GPUModule & UtilityLib
     % ================= DPMODULE IMPLEMENTATION =================
     methods
         function respond = proc(obj, sample)
@@ -19,9 +38,16 @@ classdef GenerativeModel < DPModule & LearningModule & LibExperiment & LibUtilit
             sample = obj.preproc.invp(obj.generate(respond));
         end
 
-        function setup(obj, dataset)
-            if not(obj.preproc.ready()), obj.preproc.setup(dataset); end
-            if not(obj.ready()), obj.initBase(dataset); end
+        function setup(obj, sample)
+            % setup proprocessing stack
+            if not(obj.preproc.ready())
+                obj.preproc.setup(sample);
+            end
+            % initialize base of model
+            sample = obj.preproc.proc(sample);
+            if not(obj.ready())
+                obj.initBase(sample);
+            end
         end
 
         function tof = ready(obj)
@@ -29,26 +55,25 @@ classdef GenerativeModel < DPModule & LearningModule & LibExperiment & LibUtilit
         end
 
         function n = dimin(obj)
-            assert(obj.ready());
-            if isnan(obj.preproc.dimin()) && isnan(obj.preproc.dimout())
-                n = size(obj.base, 1);
+            if obj.ready()
+                if isnan(obj.preproc.dimin()) && isnan(obj.preproc.dimout())
+                    n = size(obj.base, 1);
+                else
+                    n = obj.preproc.dimin();
+                end
             else
-                n = obj.preproc.dimin();
+                warning( ...
+                    '[%s] is not ready, input dimensionality is undetermined', ...
+                    upper(class(obj)));
             end
         end
 
         function n = dimout(obj)
-            assert(obj.ready());
             n = obj.nbase;
         end
     end
     % ================= LEARNINGMODULE IMPLEMENTATION =================
     methods
-        function learn(obj, sample)
-            respond = obj.infer(obj.preproc.proc(sample));
-            obj.adapt(sample, respond);
-        end
-
         function learn(obj, sample)
             % pre-processing
             sample = obj.preproc.proc(sample);
@@ -63,7 +88,11 @@ classdef GenerativeModel < DPModule & LearningModule & LibExperiment & LibUtilit
 
         function train(obj, dataset)
             % ensure necessary paramter have been setup
-            if ~obj.ready(), obj.setup(dataset); end
+            if ~obj.ready(), obj.setup(dataset.statsample()); end
+            % check compatibility of dataset and learning module
+            assert(isnan(obj.dimin()) || any(obj.dimin() == dataset.dimout), ...
+                '[%s] dimensionality of dataset does not match', ...
+                upper(class(obj)));
             % train model by given dataset
             switch lower(obj.trainingMethod)
                 case {'minibatch', 'stochastic'}
@@ -71,53 +100,52 @@ classdef GenerativeModel < DPModule & LearningModule & LibExperiment & LibUtilit
                 otherwise
                     error('unrecognized training method : %s', obj.trainingMethod);
             end
+            % save object
+            obj.autosave(true);
         end
 
         function info(obj)
             fprintf('Learning Iteration [%d] Completed\n', obj.count);
         end
 
-        status(obj)
+        H = status(obj)
     end
-    % ================= OTHER PUBFUNCTION =================
+    % ================= GPUMODULE IMPLEMENTATION =================
     methods
-        function gradchk(obj)
+        function activateGPU(obj)
+            obj.preproc.activateGPU();
+        end
+        function deactivateGPU(obj)
+            obj.preproc.deactivateGPU();
         end
     end
 
     % ================= INTERFACES FOR SUBCLASS =================
     methods (Abstract)
-        % ### dataset -> (initBase) --update--> [obj]
-        initBase(obj, dataset)
-
+        % ### sample -> (initBase) --update--> [obj]
+        initBase(obj, sample)
         % ### sample -> (initRespond) ----> respond
         respond = initRespond(obj, sample)
-
         % ### sample ----> (infer) ----> respond
         respond = infer(obj, sample, start)
-
         % GENERATE is the essential function that implement the generative
         % model as a program. This function would represent the generative
         % model that construct motion materials by given underlying
         % coefficients, which we called RESPOND in the program
         % ### respond ----> (generate) ----> sample
         sample = generate(obj, respond)
-
         % ### sample + respond ----> (adapt) --update--> [obj]
         adapt(obj, sample, respond)
-
         % UPDATE modify the model with given modification, while it
         % should adjust the model according to it characteristic.
         % ### delta ----> (update) --update--> [obj]
         update(obj, delta)
-
         % EVALUATE evaluate the performance of motion representation model
         % over given data and responds of the model. ERR should worked as
         % an optional parameter. When it is missing, EVALUATE should
         % calculate the error by itself.
         % ### sample + respond ----> (evalue) ----> objval
         objval = evaluate(obj, sample, respond)
-
         % MODELGRADIENT and RESPONDGRADIENT calculate derivatives of model
         % and reponds in mathematical form and return the gradients
         % accordingly.
@@ -127,7 +155,7 @@ classdef GenerativeModel < DPModule & LearningModule & LibExperiment & LibUtilit
         rgrad = respondGradient(obj, sample, respond)
     end
 
-    % ================= LEARNING ALGORITHM =================
+    % ================= TRANING METHOD =================
     methods (Access = protected)
         % learn through mini-batch to adapt model sample by sample
         function miniBatch(obj, dataset)
@@ -140,29 +168,22 @@ classdef GenerativeModel < DPModule & LearningModule & LibExperiment & LibUtilit
                     % count iteration
                     obj.count = obj.count + obj.samplePerBatch;
                     % show information and save current status
-                    if obj.autosave(obj.count), obj.info(); end
+                    if obj.autosave(obj.count)
+                        fprintf('%s : ITERATION %d COMPLETE @ %s\n', ...
+                            upper(class(obj)), obj.count, obj.timestamp());
+                    end
                 end
             end
             obj.autosave(true);
-            obj.info();
+            fprintf('TRAINING PROCESS FINISHED @ %s\n', obj.timestamp());
         end
-        % % learn model by Estimate-Modify mechanism
-        % function EMAlgo(obj, dataset)
-        %     sample = obj.preproc.proc(dataset.traverse());
-        %     respond = obj.initialRespond(sample);
-        %     for i = 1 : obj.nLearningEpoch
-        %         respond = obj.infer(sample, respond);
-        %         obj.adapt(sample, respond);
-        %         obj.count = obj.count + dataset.volumn();
-        %         obj.autosave();
-        %         obj.info();
-        %     end
-        % end
     end
 
     % ================= DATA STRUCTURE =================
     properties
         count = 0;
+        % ------- PREPROCESSING MODULE -------
+        preproc % preprocessor of model, DPStack is recommended
         % ------- LEARN -------
         updatePerSample = 1;
         % ------- LEARNING ALGORITHM -------
@@ -170,14 +191,12 @@ classdef GenerativeModel < DPModule & LearningModule & LibExperiment & LibUtilit
         samplePerBatch = 1;
         % ------- LEARNING MODULE IMPLEMENTATION -------
         trainingMethod = 'minibatch';
-        % ------- PREPROCESSING MODULE -------
-        preproc = DPStack(); % preprocessor of model, DPStack is recommended
     end
 
-    % ================= UTILITY =================
+    % ================= DATA STRUCTURE =================
     methods
-        function consistencyCheck(obj)
-
+        function obj = GenerativeModel()
+            obj.preproc = DPStack();
         end
     end
 end
