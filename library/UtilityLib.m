@@ -61,7 +61,7 @@ classdef UtilityLib < hgsetget
                 if key >= obj.interval * obj.unit
                     tof = true;
                 end
-            elseif key - obj.lastsave > obj.interval * obj.unit
+            elseif key - obj.lastsave >= obj.interval * obj.unit
                 tof = true;
             end
         end

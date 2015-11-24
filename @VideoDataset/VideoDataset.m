@@ -9,9 +9,18 @@ classdef VideoDataset < Dataset
             end
         end
 
-        sample = next(obj, n) % [external file]
+        varargout = next(obj, n) % [external file]
 
         sample = traverse(obj, n) % [external file]
+
+        function sample = statsample(obj)
+            if obj.isOutputInPatch
+                n = 0.03 * obj.nDataBlock * obj.patchPerBlock;
+            else
+                n = 0.3 * obj.nDataBlock;
+            end
+            sample = obj.next(n);
+        end
 
         function tof = istraversed(obj)
             tof = obj.flagTraversed;
@@ -58,8 +67,12 @@ classdef VideoDataset < Dataset
         % REFRESHDATABLOCK reload new data file to DATABLOCK structure
         refreshDataBlock(obj) % [external file]
 
+        % RESTATEDATABLOCK reinitialize the parameters to make the state of
+        % dataset seems as just initialized without load new data file
+        restateDataBlock(obj) % [external file]
+
         function tof = isloadedall(obj)
-            tof = isinf(obj.iterDataFile);
+            tof = obj.nDataFile <= obj.nDataBlock;
         end
     end
 
@@ -68,7 +81,6 @@ classdef VideoDataset < Dataset
         % ------- AUTOLOAD SYSTEM -------
         countFramePixel = @(x) size(x,1) * size(x,2);
     end
-
 
     % ================= DATA STRUCTURE =================
     properties

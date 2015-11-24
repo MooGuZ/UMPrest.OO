@@ -16,8 +16,8 @@ function varargout = next(obj, n)
     obj.iterDataBlock = obj.iterDataBlock + n;
     % get rest data if necessary
     if exist('nRest', 'var')
-        obj.refreshDataBlock();
         [dataMatrixRest, firstFrameIndexRest] = obj.next(nRest);
+        firstFrameIndexRest = firstFrameIndexRest + size(dataMatrix, 2);
         dataMatrix      = [dataMatrix, dataMatrixRest];
         firstFrameIndex = [firstFrameIndex, firstFrameIndexRest];
         clear dataMatrixRest firstFrameIndexRest

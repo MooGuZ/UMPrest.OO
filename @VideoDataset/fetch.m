@@ -21,23 +21,25 @@ function [dataMatrix, firstFrameIndex] = fetch(obj, indexList)
     % initialize data matrix (collection of data units)
     dataMatrix = zeros(obj.dimout, sum(framePerUnit), 'uint8');
     % compose data matrix
-    iframe = 0;
+    iframe = 1;
     if obj.isOutputInPatch
         for i = 1 : numel(indexList)
-            dataMatrix(:, iframe + 1 : iframe + framePerUnit(i)) = reshape( ...
+            dataMatrix(:, iframe : iframe + framePerUnit(i) - 1) = reshape( ...
             randcrop(obj.dataBlockSet{indexList(i)}, obj.patchSize), ...
             obj.dimout, framePerUnit(i));
             iframe = iframe + framePerUnit(i);
+            framePerUnit(i) = iframe;
         end
     else
         for i = 1 : numel(indexList)
-            dataMatrix(:, iframe + 1 : iframe + framePerUnit(i)) = ...
+            dataMatrix(:, iframe : iframe + framePerUnit(i) -  1) = ...
             reshape(obj.dataBlockSet{indexList(i)}, obj.dimout, framePerUnit(i));
             iframe = iframe + framePerUnit(i);
+            framePerUnit(i) = iframe;
         end
     end
     % generate index for first frame of each sequence
-    firstFrameIndex = [1, framePerUnit(1 : end-1) + 1];
+    firstFrameIndex = [1, framePerUnit(1 : end-1)];
     % transform data into double for convenience of calculation
     dataMatrix = im2double(dataMatrix);
 end
