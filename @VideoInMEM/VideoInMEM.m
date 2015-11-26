@@ -1,15 +1,17 @@
 classdef VideoInMEM < VideoDataset
     % ================= VIDEODATASET IMPLEMENTATION =================
     methods
-        function dataFileIDList = getDataList(obj)
-            dataFileIDList = arrayfun(@(x) {x}, 1 : numel(obj.dataBlockSet));
+        function varargout = getDataList(varargin)
+            % dataFileIDList = arrayfun(@(x) {x}, 1 : numel(obj.dataBlockSet));
+            error('[%s] function GETDATALIST should not be called.', class(obj));
         end
-        
-        function dataBlock = readData(obj, dataFileID)
-            dataBlock = obj.dataBlockSet{dataFileID};
+
+        function varargout = readData(varargin)
+            % dataBlock = obj.dataBlockSet{dataFileID};
+            error('[%s] function READDATA should not be called.', class(obj));
         end
     end
-   
+
     % ================= UTILITY =================
     methods
         function obj = VideoInMEM(data, ffindex)
@@ -24,7 +26,7 @@ classdef VideoInMEM < VideoDataset
                     for i = 1 : numel(obj.dataBlockSet)
                         obj.dataBlockSet = im2uint8(data(:, :, ffindex(i) : ffindex(i+1) - 1));
                     end
-                    
+
                 case {2}
                     % prevent overflow in following process
                     ffindex = [ffindex(:)', dataSize(2) + 1];
@@ -37,12 +39,12 @@ classdef VideoInMEM < VideoDataset
                             obj.dataBlockSet{i} = reshape(tmp, dataSize(1), 1, numel(tmp) / dataSize(1));
                         end
                     end
-                    
+
                 otherwise
                     error('[%s] unrecognized data type', class(obj));
             end
             % setup parameters to match videodataset interface
-            obj.dataFileIDList = obj.getDataList();
+            obj.dataFileIDList = cell(1, numel(obj.dataBlockSet));
         end
     end
 end

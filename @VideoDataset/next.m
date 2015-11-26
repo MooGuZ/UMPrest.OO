@@ -24,7 +24,10 @@ function varargout = next(obj, n)
     end
     % return values according to number of output arguments
     if nargout == 1
-        varargout{1} = struct('data', dataMatrix, 'ffindex', firstFrameIndex); % sample
+        varargout{1} = struct( ...
+            'data', dataMatrix, ...
+            'ffindex', firstFrameIndex, ...
+            'frmres', obj.resolution());
     elseif nargout == 2
         varargout{1} = dataMatrix;
         varargout{2} = firstFrameIndex;

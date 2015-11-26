@@ -20,26 +20,23 @@ function [dataMatrix, firstFrameIndex] = fetch(obj, indexList)
     end
     % initialize data matrix (collection of data units)
     dataMatrix = zeros(obj.dimout, sum(framePerUnit), 'uint8');
+    % calculate first frame index
+    firstFrameIndex = cumsum([1, framePerUnit]);
     % compose data matrix
-    iframe = 1;
     if obj.isOutputInPatch
         for i = 1 : numel(indexList)
-            dataMatrix(:, iframe : iframe + framePerUnit(i) - 1) = reshape( ...
-            randcrop(obj.dataBlockSet{indexList(i)}, obj.patchSize), ...
-            obj.dimout, framePerUnit(i));
-            iframe = iframe + framePerUnit(i);
-            framePerUnit(i) = iframe;
+            dataMatrix(:, firstFrameIndex(i) : firstFrameIndex(i+1) - 1) = reshape( ...
+                randcrop(obj.dataBlockSet{indexList(i)}, obj.patchSize), ...
+                obj.dimout, framePerUnit(i));
         end
     else
         for i = 1 : numel(indexList)
-            dataMatrix(:, iframe : iframe + framePerUnit(i) -  1) = ...
-            reshape(obj.dataBlockSet{indexList(i)}, obj.dimout, framePerUnit(i));
-            iframe = iframe + framePerUnit(i);
-            framePerUnit(i) = iframe;
+            dataMatrix(:, firstFrameIndex(i) : firstFrameIndex(i+1) - 1) = ...
+                reshape(obj.dataBlockSet{indexList(i)}, obj.dimout, framePerUnit(i));
         end
     end
     % generate index for first frame of each sequence
-    firstFrameIndex = [1, framePerUnit(1 : end-1)];
+    firstFrameIndex = firstFrameIndex(1 : end - 1);
     % transform data into double for convenience of calculation
     dataMatrix = im2double(dataMatrix);
 end

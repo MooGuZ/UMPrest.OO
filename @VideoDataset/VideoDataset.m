@@ -106,10 +106,11 @@ classdef VideoDataset < Dataset
     properties (Dependent, SetAccess = private, Hidden)
         nDataFile
         nDataBlock
+        resolution
         % ------- AUTOLOAD SYSTEM -------
         dimin % dimension of frames in data file
-        nSampleInSizeEstimation
-        nInitDataBlock
+        samplePerEstimation
+        blockPerLoad
         % ------- PATCH MODULE -------
         isOutputInPatch
         patchPerBlock
@@ -121,6 +122,16 @@ classdef VideoDataset < Dataset
         function value = get.nDataBlock(obj)
             value = numel(obj.dataBlockSet);
         end
+        function value = get.resolution(obj)
+            if obj.isOutputInPatch()
+                value = obj.patchSize;
+            elseif obj.nDataBlock == 0
+                value = nan;
+            else
+                tmp = size(obj.dataBlockSet{1});
+                value = tmp(1:2);
+            end
+        end
         % ------- AUTOLOAD SYSTEM -------
         function value = get.dimin(obj)
             if isempty(obj.dataBlockSet)
@@ -129,11 +140,11 @@ classdef VideoDataset < Dataset
                 value = obj.countFramePixel(obj.dataBlockSet{1});
             end
         end
-        function value = get.nSampleInSizeEstimation(obj)
+        function value = get.samplePerEstimation(obj)
             assert(~isempty(obj.dataFileIDList));
             value = min(13, ceil(obj.nDataFile / 4));
         end
-        function value = get.nInitDataBlock(obj)
+        function value = get.blockPerLoad(obj)
             if isnan(obj.pixelPerBlock), obj.estimateDataBlockSize(); end
             value = min(obj.nDataFile, floor(obj.memoryLimit / obj.pixelPerBlock) + 1);
         end
