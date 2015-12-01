@@ -13,14 +13,17 @@
 classdef AutoSave < hgsetget
     methods
         function tof = autosave(obj, key)
+            if isemtpy(obj.taskCode)
+                obj.taskCode = lower(class(obj));
+            end
             % create saving folder if necessary
             if not(isdir(obj.savePath))
                 mkdir(obj.savePath);
             end
             % save object according to time
             if obj.saveCriteria(key)
-                save( ...
-                    fullfile(obj.savePath, sprintf('%s-%s.mat', lower(class(obj)), obj.timestamp())), ...
+                save(fullfile(obj.savePath, ...
+                        sprintf('%s-%s.mat', obj.taskCode, obj.timestamp())), ...
                     'obj');
                 obj.lastsave = key;
                 tof = true;
@@ -46,6 +49,7 @@ classdef AutoSave < hgsetget
         mode = 'count';
         interval = 5000;
         savePath = './';
+        taskCode;
     end
     properties (Access = protected)
         timestamp = @() datestr(now, 30);
