@@ -14,11 +14,10 @@
 %
 % [Change Log]
 % Nov 20, 2015 - initial commit
-classdef LearnerStack < DPStack & LearningModule
+classdef LearnerStack < DPStack & LearningModule & AutoSave
     % ================= STACK IMPLEMENTATION =================
     methods (Access = protected)
-        % [OVERRIDE] qualification criterial of unit to be learning module
-        function tof = isqualified(~, unit)
+        function tof = isqualified(~, unit) % [OVERRIDE] DPStack
             tof = isa(unit, 'DPModule') && isa(unit, 'LearningModule');
         end
     end
@@ -50,6 +49,7 @@ classdef LearnerStack < DPStack & LearningModule
                     error('unrecognized training method : %s', obj.trainingMethod);
                 end
             end
+            obj.autosave(true);
         end
 
         info(obj)
@@ -74,6 +74,7 @@ classdef LearnerStack < DPStack & LearningModule
                     end
                 end
             end
+            obj.autosave(true);
             obj.info();
         end
         % learn stack level by level

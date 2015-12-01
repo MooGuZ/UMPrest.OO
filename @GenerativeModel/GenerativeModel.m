@@ -1,7 +1,8 @@
 % GenerativeModel < DPModule & LearningModule & GPUModule & UtilityLib
-%   Basic class of UMPress.OO package that implement fundamental workflow control
-%   of motion representation learning process. Concrete models should be defined
-%   as subclasses to implement required interfaces.
+%   GenerativeModel represents generative models that simulate generating process
+%   of specific data, such as video. This class provide fundamental interfaces of
+%   genrative model to developers to fillin in subclasses, while provide functions
+%   that implemented data processing and learning protocols to users to operate.
 %
 % [INTERFACE]
 %   initBase(obj, sample)
@@ -13,6 +14,9 @@
 %   objval = evaluate(obj, sample, respond)
 %   mgrad = modelGradient(obj, sample, respond)
 %   rgrad = respondGradient(obj, sample, respond)
+%
+% [INHERIENT INTERFACE]
+%   copy = clone(obj) % GPUModule
 %
 % [CONFIGURABLE PROPERTY]
 %   updatePerSample  : 1
@@ -27,7 +31,7 @@
 %
 % [Change Log]
 % Sept 30, 2015 - initial commit
-classdef GenerativeModel < DPModule & LearningModule & GPUModule & UtilityLib
+classdef GenerativeModel < DPModule & LearningModule & GPUModule & AutoSave
     % ================= DPMODULE IMPLEMENTATION =================
     methods
         function respond = proc(obj, sample)
@@ -193,7 +197,7 @@ classdef GenerativeModel < DPModule & LearningModule & GPUModule & UtilityLib
         trainingMethod = 'minibatch';
     end
 
-    % ================= DATA STRUCTURE =================
+    % ================= UTILITY =================
     methods
         function obj = GenerativeModel()
             obj.preproc = DPStack();

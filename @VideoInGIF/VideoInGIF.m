@@ -1,4 +1,4 @@
-classdef VideoInGIF < VideoDataset & LibUtility
+classdef VideoInGIF < VideoDataset & UtilityLib
     % ================= VIDEODATASET IMPLEMENTATION =================
     methods
         function dataFileIDSet = getDataList(obj)
@@ -9,7 +9,7 @@ classdef VideoInGIF < VideoDataset & LibUtility
             dataBlock = gifread(fullfile(obj.path, dataBlockID));
         end
     end
-    
+
     % ================= UTILITY =================
     methods
         function obj = VideoInGIF(dataPath, varargin)

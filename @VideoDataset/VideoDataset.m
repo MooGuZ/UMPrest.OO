@@ -1,3 +1,31 @@
+% VideoDataset < DPModule & LearningModule & GPUModule
+%   VIDEODATASET is an abstraction of all data source of videos. This class provide
+%   convenient funtion handles to users to get access data. It support automatical
+%   memory management with an auto-reload cache system, which makes a trade-off
+%   between performance and memory utilization. VideoDataset provides semetical
+%   interfaces without considering implementation details. However, this is an
+%   abstract class. Developers can create concrete class with only two functions
+%   that follow interface provided by VideoDataset.
+%
+% [FUNCTION HANDLE]
+%   volumn()
+%   next([n])
+%   traverse()
+%   statsample()
+%   istraversed()
+%   dimout()
+%
+% [INTREFACE]
+%   dataFileIDList = getDataList(obj)
+%   dataBlock = readData(obj, dataFileID)
+%
+% see also, DPModule, LearningModule, GPUModule, VideoInGIF, VideoInRAW, VideoInMEM.
+%
+% MooGu Z. <hzhu@case.edu>
+% Nov 20, 2015
+%
+% [Change Log]
+% Nov 20, 2015 - initial commit
 classdef VideoDataset < Dataset
     % ================= DATASET IMPLEMENTATION =================
     methods
@@ -11,7 +39,7 @@ classdef VideoDataset < Dataset
 
         varargout = next(obj, n) % [external file]
 
-        sample = traverse(obj, n) % [external file]
+        sample = traverse(obj) % [external file]
 
         function sample = statsample(obj)
             if obj.isOutputInPatch

@@ -1,4 +1,4 @@
-classdef MotionSeparation < DPModule & GPUModule & UtilityLib
+classdef MotionSeparation < DPModule & UtilityLib
     % ================= DPMODULE IMPLEMENTATION =================
     methods
         function motion = proc(obj, sample)
@@ -50,22 +50,6 @@ classdef MotionSeparation < DPModule & GPUModule & UtilityLib
 
         function n = dimin(~),    n = nan;    end
         function n = dimout(~),   n = nan;    end
-    end
-    % ================= GPUMODULE IMPLEMENTATION =================
-    methods
-        function activateGPU(~), end
-        function deactivateGPU(~), end
-        function copy = clone(obj)
-            copy = feval(class(obj));
-            plist = properties(obj);
-            for i = 1 : numel(plist)
-                if isa(obj.(plist{i}), 'GPUModule')
-                    copy.(plist{i}) = obj.(plist{i}).clone();
-                else
-                    copy.(plist{i}) = obj.(plist{i});
-                end
-            end
-        end
     end
 
     % ================= DATA STRUCTURE =================

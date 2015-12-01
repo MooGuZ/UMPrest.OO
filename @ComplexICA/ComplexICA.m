@@ -10,6 +10,10 @@
 %   mgrad = modelGradient(obj, sample, respond)
 %   rgrad = respondGradient(obj, sample, respond)
 %
+% [CONFIGURABLE PROPERTY]
+%   base    % essential data Structure
+%   nbase   % needed to be specified in construction
+%
 % [PROPERTY INTERFACE]
 %   inferOption
 %   adaptStep
@@ -67,6 +71,10 @@ classdef ComplexICA < GenerativeModel
             % optimization by minFunc library
             respond.data = obj.respdataDevectorize(minFunc(@obj.objFunInfer, ...
                 obj.respdataVectorize(start.data), obj.inferOption, sample));
+            % flip negative amplitude generated in optimization process
+            mask = respond.data.amplitude < 0;
+            respond.data.amplitude(mask) = - respond.data.amplitude(mask);
+            respond.data.phase(mask) = wrapToPi(respond.data.phase(mask) + pi);
         end
 
         function sample = generate(obj, respond)
@@ -103,7 +111,7 @@ classdef ComplexICA < GenerativeModel
         end
         function copy = clone(obj)
             copy = feval(class(obj), obj.nbase);
-            plist = properties(obj);
+            plist = properties(copy);
             for i = 1 : numel(plist)
                 if isa(obj.(plist{i}), 'GPUModule')
                     copy.(plist{i}) = obj.(plist{i}).clone();

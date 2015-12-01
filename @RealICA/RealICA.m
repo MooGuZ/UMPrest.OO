@@ -1,3 +1,35 @@
+% RealICA < GenerativeModel
+%   RealICA is a ICA learning model bases on real bases. It is actually a implementation
+%   of abstract class GenreativeModel, while also leaves several interfaces for subclass
+%   to implement. However, these interfaces directly relate to probability description of
+%   a model, which is the only varying part in theory. Therefore, this class provides
+%   developer a shortcut to implement different ICA model with real bases. (And, this is
+%   an abstract class)
+%
+% [INTERFACE]
+%   update(obj, delta)
+%   objval = evaluate(obj, sample, respond)
+%   mgrad = modelGradient(obj, sample, respond)
+%   rgrad = respondGradient(obj, sample, respond)
+%
+% [CONFIGURABLE PROPERTY]
+%   base    % essential data Structure
+%   nbase   % needed to be specified in construction
+%
+% [PROPERTY INTERFACE]
+%   inferOption
+%   adaptStep
+%   etaTarget
+%   stepUpFactor
+%   stepDownFactor
+%
+% see also, GenerativeModel, ComplexICA.
+%
+% MooGu Z. <hzhu@case.edu>
+% Sept 30, 2015
+%
+% [Change Log]
+% Sept 30, 2015 - initial commit
 classdef RealICA < GenerativeModel
     % ================= GENERATIVEMODEL IMPLEMENTATION =================
     methods
@@ -57,7 +89,7 @@ classdef RealICA < GenerativeModel
         end
         function copy = clone(obj)
             copy = feval(class(obj), obj.nbase);
-            plist = properties(obj);
+            plist = properties(copy);
             for i = 1 : numel(plist)
                 if isa(obj.(plist{i}), 'GPUModule')
                     copy.(plist{i}) = obj.(plist{i}).clone();
