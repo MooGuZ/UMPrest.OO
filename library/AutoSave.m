@@ -13,7 +13,7 @@
 classdef AutoSave < handle
     methods
         function tof = autosave(obj, key)
-            if isemtpy(obj.taskCode)
+            if isempty(obj.taskCode)
                 obj.taskCode = lower(class(obj));
             end
             % create saving folder if necessary
