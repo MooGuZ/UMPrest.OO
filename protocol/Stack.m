@@ -9,7 +9,7 @@
 % [Change Log]
 % Nov 20, 2015 - initial commit
 
-classdef Stack < hgsetget
+classdef Stack < handle
     % ================= API =================
     methods
         function push(obj, unit)

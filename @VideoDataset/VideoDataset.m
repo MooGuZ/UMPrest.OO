@@ -12,7 +12,7 @@
 %   next([n])
 %   traverse()
 %   statsample()
-%   istraversed()
+%   istraversed()d
 %   dimout()
 %
 % [INTREFACE]
@@ -102,12 +102,15 @@ classdef VideoDataset < Dataset
         function tof = isloadedall(obj)
             tof = obj.nDataFile <= obj.nDataBlock;
         end
-    end
 
-    % ================= TEMPORARY&DEPENDENT FUNCTION =================
-    properties (Access = private)
-        % ------- AUTOLOAD SYSTEM -------
-        countFramePixel = @(x) size(x,1) * size(x,2);
+        function value = countFramePixel(data)
+            value = size(data,1) * size(data,2);
+        end
+    end
+    % ================= SUPPORT FUNCTIONS : STATISTIC SYSTEM =================
+    methods (Access = protected)
+        % CALCSTAT accumulate statistic information from given data
+        calcStat(obj, data)
     end
 
     % ================= DATA STRUCTURE =================
@@ -118,13 +121,16 @@ classdef VideoDataset < Dataset
         % ------- AUTOLOAD SYSTEM -------
         memoryLimit = 1e9; % memory limitation in pixels
         % ------- PATCH MODULE -------
-        patchSize = nan;  % size of patch (2/3 elements vector)
+        patchSize = nan; % size of patch (2/3 elements vector)
+        % ------- STATISTIC SYSTEM -------
+        stat % structure that containing statistic information
     end
     properties (Access = protected)
         % ------- AUTOLOAD SYSTEM -------
         pixelPerBlock = nan; % average quantity of pixels in a data block
     end
     properties (Access = private)
+        magicNumber = 13; % the number used in the occasion needs luck
         % ------- ISTRAVERSED -------
         flagTraversed = false; % flag assistant to record status of traverse
         % ------- AUTOLOAD SYSTEM -------
@@ -164,6 +170,12 @@ classdef VideoDataset < Dataset
         function value = get.dimin(obj)
             if isempty(obj.dataBlockSet)
                 value = nan;
+            elseif obj.isOutputInPatch
+                value = 0;
+                for i = 1 : min(numel(obj.dataBlockSet), obj.magicNumber);
+                    value = value + obj.countFramePixel(obj.dataBlockSet{i});
+                end
+                value = ceil(value / i);
             else
                 value = obj.countFramePixel(obj.dataBlockSet{1});
             end

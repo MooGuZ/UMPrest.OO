@@ -13,7 +13,7 @@
 % [Change Log]
 % Nov 20, 2015 - initial commit
 % Nov 30, 2015 - add general distribution generator !!!
-classdef MathLib < hgsetget
+classdef MathLib < handle
     properties (Access = protected)
         % Gaussian Distribution (Normal Distribution)
         nlGauss  = @(x, sigma) sum(x(:).^2) / (2 * sigma^2);

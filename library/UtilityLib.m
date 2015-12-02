@@ -9,7 +9,7 @@
 %
 % [Change Log]
 % Nov 20, 2015 - initial commit
-classdef UtilityLib < hgsetget
+classdef UtilityLib < handle
     methods (Access = protected)
         % SETUPBYARG setup object's properties by arguments
         %   SETUPBYARG(OBJ, VARARGIN) provides subclass capability to take

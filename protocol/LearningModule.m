@@ -13,7 +13,7 @@
 % [Change Log]
 % Nov 20, 2015 - initial commit
 
-classdef LearningModule < hgsetget
+classdef LearningModule < handle
     methods (Abstract)
         % ### sample ----> (learn) --update--> [obj]
         % LEARN involve module according to given data sample

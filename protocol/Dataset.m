@@ -1,5 +1,5 @@
 % DATASET is a protocol that all kinds of dataset should follow
-classdef Dataset < hgsetget
+classdef Dataset < handle
     methods (Abstract)
         % VOLUMN returns the quantity of distinct samples the objects can
         % generated. If output in patches, this function returns a
@@ -13,8 +13,8 @@ classdef Dataset < hgsetget
         % represent the whole dataset
         sample = traverse(obj)
 
-        % STATSAMPLE returns sample set which is sufficient for statistic analysis
-        sample = statsample(obj)
+        % STATISTICS return a structure containing all statistics of dataset
+        stat = statistics(obj)
 
         % ISTRAVERSED returns true/false to the question whether or not the
         % data units have been traversed since last time this status been checked

@@ -15,7 +15,7 @@
 % [Change Log]
 % Nov 20, 2015 - initial commit
 
-classdef DPModule < hgsetget
+classdef DPModule < handle
     methods (Abstract)
         % ### sample ----> (proc) ----> sample
         % PROC take sample (a structure with field 'data') in and produce
@@ -26,12 +26,16 @@ classdef DPModule < hgsetget
         % PROC. It produces a sample has the same structure as the input
         % sample of PROC
         sampleIn = invp(obj, sampleOut)
-        % ### sample ----> (setup) --update--> [obj]
-        % SETUP initialize data processing module according
-        % to given sample. This operation is useful to those
+        % ### x ----> (setup) --update--> [obj]
+        % SETUP initialize data processing module according to given X,
+        % it maybe samples or dataset. This operation is useful to those
         % class who need statistic information for operation.
-        % For instance, whitening.
-        setup(obj, sample)
+        setup(obj, x)
+        % ### stat ----> (statistics) ----> stat
+        % STATISTICS take statistic information in and revise it according
+        % its own properties and characteristic. If the statistics informaiton
+        % is uncertain, return NaN.
+        % stat = statistics(obj, stat)
         % READY returns the status of data processing module
         % that whether or not it is ready for operating
         tof = ready(obj)

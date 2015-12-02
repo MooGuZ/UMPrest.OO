@@ -10,7 +10,7 @@
 %
 % [Change Log]
 % Nov 30, 2015 - initial commit
-classdef AutoSave < hgsetget
+classdef AutoSave < handle
     methods
         function tof = autosave(obj, key)
             if isemtpy(obj.taskCode)

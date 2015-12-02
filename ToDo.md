@@ -22,7 +22,12 @@
 - [ ] add support to process multiple video in the same time to comodel
 - [ ] implement function 'info'
 - [ ] design draft of 'status'
-- [X] separate AutoSave and UtilityLib
-- [ ] run following experiement on HPC
-- [ ] check consistancy of initialization process
+- [x] separate AutoSave and UtilityLib
+- [x] run experiment 'MotionLearnerExtend' on HPC
+- [ ] run experiment 'RealICADebug' on HPC
+- [ ] run experiment 'SmoothPhase' on HPC
+- [ ] check consistency of initialization process
 - [ ] consider the value of default implementation instead of interface in some cases, such as update@RealICA
+- [x] add property in AutoSave to support specifying object Name
+- [x] change all the base class from 'hgsetget' to 'handle'
+- [ ] add statistic structure in VideoDataset and provide interface of statistic() in Dataset. The setup function in DPModule should be able to deal with both Dataset and samples

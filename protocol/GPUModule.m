@@ -22,7 +22,7 @@
 %
 % [Change Log]
 % Nov 20, 2015 - initial commit
-classdef GPUModule < hgsetget
+classdef GPUModule < handle
     % ================= APPLICATION INTERFACE =================
     methods (Access = protected)
         % TOGPU (or TOCPU) transfer variable to (or from) GPU memory. If the variable is
