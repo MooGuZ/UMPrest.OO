@@ -11,7 +11,7 @@ function loadData(obj, dataFileIDSet)
         else
             assert(obj.countFramePixel(obj.dataBlockSet{i}) == obj.dimin, ...
                 '[%s] dimension of data does not match loaded ones', dataFileIDSet{i});
-            obj.calcStat(obj.dataBlockSet{i});
+            obj.calcStat(obj.fetch(i));
         end
     end
 end

@@ -14,7 +14,7 @@
 
 % [Change Log]
 % Nov 20, 2015 - initial commit
-
+% Dec 08, 2015 - modify definition of function 'setup' to accept sample or dataset
 classdef DPModule < handle
     methods (Abstract)
         % ### sample ----> (proc) ----> sample
@@ -26,11 +26,12 @@ classdef DPModule < handle
         % PROC. It produces a sample has the same structure as the input
         % sample of PROC
         sampleIn = invp(obj, sampleOut)
-        % ### x ----> (setup) --update--> [obj]
-        % SETUP initialize data processing module according to given X,
-        % it maybe samples or dataset. This operation is useful to those
-        % class who need statistic information for operation.
-        setup(obj, x)
+        % ### sod ----> (setup) --update--> [obj]
+        % SETUP initialize data processing module according to given sample
+        % or dataset. Generally speaking, data processing module with Learning
+        % capability receive dataset, while pure data processing module needs
+        % sample as input.
+        setup(obj, sod)
         % ### stat ----> (statistics) ----> stat
         % STATISTICS take statistic information in and revise it according
         % its own properties and characteristic. If the statistics informaiton

@@ -18,16 +18,29 @@
 
 ## Nov 30, 2015
 - [x] check result of motion learner with different distribution description of noise
-- [ ] check possibility to integrate 'derivateCheck' elegantly. If negative, implement a general form in 'tools'
-- [ ] add support to process multiple video in the same time to comodel
-- [ ] implement function 'info'
-- [ ] design draft of 'status'
 - [x] separate AutoSave and UtilityLib
 - [x] run experiment 'MotionLearnerExtend' on HPC
-- [ ] run experiment 'RealICADebug' on HPC
-- [ ] run experiment 'SmoothPhase' on HPC
-- [ ] check consistency of initialization process
-- [ ] consider the value of default implementation instead of interface in some cases, such as update@RealICA
 - [x] add property in AutoSave to support specifying object Name
 - [x] change all the base class from 'hgsetget' to 'handle'
-- [ ] add statistic structure in VideoDataset and provide interface of statistic() in Dataset. The setup function in DPModule should be able to deal with both Dataset and samples
+- [C] add statistic structure in VideoDataset and provide interface of statistic() in Dataset. The setup function in DPModule should be able to deal with both Dataset and samples -> 'statistic' is provided, while pure data processing module deal with samples, and learners setup with dataset.
+- [x] test GPU functionality on HPC : failed, assignment of sample's subfield in GPU memory cause error.
+
+## Dec 08, 2015
+- [x] revise 'setup' function with new standard
+- [x] remove output parameter of 'setup' function
+- [x] enforce 'dimin' and 'dimout' to be a single number
+- [x] remove 'traverse' mechanism from Datasets
+- [x] add restriction of number of samples proceed at once to 'RealICA' and 'ComplexICA'
+- [ ] add support to process multiple samples to comodel
+- [ ] build up standard for samples between modules, especially the assistant information part
+- [ ] add test scripts to the project
+- [ ] check result of experiment 'MotionLearnerExtend' 
+
+## Future
+- [ ] check possibility to integrate 'derivateCheck' elegantly. If negative, implement a general form in 'tools'
+- [ ] implement function 'info'
+- [ ] design draft of 'status'
+- [ ] run experiment 'RealICADebug' on HPC
+- [ ] run experiment 'SmoothPhase' on HPC
+- [ ] consider the value of default implementation instead of interface in some cases, such as update@RealICA
+- [ ] remove LearnerGroup and implement LearnerNetwork

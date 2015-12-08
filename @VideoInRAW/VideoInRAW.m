@@ -12,7 +12,7 @@ classdef VideoInRAW < VideoDataset & UtilityLib
             dataBlock = crop(dataBlock, obj.activeArea) + 0.5;
         end
     end
-    
+
     % ================= SUPPORT FUNCTIONS =================
     methods (Access = private)
         function value = calcPixelPerBlock(obj)
@@ -22,7 +22,7 @@ classdef VideoInRAW < VideoDataset & UtilityLib
             value = prod(dims);
         end
     end
-    
+
     % ================= DATA STRUCTURE =================
     properties
         videoSize

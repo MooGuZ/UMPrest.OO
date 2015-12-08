@@ -16,11 +16,11 @@ classdef MotionSeparation < DPModule & UtilityLib
                 'ffindex', sample.ffindex - (0 : numel(sample.ffindex)-1));
         end
 
-        function sample = invp(obj, motion)
+        function sample = invp(~, motion)
             [npixel, nframe] = size(motion.data);
             nsegment = numel(motion.ffindex);
             % initialize components
-            phase = obj.toGPU(zeros(npixel, nframe + nsegment));
+            phase = zeros(npixel, nframe + nsegment);
             % first frame index
             ffindex = motion.ffindex + (0 : nsegment - 1);
             % original phase information

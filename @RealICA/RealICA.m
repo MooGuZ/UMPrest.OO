@@ -30,30 +30,55 @@
 %
 % [Change Log]
 % Sept 30, 2015 - initial commit
+% Dec 08, 2015 :
+%   1. update definition of 'setup'
+%   2. specify output sample's structure in initRespond
+%   3. update 'infer' to enfore respond structure
+%   4. update 'infer' to restrict number of samples proceed at once
 classdef RealICA < GenerativeModel
     % ================= GENERATIVEMODEL IMPLEMENTATION =================
     methods
-        function initBase(obj, sample)
-            baseSize = [size(sample.data, 1), obj.nbase];
-            % initialization
-            obj.base = randn(baseSize);
+        function initBase(obj, frmdim)
+            obj.base = randn(frmdim, obj.nbase);
             % normalize in column direction
             obj.base = obj.toGPU(bsxfun(@rdivide, obj.base, sqrt(sum(obj.base.^2, 1))));
         end
 
         function respond = initRespond(obj, sample)
-            respond = sample;
-            % randomly initialization
-            respond.data = obj.toGPU(randn(obj.nbase, size(sample.data, 2)));
+            respond = struct( ...
+                'data', obj.toGPU(randn(obj.nbase, size(sample.data, 2))), ...
+                'ffindex', sample.ffindex);
         end
 
-        function respond = infer(obj, sample, start)
-            if ~exist('start', 'var'), start = obj.initRespond(sample); end
-            % copy assistant information
-            respond = sample;
+        function respond = infer(obj, sample, respond)
+            if ~exist('respond', 'var')
+                respond = obj.initRespond(sample);
+            end
             % optimization by minFunc library
-            respond.data = obj.respdataDevectorize(minFunc(@obj.objFunInfer, ...
-                obj.respdataVectorize(start.data), obj.inferOption, sample));
+            nsample = numel(sample.ffindex);
+            if nsample <= obj.maxSampleAtOnce
+                respond.data = obj.respdataDevectorize(minFunc(@obj.objFunInfer, ...
+                    obj.respdataVectorize(respond.data), obj.inferOption, sample));
+            else
+                tmpsmp = sample;
+                for i = 1 : ceil(nsample / obj.maxSampleAtOnce)
+                    head = (i - 1) * obj.maxSampleAtOnce + 1;
+                    tail = min(i * obj.maxSampleAtOnce, nsample);
+                    % get index of Frames
+                    if tail < nsample
+                        frmind = respond.ffindex(head) : respond.ffindex(tail + 1) - 1;
+                    else
+                        frmind = respond.ffindex(head) : size(respond.data, 2);
+                    end
+                    % compose temporal sample
+                    tmpsmp.data = sample.data(:, frmind);
+                    tmpsmp.ffindex = sample.ffindex(head : tail) - sample.ffindex(head) + 1;
+                    % calculate responds
+                    respond.data(:, frmind) = obj.respdataDevectorize(minFunc( ...
+                        @obj.objFunInfer, obj.respdataVectorize(respond.data(:, frmind)), ...
+                        obj.inferOption, tmpsmp));
+                end
+            end
         end
 
         function sample = generate(obj, respond)
@@ -118,9 +143,9 @@ classdef RealICA < GenerativeModel
         function step = calcAdaptStep(obj, grad)
             step = obj.adaptStep;
             if max(abs(grad(:))) * obj.adaptStep > obj.etaTarget
-                obj.adaptStep = obj.adaptStep * obj.stepUpFactor;
-            else
                 obj.adaptStep = obj.adaptStep * obj.stepDownFactor;
+            else
+                obj.adaptStep = obj.adaptStep * obj.stepUpFactor;
             end
         end
 
@@ -137,6 +162,7 @@ classdef RealICA < GenerativeModel
     properties
         base % [MATRIX] complex bases
         nbase % number of base functions
+        maxSampleAtOnce = 100;
     end
     properties (Abstract)
         % ------- INFER -------

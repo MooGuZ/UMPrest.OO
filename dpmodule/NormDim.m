@@ -1,4 +1,5 @@
 % NORMDIM rescale data to let variance of each dimension to be 1
+% [Note] this module assume the center of data is at origin
 classdef NormDim < DPModule & GPUModule & UtilityLib
     % ================= DPMODULE IMPLEMENTATION =================
     methods
@@ -10,12 +11,9 @@ classdef NormDim < DPModule & GPUModule & UtilityLib
             sample.data = bsxfun(@times, sample.data, obj.stdVector);
         end
 
-        function sample = setup(obj, sample)
+        function setup(obj, sample)
             assert(numel(size(sample.data)) == 2);
             obj.stdVector = obj.toGPU(std(sample.data, 0, 2));
-            if nargout >= 1
-                sample = obj.proc(sample);
-            end
         end
 
         function tof = ready(obj)
@@ -30,7 +28,7 @@ classdef NormDim < DPModule & GPUModule & UtilityLib
         function n = dimout(obj)
             n = obj.dimin();
         end
-        
+
     end
     % ================= GPUMODULE IMPLEMENTATION =================
     methods

@@ -12,8 +12,9 @@
 %   next([n])
 %   traverse()
 %   statsample()
-%   istraversed()d
+%   istraversed()
 %   dimout()
+%   statistic()
 %
 % [INTREFACE]
 %   dataFileIDList = getDataList(obj)
@@ -26,6 +27,7 @@
 %
 % [Change Log]
 % Nov 20, 2015 - initial commit
+% Dec 08, 2015 - remove 'traverse' related functions and variables
 classdef VideoDataset < Dataset
     % ================= DATASET IMPLEMENTATION =================
     methods
@@ -39,7 +41,7 @@ classdef VideoDataset < Dataset
 
         varargout = next(obj, n) % [external file]
 
-        sample = traverse(obj) % [external file]
+        % sample = traverse(obj) % [external file]
 
         function sample = statsample(obj)
             if obj.isOutputInPatch
@@ -50,12 +52,12 @@ classdef VideoDataset < Dataset
             sample = obj.next(n);
         end
 
-        function tof = istraversed(obj)
-            tof = obj.flagTraversed;
-            if tof
-                obj.flagTraversed = false;
-            end
-        end
+        % function tof = istraversed(obj)
+        %     tof = obj.flagTraversed;
+        %     if tof
+        %         obj.flagTraversed = false;
+        %     end
+        % end
 
         function n = dimout(obj)
             if obj.isOutputInPatch
@@ -63,6 +65,12 @@ classdef VideoDataset < Dataset
             else
                 n = obj.dimin;
             end
+        end
+    end
+    % ================= STATISTIC SYSTEM =================
+    methods
+        function stat = statistic(obj)
+            stat = obj.stat;
         end
     end
 
@@ -103,14 +111,14 @@ classdef VideoDataset < Dataset
             tof = obj.nDataFile <= obj.nDataBlock;
         end
 
-        function value = countFramePixel(data)
+        function value = countFramePixel(~, data)
             value = size(data,1) * size(data,2);
         end
     end
     % ================= SUPPORT FUNCTIONS : STATISTIC SYSTEM =================
     methods (Access = protected)
         % CALCSTAT accumulate statistic information from given data
-        calcStat(obj, data)
+        calcStat(obj, data) % [external files]
     end
 
     % ================= DATA STRUCTURE =================
@@ -132,10 +140,12 @@ classdef VideoDataset < Dataset
     properties (Access = private)
         magicNumber = 13; % the number used in the occasion needs luck
         % ------- ISTRAVERSED -------
-        flagTraversed = false; % flag assistant to record status of traverse
+        % flagTraversed = false; % flag assistant to record status of traverse
         % ------- AUTOLOAD SYSTEM -------
         iterDataFile  = 0; % iterator of data files
         iterDataBlock = 0; % iterator of data blocks
+        % ------- PATCH MODULE -------
+        patchPerBlockCount = 0;
     end
     properties (Dependent, SetAccess = private, Hidden)
         nDataFile

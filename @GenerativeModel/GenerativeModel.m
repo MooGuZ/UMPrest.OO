@@ -31,6 +31,7 @@
 %
 % [Change Log]
 % Sept 30, 2015 - initial commit
+% Dec 08, 2015 - update definition of 'setup'
 classdef GenerativeModel < DPModule & LearningModule & GPUModule & AutoSave
     % ================= DPMODULE IMPLEMENTATION =================
     methods
@@ -42,15 +43,18 @@ classdef GenerativeModel < DPModule & LearningModule & GPUModule & AutoSave
             sample = obj.preproc.invp(obj.generate(respond));
         end
 
-        function setup(obj, sample)
+        function setup(obj, dataset)
             % setup proprocessing stack
             if not(obj.preproc.ready())
-                obj.preproc.setup(sample);
+                obj.preproc.setup(dataset.statsample());
             end
             % initialize base of model
-            sample = obj.preproc.proc(sample);
             if not(obj.ready())
-                obj.initBase(sample);
+                frmdim = obj.preproc.dimout();
+                if isnan(frmdim)
+                    frmdim = dataset.dimout();
+                end
+                obj.initBase(frmdim);
             end
         end
 
@@ -59,16 +63,13 @@ classdef GenerativeModel < DPModule & LearningModule & GPUModule & AutoSave
         end
 
         function n = dimin(obj)
-            if obj.ready()
-                if isnan(obj.preproc.dimin()) && isnan(obj.preproc.dimout())
-                    n = size(obj.base, 1);
-                else
-                    n = obj.preproc.dimin();
-                end
+            assert(obj.ready(), ...
+                '[%s] has not been initialized, please initialize it with function SETUP.', ...
+                upper(class(obj)));
+            if isnan(obj.preproc.dimin()) && isnan(obj.preproc.dimout())
+                n = size(obj.base, 1);
             else
-                warning( ...
-                    '[%s] is not ready, input dimensionality is undetermined', ...
-                    upper(class(obj)));
+                n = obj.preproc.dimin();
             end
         end
 
@@ -79,6 +80,9 @@ classdef GenerativeModel < DPModule & LearningModule & GPUModule & AutoSave
     % ================= LEARNINGMODULE IMPLEMENTATION =================
     methods
         function learn(obj, sample)
+            assert(obj.ready(), ...
+                '[%s] has not been initialized, please initialize it with function SETUP.', ...
+                upper(class(obj)));
             % pre-processing
             sample = obj.preproc.proc(sample);
             % generate initial responds
@@ -92,7 +96,7 @@ classdef GenerativeModel < DPModule & LearningModule & GPUModule & AutoSave
 
         function train(obj, dataset)
             % ensure necessary paramter have been setup
-            if ~obj.ready(), obj.setup(dataset.statsample()); end
+            if ~obj.ready(), obj.setup(dataset); end
             % check compatibility of dataset and learning module
             assert(isnan(obj.dimin()) || any(obj.dimin() == dataset.dimout), ...
                 '[%s] dimensionality of dataset does not match', ...
@@ -126,9 +130,9 @@ classdef GenerativeModel < DPModule & LearningModule & GPUModule & AutoSave
 
     % ================= INTERFACES FOR SUBCLASS =================
     methods (Abstract)
-        % ### sample -> (initBase) --update--> [obj]
-        initBase(obj, sample)
-        % ### sample -> (initRespond) ----> respond
+        % ### frmdim ----> (initBase) --update--> [obj]
+        initBase(obj, frmdim)
+        % ### sample ----> (initRespond) ----> respond
         respond = initRespond(obj, sample)
         % ### sample ----> (infer) ----> respond
         respond = infer(obj, sample, start)
@@ -164,7 +168,7 @@ classdef GenerativeModel < DPModule & LearningModule & GPUModule & AutoSave
         % learn through mini-batch to adapt model sample by sample
         function miniBatch(obj, dataset)
             for i = 1 : obj.traversePerTrain
-                while not(dataset.istraversed())
+                while obj.count < obj.count + dataset.volumn()
                     % fetch data sample from dataset
                     sample = dataset.next(obj.samplePerBatch);
                     % involve model by learn sample
@@ -184,6 +188,10 @@ classdef GenerativeModel < DPModule & LearningModule & GPUModule & AutoSave
     end
 
     % ================= DATA STRUCTURE =================
+    properties (Abstract)
+        base % [MATRIX] complex bases
+        nbase % number of base functions
+    end
     properties
         count = 0;
         % ------- PREPROCESSING MODULE -------

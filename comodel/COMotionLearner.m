@@ -1,6 +1,13 @@
 classdef COMotionLearner < RealICA & MathLib & UtilityLib
     % ================= GENERATIVEMODEL IMPLEMENTATION =================
     methods
+        function respond = initRespond(obj, sample) % [OVERRIDE] RealICA
+            respond = struct( ...
+                'data', obj.toGPU(randn(obj.nbase, size(sample.data, 2))), ...
+                'ffindex', sample.ffindex, ...
+                'fframe', sample.fframe);
+        end
+        
         function update(obj, delta)
             obj.base = obj.base + delta;
         end

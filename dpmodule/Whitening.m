@@ -11,11 +11,11 @@ classdef Whitening < DPModule & GPUModule & UtilityLib
             sample.data = obj.decodeMatrix * sample.data;
         end
 
-        function sample = setup(obj, sample)
+        function setup(obj, sample)
             % variance : variance of noise values accross all frames
             noiseVar = var(sample.data(:)) * obj.noiseRatio;
             % covariance matrix of all frames
-            covMatrix = sample.data * sample.data';
+            covMatrix = sample.data * sample.data' / size(sample.data, 2);
             % principle components analysis
             [eigVec, eigVal] = eig(covMatrix);
             [eigVal, index]  = sort(diag(eigVal), 'descend');
@@ -27,8 +27,9 @@ classdef Whitening < DPModule & GPUModule & UtilityLib
             eigVal = eigVal(1 : iCutoff);
             eigVec = eigVec(:, 1 : iCutoff);
             % compose encode/decode matrix
-            obj.encodeMatrix = diag(1 ./ sqrt(eigVal)) * eigVec';
-            obj.decodeMatrix = eigVec * diag(eigVal);
+            scale = sqrt(eigVal);
+            obj.encodeMatrix = diag(1 ./ scale) * eigVec';
+            obj.decodeMatrix = eigVec * diag(scale);
             % calculate scale factor of each component with a rolloff mask
             iRolloff = sum(eigVal > varCutoff * obj.rolloffFactor);
             obj.noiseFactor = ones(iCutoff, 1);
@@ -37,10 +38,6 @@ classdef Whitening < DPModule & GPUModule & UtilityLib
             obj.noiseFactor = obj.noiseFactor / obj.noiseRatio;
             % enable GPU acceleration
             obj.activateGPU();
-            % generate processed sample
-            if nargout >= 1
-                sample = obj.proc(sample);
-            end
         end
 
         function tof = ready(obj)

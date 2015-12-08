@@ -9,12 +9,9 @@ classdef Recenter < DPModule & GPUModule & UtilityLib
             sample.data = bsxfun(@plus, sample.data, obj.biasVector);
         end
 
-        function sample = setup(obj, sample)
+        function setup(obj, sample)
             assert(numel(size(sample.data)) == 2);
             obj.biasVector = obj.toGPU(mean(sample.data, 2));
-            if nargout >= 1
-                sample = obj.proc(sample);
-            end
         end
 
         function tof = ready(obj)

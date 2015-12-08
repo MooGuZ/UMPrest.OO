@@ -1,4 +1,14 @@
 classdef COMFLearner < LearnerGroup
+    % ================= DPMODULE IMPLEMENTATION =================
+    methods
+        function n = dimin(obj)
+            n = obj.group{1}.dimin();
+        end
+
+        function n = dimout(obj)
+            n = sum(cellfun(@dimout, obj.group));
+        end
+    end
     % ================= LEARNERGROUP IMPLEMENTATION =================
     methods
         function sample = composeInSample(~, sampleArray)

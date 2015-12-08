@@ -14,11 +14,25 @@
 %
 % [Change Log]
 % Nov 20, 2015 - initial commit
+% Dec 08, 2015 - override definition of 'setup'
 classdef LearnerStack < DPStack & LearningModule & AutoSave
     % ================= STACK IMPLEMENTATION =================
     methods (Access = protected)
         function tof = isqualified(~, unit) % [OVERRIDE] DPStack
             tof = isa(unit, 'DPModule') && isa(unit, 'LearningModule');
+        end
+    end
+    % ================= DPMODULE IMPLEMENTATION =================
+    methods
+        % this implementation of SETUP function is very inefficient, especially
+        % when setup multiple levels. In some cases, utilize in-memory dataset
+        % would be a better option.
+        function setup(obj, dataset) % [OVERRIDE] DPStack
+            for i = 1 : numel(obj.stack)
+                if not(obj.stack{i}.ready())
+                    obj.stack{i}.setup(VirtualDataset(dataset, obj.stack(1 : i-1)));
+                end
+            end
         end
     end
     % ================= LEARNINGMODULE IMPLEMENTATION =================
@@ -79,10 +93,8 @@ classdef LearnerStack < DPStack & LearningModule & AutoSave
         end
         % learn stack level by level
         function lbl(obj, dataset)
-            vds = dataset;
             for i = 1 : numel(obj.stack)
-                obj.stack{i}.train(vds);
-                vds = VirtualDataset(dataset, obj.stack(1:i));
+                obj.stack{i}.train(VirtualDataset(dataset, obj.stack(1 : i-1)));
             end
         end
     end

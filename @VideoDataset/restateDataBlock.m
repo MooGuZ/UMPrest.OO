@@ -1,6 +1,6 @@
 function restateDataBlock(obj)
-    % turn off traversed flag
-    flagTraversed = false;
+    % % turn off traversed flag
+    % flagTraversed = false;
     % reorder the data file list if only partial data file loaded
     if not(obj.isloadedall())
         % index of blocked file
@@ -14,6 +14,9 @@ function restateDataBlock(obj)
         % reset iterators
         obj.iterDataFile = obj.nDataBlock;
     end
-    % reset iterator of data block
+    % reset temporal variables
     obj.iterDataBlock = 0;
+    if obj.isOutputInPatch
+        obj.patchPerBlockCount = obj.patchPerBlock;
+    end
 end

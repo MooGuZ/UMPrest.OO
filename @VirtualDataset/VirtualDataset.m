@@ -13,22 +13,22 @@ classdef VirtualDataset < Dataset
             sample = obj.proc(obj.dataSrc.next(n));
         end
 
-        % TRAVERSE returns a set of data samples and information that could
-        % represent the whole dataset
-        function sample = traverse(obj)
-            sample = obj.proc(obj.dataSrc.traverse());
-        end
+        % % TRAVERSE returns a set of data samples and information that could
+        % % represent the whole dataset
+        % function sample = traverse(obj)
+        %     sample = obj.proc(obj.dataSrc.traverse());
+        % end
 
         % STATSAMPLE returns sample set which is sufficient for statistic analysis
         function sample = statsample(obj)
             sample = obj.proc(obj.dataSrc.statsample());
         end
 
-        % ISTRAVERSED returns true/false to the question whether or not the
-        % data units have been traversed since last time this status been checked
-        function tof = istraversed(obj)
-            tof = obj.dataSrc.istraversed();
-        end
+        % % ISTRAVERSED returns true/false to the question whether or not the
+        % % data units have been traversed since last time this status been checked
+        % function tof = istraversed(obj)
+        %     tof = obj.dataSrc.istraversed();
+        % end
 
         % DIMOUT return the dimensionality of DATA field of output sample
         function n = dimout(obj)

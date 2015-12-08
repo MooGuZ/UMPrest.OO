@@ -32,18 +32,17 @@
 %
 % [Change Log]
 % Nov 21, 2015 - initial commit
+% Dec 08, 2015 :
+%   1. update definition of 'setup'
+%   2. redifine the output dimenstion to just one number, not an array
+%   3. specify output sample's structure in initRespond
+%   4. update 'infer' to enfore respond structure
+%   5. update 'infer' to restrict number of samples proceed at once
 classdef ComplexICA < GenerativeModel
-    % ================= DPMODULE IMPLEMENTATION =================
-    methods
-        function n = dimout(obj)
-            assert(obj.ready());
-            n = obj.nbase * [1,1];
-        end
-    end
     % ================= GENERATIVEMODEL IMPLEMENTATION =================
     methods
-        function initBase(obj, sample)
-            baseSize = [size(sample.data, 1), obj.nbase];
+        function initBase(obj, frmdim)
+            baseSize = [frmdim, obj.nbase];
             % initialization
             tmp.real = randn(baseSize);
             tmp.imag = randn(baseSize);
@@ -55,22 +54,48 @@ classdef ComplexICA < GenerativeModel
         end
 
         function respond = initRespond(obj, sample)
-            % copy assistant information
-            respond = sample;
-            % randomly initialization
             Z = .2 * complex(randn(obj.nbase, size(sample.data, 2)), ...
                 randn(obj.nbase, size(sample.data, 2)));
-            respond.data.amplitude = obj.toGPU(abs(Z));
-            respond.data.phase     = obj.toGPU(angle(Z));
+            respond = struct( ...
+                'data', struct('amplitude', obj.toGPU(abs(Z)), 'phase', obj.toGPU(angle(Z))), ...
+                'ffindex', sample.ffindex);
         end
 
-        function respond = infer(obj, sample, start)
-            if ~exist('start', 'var'), start = obj.initRespond(sample); end
-            % copy assistant information
-            respond = sample;
+        function respond = infer(obj, sample, respond)
+            if ~exist('respond', 'var')
+                respond = obj.initRespond(sample);
+            end
             % optimization by minFunc library
-            respond.data = obj.respdataDevectorize(minFunc(@obj.objFunInfer, ...
-                obj.respdataVectorize(start.data), obj.inferOption, sample));
+            nsample = numel(sample.ffindex);
+            if nsample <= obj.maxSampleAtOnce
+                respond.data = obj.respdataDevectorize(minFunc(@obj.objFunInfer, ...
+                    obj.respdataVectorize(respond.data), obj.inferOption, sample));
+            else
+                tmpsmp  = sample;
+                tmpdata = struct('amplitude', [], 'phase', []);
+                for i = 1 : ceil(nsample / obj.maxSampleAtOnce)
+                    head = (i - 1) * obj.maxSampleAtOnce + 1;
+                    tail = min(i * obj.maxSampleAtOnce, nsample);
+                    % get index of Frames
+                    if tail < nsample
+                        frmind = respond.ffindex(head) : respond.ffindex(tail + 1) - 1;
+                    else
+                        frmind = respond.ffindex(head) : size(respond.data, 2);
+                    end
+                    % compose temporal sample
+                    tmpsmp.data = sample.data(:, frmind);
+                    tmpsmp.ffindex = sample.ffindex(head : tail) - sample.ffindex(head) + 1;
+                    % compose temporal respond
+                    tmpdata.amplitude = respond.data.amplitude(:, frmind);
+                    tmpdata.phase     = respond.data.phase(:, frmind);
+                    % calculate responds
+                    tmpdata = obj.respdataDevectorize(minFunc( ...
+                        @obj.objFunInfer, obj.respdataVectorize(tmpdata), ...
+                        obj.inferOption, tmpsmp));
+                    respond.data.amplitude(:, frmind) = tmpdata.amplitude;
+                    respond.data.phase(:, frmind)     = tmpdata.phase;
+                end
+            end
             % flip negative amplitude generated in optimization process
             mask = respond.data.amplitude < 0;
             respond.data.amplitude(mask) = - respond.data.amplitude(mask);
@@ -140,9 +165,9 @@ classdef ComplexICA < GenerativeModel
         function step = calcAdaptStep(obj, grad)
             step = obj.adaptStep;
             if max(abs(grad(:))) * obj.adaptStep > obj.etaTarget
-                obj.adaptStep = obj.adaptStep * obj.stepUpFactor;
-            else
                 obj.adaptStep = obj.adaptStep * obj.stepDownFactor;
+            else
+                obj.adaptStep = obj.adaptStep * obj.stepUpFactor;
             end
         end
 
@@ -166,6 +191,7 @@ classdef ComplexICA < GenerativeModel
     properties
         base % [MATRIX] complex bases
         nbase % number of base functions
+        maxSampleAtOnce = 100;
     end
     properties (Abstract)
         % ------- INFER -------

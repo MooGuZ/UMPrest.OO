@@ -29,7 +29,7 @@ classdef LearnerGroup < DPModule & LearningModule & GPUModule
             sample = obj.composeInSample(sampleArray);
         end
 
-        function setup(obj, sample)
+        function setup(obj, dataset)
             % each module in the group only setup once
             if isempty(obj.group) || obj.ready()
                 return
@@ -37,7 +37,7 @@ classdef LearnerGroup < DPModule & LearningModule & GPUModule
             % setup learner one by one
             for i = 1 : numel(obj.group)
                 if ~obj.group{i}.ready()
-                    obj.group{i}.setup(sample);
+                    obj.group{i}.setup(dataset);
                 end
             end
         end
@@ -52,13 +52,8 @@ classdef LearnerGroup < DPModule & LearningModule & GPUModule
             end
         end
 
-        function n = dimin(obj)
-            n = sum(cellfun(@dimin, obj.group));
-        end
-
-        function n = dimout(obj)
-            n = sum(cellfun(@dimout, obj.group));
-        end
+        % n = dimin(obj)
+        % n = dimout(obj)
     end
     % ================= LEARNINGMODULE IMPLEMENTATION =================
     methods
@@ -70,7 +65,7 @@ classdef LearnerGroup < DPModule & LearningModule & GPUModule
 
         function train(obj, dataset)
             % ensure necessary paramter have been setup
-            if ~obj.ready(), obj.setup(dataset.statsample()); end
+            if ~obj.ready(), obj.setup(dataset); end
             % train model by given dataset
             switch lower(obj.trainingMethod)
                 case {'minibatch', 'stochastic'}

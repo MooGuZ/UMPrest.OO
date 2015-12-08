@@ -13,13 +13,13 @@ function refreshDataBlock(obj)
     % reload data file to dataBlockSet if necessary
     if obj.isloadedall
         obj.dataBlockSet  = obj.dataBlockSet(randperm(obj.nDataBlock));
-        obj.flagTraversed = true;
+        % obj.flagTraversed = true;
     elseif obj.iterDataFile < obj.nDataFile
         n = min(obj.nDataFile - obj.iterDataFile, obj.blockPerLoad);
         obj.loadData(obj.dataFileIDList(obj.iterDataFile + (1 : n)));
         obj.iterDataFile = obj.iterDataFile + n;
     else
         obj.initDataBlock();
-        obj.flagTraversed = true;
+        % obj.flagTraversed = true;
     end
 end
