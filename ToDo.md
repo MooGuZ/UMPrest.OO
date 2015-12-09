@@ -13,8 +13,8 @@
 - [x] add function 'restateDataBlock' to 'VideoDataset', and use it revise 'traverse'
 - [x] add resolution information in sample from video dataset
 - [x] rewrite 'VideoInMAT' to ensure the type-safety in using
-- [x] check assistant information passing in the whole process -> copy all the information at this time, complexer solution is not necessary
-- [x] replace randomlized mechanism with accurate count in dataset output methods when output in patch
+- [x] check assistant information passing in the whole process -> copy all the information at this time, more complex solution is not necessary
+- [x] replace randomization mechanism with accurate count in dataset output methods when output in patch
 
 ## Nov 30, 2015
 - [x] check result of motion learner with different distribution description of noise
@@ -31,16 +31,20 @@
 - [x] enforce 'dimin' and 'dimout' to be a single number
 - [x] remove 'traverse' mechanism from Datasets
 - [x] add restriction of number of samples proceed at once to 'RealICA' and 'ComplexICA'
-- [ ] add support to process multiple samples to comodel
-- [ ] build up standard for samples between modules, especially the assistant information part
+- [x] check result of experiment 'MotionLearnerExtend'
+- [x] add support to process multiple samples to comodel
+
+## Dec 09, 2015
+- [x] build up standard for samples between modules, especially the assistant information part
 - [ ] add test scripts to the project
-- [ ] check result of experiment 'MotionLearnerExtend' 
+- [C] general random number generator -> inverse transform method can not be generalized in program, just create random number generator for specific distributions
+- [ ] check possibility to integrate 'derivateCheck' elegantly. If negative, implement a general form in 'tools'
 
 ## Future
-- [ ] check possibility to integrate 'derivateCheck' elegantly. If negative, implement a general form in 'tools'
 - [ ] implement function 'info'
 - [ ] design draft of 'status'
 - [ ] run experiment 'RealICADebug' on HPC
 - [ ] run experiment 'SmoothPhase' on HPC
 - [ ] consider the value of default implementation instead of interface in some cases, such as update@RealICA
 - [ ] remove LearnerGroup and implement LearnerNetwork
+- [ ] implement transform-mask model

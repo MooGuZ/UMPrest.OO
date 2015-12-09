@@ -30,8 +30,9 @@
 % Sept 30, 2015
 %
 % [Change Log]
-% Sept 30, 2015 - initial commit
+% Sep 30, 2015 - initial commit
 % Dec 08, 2015 - update definition of 'setup'
+% Dec 09, 2015 - fixed infinite loop in 'miniBatch'
 classdef GenerativeModel < DPModule & LearningModule & GPUModule & AutoSave
     % ================= DPMODULE IMPLEMENTATION =================
     methods
@@ -168,7 +169,8 @@ classdef GenerativeModel < DPModule & LearningModule & GPUModule & AutoSave
         % learn through mini-batch to adapt model sample by sample
         function miniBatch(obj, dataset)
             for i = 1 : obj.traversePerTrain
-                while obj.count < obj.count + dataset.volumn()
+                targetCount = obj.count + dataset.volumn();
+                while obj.count < targetCount
                     % fetch data sample from dataset
                     sample = dataset.next(obj.samplePerBatch);
                     % involve model by learn sample

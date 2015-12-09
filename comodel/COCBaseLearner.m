@@ -1,3 +1,5 @@
+% CHANGE Log
+% Dec 08, 2015 - added support to multiple video in a sample
 classdef COCBaseLearner < ComplexICA & MathLib & UtilityLib
     % ================= GENERATIVEMODEL IMPLEMENTATION =================
     methods
@@ -21,7 +23,7 @@ classdef COCBaseLearner < ComplexICA & MathLib & UtilityLib
 
             objval.noise  = obj.noise(sample.error, sample.noiseFactor);
             objval.sparse = obj.sparse(respond.data.amplitude);
-            objval.stable = obj.stable(respond.data.amplitude);
+            objval.stable = obj.stable(respond.data.amplitude, sample.ffindex);
             objval.value  = objval.noise + objval.sparse + objval.stable;
         end
 
@@ -47,7 +49,7 @@ classdef COCBaseLearner < ComplexICA & MathLib & UtilityLib
             % gradient of respond.data.amplitude composed by three parts :
             % noise, sparse, and stable.
             rgrad.amplitude = obj.dsparse(respond.data.amplitude) ...
-                + obj.dstable(respond.data.amplitude) ...
+                + obj.dstable(respond.data.amplitude, sample.ffindex) ...
                 - cos(respond.data.phase) .* (real(obj.base)' * errGrad) ...
                 - sin(respond.data.phase) .* (imag(obj.base)' * errGrad);
             % gradient of respond.data.phase only related to noise
@@ -66,26 +68,29 @@ classdef COCBaseLearner < ComplexICA & MathLib & UtilityLib
             % with sigma = 1. Due to the performance concern, use the
             % simplest calculation method here. Noted the error is weighted
             % with noise factor calculated from whitening module.
-            prob = obj.nlGauss(bsxfun(@times, sqrt(noiseFactor), data), 1) / size(data, 2);
+            prob = obj.nlGauss(bsxfun(@times, sqrt(noiseFactor), data));
+            prob = sum(prob(:)) / size(data, 2);
         end
         function grad = dnoise(~, data, noiseFactor)
             grad = bsxfun(@times, noiseFactor, data) / size(data, 2);
         end
 
         function prob = sparse(obj, data)
-            prob = obj.betaSparse * obj.nlCauchy(data, obj.sigmaSparse) / size(data, 2);
+            prob = obj.betaSparse * sum(obj.nlCauchy(data(:), obj.sigmaSparse)) / size(data, 2);
         end
         function grad = dsparse(obj, data)
             grad = obj.betaSparse * obj.dNLCauchy(data, obj.sigmaSparse) / size(data, 2);
         end
 
-        function prob = stable(obj, data)
-            prob = obj.nlGauss(diff(data, 1, 2), obj.sigmaStable) / size(data, 2);
+        function prob = stable(obj, data, ffindex)
+            prob = obj.nlGauss(segdiff(data, ffindex, 2), obj.sigmaStable);
+            prob = sum(prob(:)) / size(data, 2);
         end
-        function grad = dstable(obj, data)
-            grad = - obj.dNLGauss( ...
-                diff(padarray(data, [0,1], 'replicate', 'both'), 2, 2), ...
-                obj.sigmaStable) / size(data, 2);
+        function grad = dstable(obj, data, ffindex)
+            grad = diff(data, 1, 2);
+            grad(:, ffindex(2 : end) - 1) = 0;
+            grad = -diff(padarray(grad, [0, 1]), 1, 2);
+            grad = obj.dNLGauss(grad, obj.sigmaStable) / size(data, 2);
         end
     end
     % ================= SUPPORT FUNCTION =================

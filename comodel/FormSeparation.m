@@ -9,8 +9,9 @@ classdef FormSeparation < DPModule & UtilityLib
         end
 
         function sample = invp(~, form)
-            sample.data.amplitude = exp(form.data);
-            sample.ffindex = form.ffindex;
+            sample = struct( ...
+                'data', struct('amplitude', exp(form.data)), ...
+                'ffindex', form.ffindex)
         end
 
         function sample = setup(~, sample),   end

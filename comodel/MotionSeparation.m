@@ -9,7 +9,7 @@ classdef MotionSeparation < DPModule & UtilityLib
             index(sample.ffindex) = true;
             mask = sample.data.amplitude > obj.amplitudeThreshold;
             mask = mask(:, 1 : end-1) & mask(:, 2 : end);
-            mask = mask(:, ~index(2:end));
+            mask = double(mask(:, ~index(2:end)));
             % compose output sample
             motion = struct('data', data, 'mask', mask, ...
                 'fframe', sample.data.phase(:, sample.ffindex), ...
@@ -34,9 +34,9 @@ classdef MotionSeparation < DPModule & UtilityLib
                 end
             end
             % compose sample
-            sample = struct();
-            sample.data.phase = phase;
-            sample.ffindex = ffindex;
+            sample = struct( ...
+                'data', struct('phase', phase), ...
+                'ffindex', ffindex);
         end
 
         function setup(obj, sample)
