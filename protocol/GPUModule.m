@@ -62,7 +62,12 @@ classdef GPUModule < handle
     methods (Static)
         function obj = loadobj(obj)
             obj.enableGPU = logical(gpuDeviceCount);
-            obj.activateGPU();
+            % when the definition changed, old class cannot match
+            % OBJ here would be a struct, which have no function 
+            % handle 'activeGPU".
+            if isobject(obj)
+                obj.activateGPU();
+            end
         end
     end
     % ================= INTERFACE FOR SUBCLASS =================

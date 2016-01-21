@@ -36,9 +36,14 @@
 
 ## Dec 09, 2015
 - [x] build up standard for samples between modules, especially the assistant information part
-- [ ] add test scripts to the project
 - [C] general random number generator -> inverse transform method can not be generalized in program, just create random number generator for specific distributions
+
+## Dec 10, 2015
+- [ ] add test scripts to the project
 - [ ] check possibility to integrate 'derivateCheck' elegantly. If negative, implement a general form in 'tools'
+
+## Jan 12, 2016
+- [ ] check correctness of objective function of COCBaseLearner
 
 ## Future
 - [ ] implement function 'info'

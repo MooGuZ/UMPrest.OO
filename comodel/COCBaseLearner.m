@@ -68,29 +68,29 @@ classdef COCBaseLearner < ComplexICA & MathLib & UtilityLib
             % with sigma = 1. Due to the performance concern, use the
             % simplest calculation method here. Noted the error is weighted
             % with noise factor calculated from whitening module.
-            prob = obj.nlGauss(bsxfun(@times, sqrt(noiseFactor), data));
-            prob = sum(prob(:)) / size(data, 2);
+            prob = obj.nlGauss(bsxfun(@times, sqrt(noiseFactor), data), obj.sigmaNoise);
+            prob = sum(prob(:)) *(obj.weightNoise / size(data, 2));
         end
-        function grad = dnoise(~, data, noiseFactor)
-            grad = bsxfun(@times, noiseFactor, data) / size(data, 2);
+        function grad = dnoise(obj, data, noiseFactor)
+            grad = bsxfun(@times, noiseFactor, data) *(obj.weightNoise / size(data, 2));
         end
 
         function prob = sparse(obj, data)
-            prob = obj.betaSparse * sum(obj.nlCauchy(data(:), obj.sigmaSparse)) / size(data, 2);
+            prob = sum(obj.nlCauchy(data(:), obj.sigmaSparse)) * (obj.weightSparse / size(data, 2));
         end
         function grad = dsparse(obj, data)
-            grad = obj.betaSparse * obj.dNLCauchy(data, obj.sigmaSparse) / size(data, 2);
+            grad = obj.dNLCauchy(data, obj.sigmaSparse) * (obj.weightSparse / size(data, 2));
         end
 
         function prob = stable(obj, data, ffindex)
             prob = obj.nlGauss(segdiff(data, ffindex, 2), obj.sigmaStable);
-            prob = sum(prob(:)) / size(data, 2);
+            prob = sum(prob(:)) * (obj.weightStable / size(data, 2));
         end
         function grad = dstable(obj, data, ffindex)
             grad = diff(data, 1, 2);
             grad(:, ffindex(2 : end) - 1) = 0;
             grad = -diff(padarray(grad, [0, 1]), 1, 2);
-            grad = obj.dNLGauss(grad, obj.sigmaStable) / size(data, 2);
+            grad = obj.dNLGauss(grad, obj.sigmaStable) * (obj.weightStable / size(data, 2));
         end
     end
     % ================= SUPPORT FUNCTION =================
@@ -116,9 +116,12 @@ classdef COCBaseLearner < ComplexICA & MathLib & UtilityLib
         % ------- RESPONDGRADIENT -------
         naturalGradient = true;
         % ------- PROBABILITY DESCRIPTION -------
-        betaSparse  = 10;
-        sigmaSparse = 0.4;
-        sigmaStable = sqrt(2);
+        sigmaNoise   = 1;
+        sigmaSparse  = 0.4;
+        sigmaStable  = sqrt(2);
+        weightNoise  = 1;
+        weightSparse = 10;
+        weightStable = 1
     end
 
     % ================= LANGUAGE UTILITY =================

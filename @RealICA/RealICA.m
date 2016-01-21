@@ -142,7 +142,10 @@ classdef RealICA < GenerativeModel
 
         function step = calcAdaptStep(obj, grad)
             step = obj.adaptStep;
-            if max(abs(grad(:))) * obj.adaptStep > obj.etaTarget
+            factor = max(abs(grad(:))) * obj.adaptStep / obj.etaTarget;
+            if factor > 10
+                obj.adaptStep = obj.adaptStep / 2;
+            elseif factor >= 1
                 obj.adaptStep = obj.adaptStep * obj.stepDownFactor;
             else
                 obj.adaptStep = obj.adaptStep * obj.stepUpFactor;

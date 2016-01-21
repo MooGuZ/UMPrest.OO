@@ -40,28 +40,28 @@ classdef COFormLearner < RealICA & MathLib & UtilityLib
     % ================= PROBABILITY DESCRIPTION =================
     methods (Access = private)
         function prob = noise(obj, data)
-            prob = sum(obj.nlGauss(data(:), obj.sigmaNoise)) / size(data, 2);
+            prob = sum(obj.nlGauss(data(:), obj.sigmaNoise)) * (obj.weightNoise / size(data, 2));
         end
         function grad = dnoise(obj, data)
-            grad = obj.dNLGauss(data, obj.sigmaNoise) / size(data, 2);
+            grad = obj.dNLGauss(data, obj.sigmaNoise) * (obj.weightNoise / size(data, 2));
         end
 
         function prob = sparse(obj, data)
-            prob = obj.betaSparse * sum(obj.nlLaplace(data(:), obj.sigmaSparse)) / size(data, 2);
+            prob = sum(obj.nlLaplace(data(:), obj.sigmaSparse)) * (obj.weightSparse / size(data, 2));
         end
         function grad = dsparse(obj, data)
-            grad = obj.betaSparse * obj.dNLLaplace(data, obj.sigmaSparse) / size(data, 2);
+            grad = obj.dNLLaplace(data, obj.sigmaSparse) * (obj.weightSparse / size(data, 2));
         end
 
         function prob = stable(obj, data, ffindex)
             prob = obj.nlGauss(segdiff(data, ffindex, 2), obj.sigmaStable);
-            prob = sum(prob(:)) / size(data, 2);
+            prob = sum(prob(:)) * (obj.weightStable / size(data, 2));
         end
         function grad = dstable(obj, data, ffindex)
             grad = diff(data, 1, 2);
             grad(:, ffindex(2 : end) - 1) = 0;
             grad = -diff(padarray(grad, [0, 1]), 1, 2);
-            grad = - obj.dNLGauss(grad, obj.sigmaStable) / size(data, 2);
+            grad = obj.dNLGauss(grad, obj.sigmaStable) * (obj.weightStable / size(data, 2));
         end
     end
     % ================= SUPPORT FUNCTION =================
@@ -87,8 +87,10 @@ classdef COFormLearner < RealICA & MathLib & UtilityLib
         % ------- PROBABILITY -------
         sigmaNoise  = sqrt(0.2);
         sigmaSparse = 1;
-        betaSparse  = 2;
         sigmaStable = sqrt(0.1);
+        weightNoise  = 1;
+        weightSparse = 1;
+        weightStable = 1;
     end
 
     % ================= LANGUAGE UTILITY =================

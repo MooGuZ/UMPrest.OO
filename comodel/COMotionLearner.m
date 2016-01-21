@@ -49,36 +49,38 @@ classdef COMotionLearner < RealICA & MathLib & UtilityLib
         function prob = noise(obj, data)
             switch lower(obj.priorNoise)
             case {'vonmise'}
-                prob = sum(obj.nlVonMise(data(:), obj.sigmaNoise)) / size(data, 2);
+                prob = sum(obj.nlVonMise(data(:), obj.sigmaNoise));
             case {'gauss', 'gaussian'}
-                prob = sum(obj.nlGauss(data(:), obj.sigmaNoise)) / size(data, 2);
+                prob = sum(obj.nlGauss(data(:), obj.sigmaNoise));
             end
+            prob = prob * (obj.weightNoise / size(data, 2));
         end
         function grad = dnoise(obj, data)
             switch lower(obj.priorNoise)
             case {'vonmise'}
-                grad = obj.dNLVonMise(data, obj.sigmaNoise) / size(data, 2);
+                grad = obj.dNLVonMise(data, obj.sigmaNoise);
             case {'gauss', 'gaussian'}
-                grad = obj.dNLGauss(data, obj.sigmaNoise) / size(data, 2);
+                grad = obj.dNLGauss(data, obj.sigmaNoise);
             end
+            grad = grad * (obj.weightNoise / size(data, 2));
         end
 
         function prob = sparse(obj, data)
-            prob = obj.betaSparse * sum(obj.nlCauchy(data(:), obj.sigmaSparse)) / size(data, 2);
+            prob = sum(obj.nlCauchy(data(:), obj.sigmaSparse)) * (obj.weightSparse / size(data, 2));
         end
         function grad = dsparse(obj, data)
-            grad = obj.betaSparse * obj.dNLCauchy(data, obj.sigmaSparse) / size(data, 2);
+            grad = obj.dNLCauchy(data, obj.sigmaSparse) * (obj.weightSparse / size(data, 2));
         end
 
         function prob = stable(obj, data, ffindex)
             prob = obj.nlGauss(segdiff(data, ffindex, 2), obj.sigmaStable);
-            prob = sum(prob(:)) / size(data, 2);
+            prob = sum(prob(:)) * (obj.weightStable / size(data, 2));
         end
         function grad = dstable(obj, data, ffindex)
             grad = diff(data, 1, 2);
             grad(:, ffindex(2 : end) - 1) = 0;
             grad = -diff(padarray(grad, [0,1]), 1, 2);
-            grad = - obj.dNLGauss(grad, obj.sigmaStable) / size(data, 2);
+            grad = obj.dNLGauss(grad, obj.sigmaStable) * (obj.weightStable / size(data, 2));
         end
     end
     % ================= SUPPORT FUNCTION =================
@@ -92,21 +94,23 @@ classdef COMotionLearner < RealICA & MathLib & UtilityLib
     properties
         % ------- INFER -------
         inferOption = struct( ...
-            'Method', 'csd', ...
+            'Method', 'cg', ...
             'Display', 'off', ...
-            'MaxIter', 17, ...
-            'MaxFunEvals', 23);
+            'MaxIter', 30, ...
+            'MaxFunEvals', 70);
         % ------- ADAPT -------
-        adaptStep      = 1e-2;
+        adaptStep      = 1e-3;
         etaTarget      = 0.03;
         stepUpFactor   = 1.02;
         stepDownFactor = 0.95;
         % ------- PROBABILITY -------
         priorNoise  = 'vonMise';
-        sigmaNoise  = 0.5;
+        sigmaNoise  = 1;
         sigmaSparse = sqrt(0.5);
-        betaSparse  = 0.5;
         sigmaStable = sqrt(0.2);
+        weightNoise  = 1;
+        weightSparse = 1;
+        weightStable = 1;
     end
 
     % ================= LANGUAGE UTILITY =================
