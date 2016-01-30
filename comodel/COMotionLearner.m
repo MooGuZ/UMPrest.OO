@@ -99,7 +99,7 @@ classdef COMotionLearner < RealICA & MathLib & UtilityLib
             'MaxIter', 30, ...
             'MaxFunEvals', 70);
         % ------- ADAPT -------
-        adaptStep      = 1e-3;
+        adaptStep      = 1e0;
         etaTarget      = 0.03;
         stepUpFactor   = 1.02;
         stepDownFactor = 0.95;

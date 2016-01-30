@@ -37,10 +37,18 @@ classdef LearnerStack < DPStack & LearningModule & AutoSave
     end
     % ================= LEARNINGMODULE IMPLEMENTATION =================
     methods
-        function learn(obj, sample)
-            for i = 1 : numel(obj.stack)
-                obj.stack{i}.learn(sample);
-                sample = obj.stack{i}.proc(sample);
+        function learn(obj, sample, ilevel)
+            if exist('ilevel', 'var')
+                assert(ilevel > 0 && ilevel == floor(ilevel));
+                for i = 1 : ilevel-1
+                    sample = obj.stack{i}.proc(sample);
+                end
+                obj.stack{ilevel}.learn(sample);
+            else
+                for i = 1 : numel(obj.stack)
+                    obj.stack{i}.learn(sample);
+                    sample = obj.stack{i}.proc(sample);
+                end
             end
         end
 
