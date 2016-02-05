@@ -45,6 +45,11 @@
 ## Jan 12, 2016
 - [ ] check correctness of objective function of COCBaseLearner
 
+## Jan 21, 2016
+- [ ] implement memeory limitation in calculating of GenerativeModel
+  by implant Divide & Conquer in the abstract class. At thist time
+
+
 ## Future
 - [ ] implement function 'info'
 - [ ] design draft of 'status'

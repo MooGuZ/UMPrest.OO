@@ -35,6 +35,9 @@
 %   2. specify output sample's structure in initRespond
 %   3. update 'infer' to enfore respond structure
 %   4. update 'infer' to restrict number of samples proceed at once
+% Jan 30, 2016 :
+%   1. updated 'objFunInfer' to return objective value in CPU memory to overcome
+%      the error 'cannot convert gpuArray to double' throwed from 'minFunc' (L1035)
 classdef RealICA < GenerativeModel
     % ================= GENERATIVEMODEL IMPLEMENTATION =================
     methods
@@ -134,7 +137,7 @@ classdef RealICA < GenerativeModel
                 recover = obj.generate(respond);
                 sample.error = sample.data - recover.data;
             end
-            objval = obj.evaluate(sample, respond).value;
+            objval = obj.toCPU(obj.evaluate(sample, respond).value);
             if nargout > 1
                 grad = obj.respdataVectorize(obj.respondGradient(sample, respond));
             end
