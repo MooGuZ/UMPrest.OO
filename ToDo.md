@@ -49,7 +49,6 @@
 - [ ] implement memeory limitation in calculating of GenerativeModel
   by implant Divide & Conquer in the abstract class. At thist time
 
-
 ## Future
 - [ ] implement function 'info'
 - [ ] design draft of 'status'
