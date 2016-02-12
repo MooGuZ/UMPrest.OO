@@ -3,9 +3,9 @@
 %
 % MooGu Z. <hzhu@case.edu> 
 % Feb 11, 2016
-classdef MLP < DPModule & LearningModule
+classdef MLP < handle & UtilityLib
     properties
-        _debug_ = false;
+        debug = false;
     end
     % ================= DPMODULE IMPLEMENTATION =================
     methods
@@ -16,10 +16,10 @@ classdef MLP < DPModule & LearningModule
     
     % ================= LEARNINGMODULE IMPLEMENTATION =================
     methods
-        function learn(obj, input, target)
+        function learn(obj, input, target, stepSize)
             output = obj.feedforward(input);
-            deriv  = obj.derivate(output, target);
-            obj.backpropagete(deriv);
+            deriv  = obj.derivative(output, target);
+            obj.backpropagate(deriv, stepSize);
         end
     end
     
@@ -34,18 +34,18 @@ classdef MLP < DPModule & LearningModule
         end
         
         function backpropagate(obj, deriv, stepSize)
-            for i = nuel(obj.Layer) : -1 : 1
-                deriv = obj.Layer{1}.backpropagate(deriv, stepSize);
+            for i = numel(obj.Layer) : -1 : 1
+                deriv = obj.Layer{i}.backpropagate(deriv, stepSize);
             end
         end
         
         function value = objective(obj, output, target)
-            value = target .* log(output + (1 - target .* log(1 - output);
+            value = target .* log(output) + (1 - target) .* log(1 - output);
             value = -sum(value(:)) / obj.dimout;
         end
         
         function deriv = derivative(obj, output, target)
-            deriv = -(target ./ output - (1 - target) ./ (1 - output))) / obj.dimout;
+            deriv = -(target ./ output - (1 - target) ./ (1 - output)) / obj.dimout;
         end
     end
     
@@ -61,7 +61,7 @@ classdef MLP < DPModule & LearningModule
     methods
         function value = get.activateType(obj)
             value = obj.Layer{1}.activateType;
-            if obj._debug_
+            if obj.debug
                 for i = 2 : numel(obj.Layer)
                     assert(strcmp(obj.Layer{i}.activateType, value));
                 end
@@ -87,7 +87,7 @@ classdef MLP < DPModule & LearningModule
         function obj = MLP(layerSize, activateType, varargin)
             assert(numel(layerSize) > 2, 'MLP need more than two layers');
             
-            obj.Layer = cell(numel(layerSize) - 1);
+            obj.Layer = cell(numel(layerSize) - 1, 1);
             for i = 1 : numel(obj.Layer)
                 obj.Layer{i} = Perceptron(layerSize(i), layerSize(i+1), ...
                                           activateType, varargin{:});

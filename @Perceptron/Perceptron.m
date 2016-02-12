@@ -2,16 +2,16 @@
 %
 % MooGu Z. <hzhu@case.edu>
 % Feb 11, 2016
-classdef Perceptron < handle
+classdef Perceptron < handle & UtilityLib
     % ================= API =================
     methods
         function output = feedforward(obj, input)
-            output = obj.W * input + obj.B;
+            output = obj.afun(obj.W * input + obj.B);
             obj.I = input; obj.O = output;
         end
         
         function deriv = backpropagate(obj, deriv, stepSize)
-            dB = delta .* dfun(obj.O);
+            dB = deriv .* obj.dfun(obj.O);
             dW = dB * obj.I';
             deriv = obj.W' * dB;
             
@@ -34,6 +34,8 @@ classdef Perceptron < handle
     end
     properties (Dependent)
         activateType
+        dimin
+        dimout
     end
     methods
         function value = get.activateType(obj)
@@ -48,13 +50,21 @@ classdef Perceptron < handle
                 warning('Unrecognized activation type');
             end
         end
+        
+        function value = get.dimin(obj)
+            value = size(obj.W, 2);
+        end
+        
+        function value = get.dimout(obj)
+            value = size(obj.W, 1);
+        end
     end
     
     % ================= CONSTRUCTOR =================
     methods
         function obj = Perceptron(inSize, outSize, activateType, varargin)
-            obj.W = randn(outSize, inSize);
-            obj.B = randn(outSize, 1);
+            obj.W = (rand(outSize, inSize) - 0.5) * (2 / sqrt(inSize));
+            obj.B = zeros(outSize, 1);
             obj.activateType = activateType;
             obj.setupByArg(varargin{:});
         end
