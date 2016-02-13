@@ -6,14 +6,14 @@ classdef Perceptron < handle & UtilityLib
     % ================= API =================
     methods
         function output = feedforward(obj, input)
-            output = obj.afun(obj.W * input + obj.B);
+            output = obj.afun(obj.W * input(:) + obj.B);
             obj.I = input; obj.O = output;
         end
         
-        function deriv = backpropagate(obj, deriv, stepSize)
-            dB = deriv .* obj.dfun(obj.O);
+        function delta = backpropagate(obj, delta, stepSize)
+            dB = delta .* obj.dfun(obj.O);
             dW = dB * obj.I';
-            deriv = obj.W' * dB;
+            delta = obj.W' * dB;
             
             obj.W = obj.W - stepSize * dW;
             obj.B = obj.B - stepSize * dB;
@@ -39,13 +39,14 @@ classdef Perceptron < handle & UtilityLib
     end
     methods
         function value = get.activateType(obj)
-            value = lower(obj.atype);
+            value = obj.atype;
         end
         function set.activateType(obj, value)
             switch lower(value)
               case {'sigmoid', 'logistic'}
                 obj.afun = @(x) 1 ./ (1 + exp(-x));
                 obj.dfun = @(x) x .* (1 - x);
+                obj.atype = value;
               otherwise
                 warning('Unrecognized activation type');
             end

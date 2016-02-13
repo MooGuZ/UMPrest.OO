@@ -18,8 +18,8 @@ classdef MLP < handle & UtilityLib
     methods
         function learn(obj, input, target, stepSize)
             output = obj.feedforward(input);
-            deriv  = obj.derivative(output, target);
-            obj.backpropagate(deriv, stepSize);
+            delta  = obj.derivative(output, target);
+            obj.backpropagate(delta, stepSize);
         end
     end
     
@@ -33,19 +33,19 @@ classdef MLP < handle & UtilityLib
             output = data;
         end
         
-        function backpropagate(obj, deriv, stepSize)
+        function delta = backpropagate(obj, delta, stepSize)
             for i = numel(obj.Layer) : -1 : 1
-                deriv = obj.Layer{i}.backpropagate(deriv, stepSize);
+                delta = obj.Layer{i}.backpropagate(delta, stepSize);
             end
         end
         
         function value = objective(obj, output, target)
             value = target .* log(output) + (1 - target) .* log(1 - output);
-            value = -sum(value(:)) / obj.dimout;
+            value = -sum(value(:)) / numel(target);
         end
         
-        function deriv = derivative(obj, output, target)
-            deriv = -(target ./ output - (1 - target) ./ (1 - output)) / obj.dimout;
+        function delta = derivative(obj, output, target)
+            delta = -(target ./ output - (1 - target) ./ (1 - output)) / numel(target);
         end
     end
     
