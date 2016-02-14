@@ -112,24 +112,6 @@ classdef ConvPerceptron < handle
                         obj.nfilter];                    
             end
         end
-        
-        function h = show(obj)
-            [nrow, ncol] = arrange(obj.nfilter);
-            % estimate figure size
-            figH = size(obj.O, 1) * nrow;
-            figW = size(obj.O, 2) * ncol;
-            scnsz = get(0, 'screensize');
-            ratio = max([1.1 * figW / scnsz(3), 1.1 * figH / scnsz(4), 1]);
-            figH = figH / ratio;
-            figW = figW / ratio;
-            % show feature maps
-            h = figure('Position', [100, 100, figW, figH]);
-            for i = 1 : obj.nfilter
-                subplot(nrow, ncol, i);
-                imagesc(obj.O(:, :, i));
-                axis off
-            end
-        end
     end
     
     % ================= DATA & PARAM =================
