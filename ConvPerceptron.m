@@ -2,100 +2,133 @@
 %
 % MooGu Z. <hzhu@case.edu>
 % Feb 12, 2016
-classdef ConvPerceptron < handle & UtilityLib
+classdef ConvPerceptron < handle
     % ================= API =================
     methods
         function output = feedforward(obj, input)
-            % convolution
-            output = zeros(obj.calcOutputSize(input), class(input));
-            for i = 1 : numel(obj.F)
-                output(:, :, i) = obj.afun(convn(input, obj.F{i}, obj.convType) + obj.B(i));
+            output = zeros(obj.calcOutputSize(input), 'like', input);
+            if strcmp(obj.convType, 'valid')
+                for i = 1 : obj.nfilter
+                    output(:, :, i) = convn(input, obj.F{i}, 'valid') + obj.B(i);
+                end
+            else
+                for i = 1 : obj.nfilter
+                    for j = 1 : obj.nchannel
+                        output(:, :, i) = output(:, :, i) ...
+                            + conv2(input(:, :, j), obj.F{i}(:, :, j), obj.convType);
+                    end
+                    output(:, :, i) = output(:, :, i) + obj.B(i);
+                end
             end
+            output = obj.afun(output);
+            % record current state
             obj.I = input; obj.O = output;
         end
         
         function delta = backpropagate(obj, delta, stepSize)
-            tmp = delta .* obj.dfun(obj.O);
-            
-            % SITUATION : convType = 'same'
-            % fhmid = ceil((obj.filterHeight + 1) / 2);
-            % fwmid = ceil((obj.filterWidth + 1) / 2);
-            % for i = 1 : obj.nfilter
-            %     for h = 1 : obj.filterHeight
-            %         for w = 1 : obj.filterWidth
-            %             switch obj.convType
-            %               case {'same'}
-            %                 if h <= fhmid
-            %                     ihrange = [1 - h + fhmid, size(obj.I, 1)];
-            %                     ohrange = [1, size(obj.O, 1) + h - fhmid];
-            %                 else
-            %                     ihrange = [1, size(obj.I, 1) - h + fhmid];
-            %                     ohrange = [1 + h - fhmid, size(obj.O, 1)];
-            %                 end
-            %                 if w <= fwmid
-            %                     iwrange = [1 - w + fwmid, size(obj.I, 2)];
-            %                     owrange = [1, size(obj.O, 2) + w - fwmid];
-            %                 else
-            %                     iwrange = [1, size(obj.I, 2) - w + fwmid];
-            %                     owrange = [1 + w - fwmid, size(obj.O, 2)];
-            %                 end
-            %             end
-            %             obj.F{i}(h, w, :) = sum(sum( ...
-            %                 obj.I(ihrange(1):ihrange(2),iwrange(1):iwrange(2), :) .* ...
-            %                 repmat(tmp(ohrange(1):ohrange(2), owrange(1):owrange(2), ...
-            %                            i), [1, 1, obj.nchannel])));
-            %         end
-            %     end
-            % end                 
-            
+            % derivatives counting in activation function
+            dO = delta .* obj.dfun(obj.O);
+            dB = sum(sum(dO));
+            % initialize derivatives
             delta = zeros(size(obj.I));
-            
-            % SITUATION : convType = 'valid'
-            for i = 1 : obj.nfilter
-                obj.F{i} = convn(obj.I, repmat(obj.matflip(tmp(:, :, i)), [1, 1, ...
-                                    obj.nchannel]), 'valid');
-                for j = 1 : obj.nchannel
-                    delta(:, :, j) = delta(:, :, j) + ...
-                        conv2(tmp(:, :, i), obj.matflip(obj.F{i}(:, :, j)), 'full');
+            dF    = cell(obj.nfilter, 1);
+            for i = 1 : numel(dF)
+                dF{i} = zeros(obj.filterHeight, obj.filterWidth, obj.nchannel);
+            end
+            % useful informations
+            [ih, iw, ~] = size(obj.I); % size of input
+            % coordinate of filter center element
+            fch = ceil((obj.filterHeight + 1) / 2); 
+            fcw = ceil((obj.filterWidth + 1) / 2);
+            % calculate derivatives
+            switch obj.convType
+              case {'same'}
+                Iflip = matflip(obj.I);
+                for i = 1 : obj.nfilter
+                    Fflip = matflip(obj.F{i});
+                    for j = 1 : obj.nchannel
+                        tmp = conv2(dO(:, :, i), Iflip(:, :, j), 'full');
+                        % coordinates
+                        Xs = ih - fch + 1;
+                        Xe = Xs + obj.filterHeight - 1;
+                        Ys = iw - fcw + 1;
+                        Ye = Ys + obj.filterWidth - 1;
+                        % derivative of filter
+                        dF{i}(:, :, j) = tmp(Xs : Xe, Ys : Ye);
+                        % derivative of input
+                        if all(mod(obj.filterHeight, obj.filterWidth))
+                            delta(:, :, j) = delta(:, :, j) + ...
+                                conv2(dO(:, :, i), Fflip(:, :, j), 'same');
+                        else
+                            tmp = conv2(dO(:, :, i), Fflip(:, :, j), 'full');
+                            Xs = fch - 1;
+                            Xe = Xs + ih - 1;
+                            Ys = fcw - 1;
+                            Ye = Ys + iw - 1;
+                            delta(:, :, j) = delta(:, :, j) + tmp(Xs : Xe, Ys : Ye);
+                        end
+                    end
+                end
+                
+              case {'valid'}
+                for i = 1 : obj.nfilter
+                    dF{i} = convn(matflip(obj.I), dO(:, :, i), 'valid');
+                    delta = delta + convn(matflip(obj.F{i}), dO(:, :, i), 'full');
+                end
+                
+              case {'full'}
+                Iflip = matflip(obj.I);
+                for i = 1 : obj.nfilter
+                    Fflip = matflip(obj.F{i});
+                    for j = 1 : obj.nchannel
+                        obj.F{i} = conv2(dO(:, :, i), Iflip(:, :, j), 'valid');
+                        delta(:, :, j) = delta(:, :, j) ...
+                            + conv2(dO(:, :, i), Fflip(:, :, j), 'valid');
+                    end
                 end
             end
-            
-            % SITUATION : convType = 'full'
-            for i = 1 : obj.nfilter
-                obj.F{i} = convn(repmat(tmp(:, :, i), [1, 1, obj.nchannel]), ...
-                                 obj.matflip(obj.I), 'valid');
-                delta = delta + convn(repmat(tmp(:, :, i), [1, 1, obj.nchannel]), ...
-                                      obj.matflip(obj.F{i}), 'valid');
+            % update filter and bias
+            obj.B = obj.B - stepSize * dB(:);
+            for i = 1 : numel(obj.F)
+                obj.F{i} = obj.F{i} - stepSize * dF{i};
             end
-            
-            dB  = sum(sum(tmp));
+        end
     end
     
     % ================= ASSISTANT METHOD =================
     methods
         function sz = calcOutputSize(obj, input)
-            [r, c, ch] = size(input);
+            [r, c, ~] = size(input);
             switch obj.convType
-              case {'valid'}
-                sz = [r - obj.filterHeight + 1, c - obj.filterWidth + 1, ...
-                      obj.nfilter];
-                
-              case {'same'}
-                sz = [r, c, obj.nfilter];
-                
-              case {'full'}
-                sz = [r + obj.filterHeight -1, c + obj.filterWidth - 1, ...
-                      obj.nfilter];
-                
-              otherwise
-                error('Convolution Type is invalid : %s', obj.convType);
-            
+                case {'valid'}
+                    sz = [r - obj.filterHeight + 1, c - obj.filterWidth + 1, ...
+                        obj.nfilter];
+                    
+                case {'same'}
+                    sz = [r, c, obj.nfilter];
+                    
+                case {'full'}
+                    sz = [r + obj.filterHeight -1, c + obj.filterWidth - 1, ...
+                        obj.nfilter];                    
             end
         end
         
-        function fmat = matflip(~, mat)
-            [r, c, ~] = size(mat);
-            fmat = mat(r:-1:1, c:-1:1, :);
+        function h = show(obj)
+            [nrow, ncol] = arrange(obj.nfilter);
+            % estimate figure size
+            figH = size(obj.O, 1) * nrow;
+            figW = size(obj.O, 2) * ncol;
+            scnsz = get(0, 'screensize');
+            ratio = max([1.1 * figW / scnsz(3), 1.1 * figH / scnsz(4), 1]);
+            figH = figH / ratio;
+            figW = figW / ratio;
+            % show feature maps
+            h = figure('Position', [100, 100, figW, figH]);
+            for i = 1 : obj.nfilter
+                subplot(nrow, ncol, i);
+                imagesc(obj.O(:, :, i));
+                axis off
+            end
         end
     end
     
@@ -108,10 +141,12 @@ classdef ConvPerceptron < handle & UtilityLib
         atype % activation type
         afun  % activation function
         dfun  % derivative of activation function
-        convType = 'same' % convolution operation type : {'full', 'same', 'valid'}
+    end
+    properties (Constant)
+        convType = 'valid'; % convolution operation type : {'full', 'same', 'valid'}
     end
     % ----------------- DEBUG -----------------
-    properties (Access = private)
+    properties (Access = private, Constant)
         debug = false;
     end
     
@@ -160,13 +195,41 @@ classdef ConvPerceptron < handle & UtilityLib
         end
         function set.activateType(obj, value)
             switch lower(value)
-              case {'sigmoid', 'logistic'}
-                obj.afun = @(x) 1 ./ (1 + exp(-x));
-                obj.dfun = @(x) x .* (1 - x);
-                obj.atype = value;
-              otherwise
-                warning('Unrecognized activation type');
+                case {'sigmoid', 'logistic'}
+                    obj.afun = @(x) 1 ./ (1 + exp(-x));
+                    obj.dfun = @(x) x .* (1 - x);
+                    obj.atype = value;
+                otherwise
+                    warning('Unrecognized activation type');
             end
+        end
+    end
+    
+    % ================= CONSTRUCTOR =================
+    methods
+        function obj = ConvPerceptron(nfilter, filterSize, nchannel, activateType)
+            % set default values
+            if ~exist('nchannel', 'var'),     nchannel     = 3;         end
+            if ~exist('activateType', 'var'), activateType = 'sigmoid'; end
+            % formalize FILTERSIZE
+            switch numel(filterSize)
+              case {1}
+                filterSize = [filterSize, filterSize];
+              case {2}
+                filterSize = filterSize(:)';
+              otherwise
+                error(['Input arg[2] (filterSize) required to be 1 or 2 number ' ...
+                       'array']);
+            end
+            % initialize filters
+            obj.F = cell(nfilter, 1);
+            for i = 1 : nfilter
+                obj.F{i} = randn([filterSize, nchannel]);
+            end
+            % initialize bias
+            obj.B = zeros(nfilter, 1);
+            % set activate function
+            obj.activateType = activateType;
         end
     end
 end
