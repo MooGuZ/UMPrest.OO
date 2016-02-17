@@ -108,5 +108,13 @@ classdef MathLib < handle
             if ~exist('kai', 'var'), kai = 1; end
             d = kai * sin(x - mu);
         end
+        % ============= ACITVATION FUNCTIONS =============
+        % sigmoid
+        function v = sigmoid(x)
+            v = 1 ./ (1 + exp(-x));
+        end
+        function d = sigmoid_derv(x)
+            v = x .* (1 - x);
+        end
     end
 end

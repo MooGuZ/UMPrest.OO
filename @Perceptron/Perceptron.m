@@ -1,17 +1,25 @@
-% Perceptron is an abstraction of full connected layer in neural network
+% Perceptron is an abstraction of perceptron in brain.
+% 
+% PERCEPTRON is the base class of other kind of perceptrons, such as convolutional
+% perceptrons. However, PERCEPTRON is not abstract. It represents the common
+% full-connected model in neural network.
 %
 % MooGu Z. <hzhu@case.edu>
 % Feb 11, 2016
-classdef Perceptron < handle & UtilityLib
+
+% TO-DO
+% 1. add more activation type
+
+classdef Perceptron < handle & MathLib
     % ================= API =================
     methods
         function output = feedforward(obj, input)
-            output = obj.afun(obj.W * input(:) + obj.B);
+            output = obj.act.op(obj.W * input(:) + obj.B);
             obj.I = input; obj.O = output;
         end
         
         function delta = backpropagate(obj, delta, stepSize)
-            dB = delta .* obj.dfun(obj.O);
+            dB = delta .* obj.activation.derv(obj.O);
             dW = dB * obj.I';
             delta = obj.W' * dB;
             
@@ -20,7 +28,7 @@ classdef Perceptron < handle & UtilityLib
         end
     end
     
-    % ================= DATA & FIELD =================
+    % ================= DATA & PARAM =================
     properties
         W % weight matrix
         B % bias vector
@@ -28,46 +36,39 @@ classdef Perceptron < handle & UtilityLib
         O % output states
     end
     properties (Access = private)
-        atype % type of activation (string)
-        afun  % activate function handle
-        dfun  % derivative of activation function 
+        % properties of activation function
+        act = struct( ...
+            'type', 'off', ...
+            'op',   nan, ...
+            'derv', nan);
     end
+    
+    % ================= FUNCTIONAL PARAM =================
     properties (Dependent)
         activateType
-        dimin
-        dimout
     end
     methods
         function value = get.activateType(obj)
-            value = obj.atype;
+            value = obj.act.type;
         end
         function set.activateType(obj, value)
             switch lower(value)
               case {'sigmoid', 'logistic'}
-                obj.afun = @(x) 1 ./ (1 + exp(-x));
-                obj.dfun = @(x) x .* (1 - x);
-                obj.atype = value;
+                obj.act.type = lower(value);
+                obj.act.op   = @obj.sigmoid;
+                obj.act.derv = @obj.sigmoid_derv;
               otherwise
                 warning('Unrecognized activation type');
             end
-        end
-        
-        function value = get.dimin(obj)
-            value = size(obj.W, 2);
-        end
-        
-        function value = get.dimout(obj)
-            value = size(obj.W, 1);
         end
     end
     
     % ================= CONSTRUCTOR =================
     methods
-        function obj = Perceptron(inSize, outSize, activateType, varargin)
-            obj.W = (rand(outSize, inSize) - 0.5) * (2 / sqrt(inSize));
-            obj.B = zeros(outSize, 1);
+        function obj = Perceptron(dimin, dimout, activateType)
+            obj.W = (rand(dimout, dimin) - 0.5) * (2 / sqrt(dimin));
+            obj.B = zeros(dimout, 1);
             obj.activateType = activateType;
-            obj.setupByArg(varargin{:});
         end
     end
 end
