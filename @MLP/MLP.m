@@ -6,91 +6,37 @@
 classdef MLP < LModel & UtilityLib
     % ================= LMODEL IMPLEMENTATION =================
     methods
-        function output = proc(obj, input)
-            output = obj.feedfoward(input);
-        end
-    end
-    
-    % ================= LEARNINGMODULE IMPLEMENTATION =================
-    methods
-        function learn(obj, input, target, stepSize)
-            output = obj.feedforward(input);
-            delta  = obj.derivative(output, target);
-            obj.backpropagate(delta, stepSize);
-        end
-    end
-    
-    % ================= ASSISTANT METHOD  =================
-    methods
-        function output = feedforward(obj, input)
-            data = input;
-            for i = 1 : numel(obj.Layer)
-                data = obj.Layer{i}.feedforward(data);
-            end
-            output = data;
+        function [input, ref] = decompose(data)
+            input = data.D;
+            ref   = data.R;
         end
         
-        function delta = backpropagate(obj, delta, stepSize)
-            for i = numel(obj.Layer) : -1 : 1
-                delta = obj.Layer{i}.backpropagate(delta, stepSize);
-            end
+        function value = evaluate(~, output, ref)
+            value = MathLib.logistic(output, ref);
         end
         
-        function value = objective(obj, output, target)
-            value = target .* log(output) + (1 - target) .* log(1 - output);
-            value = -sum(value(:)) / numel(target);
-        end
-        
-        function delta = derivative(obj, output, target)
-            delta = -(target ./ output - (1 - target) ./ (1 - output)) / numel(target);
-        end
-    end
-    
-    % ================= DATA & PARAM =================
-    properties
-        Layer
-    end
-    properties (Dependent)
-        activateType
-        dimin
-        dimout
-    end
-    methods
-        function value = get.activateType(obj)
-            value = obj.Layer{1}.activateType;
-            if obj.debug
-                for i = 2 : numel(obj.Layer)
-                    assert(strcmp(obj.Layer{i}.activateType, value));
-                end
-            end
-        end
-        function set.activateType(obj, value)
-            for i = 1 : numel(obj.Layer)
-                obj.Layer{i}.activateType = value;
-            end
-        end
-        
-        function value = get.dimin(obj)
-            value = obj.Layer{1}.dimin;
-        end
-        
-        function value = get.dimout(obj)
-            value = obj.Layer{end}.dimout;
+        function signal = impulse(~, output, ref)
+            signal = MathLib.logistic_derv(output, ref);
         end
     end
     
     % ================= Constructor =================
     methods
-        function obj = MLP(layerSize, activateType, varargin)
-            assert(numel(layerSize) > 2, 'MLP need more than two layers');
+        function obj = MLP(numElemArr, activateType)
+            nunit = numel(numElemArr) - 1;
             
-            obj.Layer = cell(numel(layerSize) - 1, 1);
-            for i = 1 : numel(obj.Layer)
-                obj.Layer{i} = Perceptron(layerSize(i), layerSize(i+1), ...
-                                          activateType, varargin{:});
+            % check validity of input arguments
+            assert(nunit > 1, 'At lest one Perceptron is needed for MLP.');
+            assert((iscellstr(activateType) && numel(activateType) == nunit) ...
+                   || ischar(activateType));
+            
+            % construct perceptrons
+            for i = 1 : nunit
+                obj.addUnit(Perceptron( ...
+                    numElemArr(i), ...
+                    numElemArr(i+1), ...
+                    ite(ischar(activateType), activateType, activateType{i}));
             end
-            
-            obj.setupByArg(varargin{:});
         end
     end
 end

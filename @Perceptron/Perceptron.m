@@ -10,7 +10,7 @@
 % TO-DO
 % 1. add more activation type
 
-classdef Perceptron < handle & MathLib
+classdef Perceptron < LUnit
     % ================= API =================
     methods
         function output = feedforward(obj, input)
@@ -26,14 +26,26 @@ classdef Perceptron < handle & MathLib
             obj.W = obj.W - optimp * dW;
             obj.B = obj.B - optimp * dB;
         end
+        
+        function tof = connect(obj, unit)
+            if dimatch(obj.dimout, unit.dimin)
+                obj.next  = unit;
+                unit.prev = obj;
+                tof       = true;
+            else
+                tof       = false;
+            end
+        end
     end
     
     % ================= DATA & PARAM =================
     properties
-        W % weight matrix
-        B % bias vector
-        I % input states
-        O % output states
+        W                               % weight matrix
+        B                               % bias vector
+        I                               % input states
+        O                               % output states
+        prev = nan;                     % previous unit
+        next = nan;                     % next unit
     end
     properties (Access = private)
         act = struct('type', 'off', 'op', nan, 'derv', nan); % activation function
@@ -42,6 +54,9 @@ classdef Perceptron < handle & MathLib
     % ================= FUNCTIONAL PARAM =================
     properties (Dependent)
         activateType
+    end
+    properties (Dependent, SetAccess = private)
+        dimin, dimout
     end
     methods
         function value = get.activateType(obj)
@@ -56,6 +71,14 @@ classdef Perceptron < handle & MathLib
               otherwise
                 warning('Unrecognized activation type');
             end
+        end
+        
+        function value = get.dimin(obj)
+            value = size(W, 2);
+        end
+        
+        function value = get.dimout(obj)
+            value = size(W, 1);
         end
     end
     

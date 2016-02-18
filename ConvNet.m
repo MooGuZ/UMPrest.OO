@@ -1,4 +1,4 @@
-% CNN is an abstraction of Convolutional Neural Network.
+% CONVNET is an abstraction of Convolutional Neural Network.
 %
 % MooGu Z. <hzhu@case.edu>
 % Feb 18, 2016
@@ -6,16 +6,17 @@
 classdef ConvNet < LModel
     % ============= LMODEL IMPLEMENTATION =============
     methods
-        function output = produce(obj, input)
+        function [input, ref] = decompose(data)
+            input = data.D;
+            ref   = data.R;
         end
         
-        function value = evaluate(obj, output, target)
+        function value = evaluate(~, output, ref)
+            value = MathLib.logistic(output, ref);
         end
         
-        function signal = impulse(obj, output, target)
-        end
-        
-        function evolve(obj, signal, opt)
+        function signal = impulse(~, output, ref)
+            signal = MathLib.logistic_derv(output, ref);
         end
     end
     
@@ -44,14 +45,15 @@ classdef ConvNet < LModel
             % construct convolutional layers
             datadim = dimin;
             for i = 1 : nunit
-                obj.addUnit(ConvPerceptron( ...
+                unit = obj.addUnit(ConvPerceptron( ...
                     nfilters(i), ...
                     szfilter(i), ...
                     datadim(3), ...
                     ite(ischar(activateType), activateType, activateType{i}), ...
                     ite(ischar(poolingType), poolingType, poolingType{i}), ...
                     ite(ischar(normalizeType), normalizeType, normalizeType{i}));
-                datadim = obj.U(i).dimout(datadim);
+                unit.dimin = datadim;
+                datadim    = unit.dimout;
             end
             % construct full-connected layer
             obj.addUnit(Perceptron( ...
