@@ -170,6 +170,7 @@ classdef ConvPerceptron < Perceptron
             if ~exist('activateType', 'var'), activateType = 'sigmoid'; end
             
             % formalize FILTERSIZE
+            if iscell(filterSize), filterSize = filterSize{1}; end
             assert(numel(filterSize) < 3 && ~isempty(filterSize));
             if numel(filterSize) == 1, filterSize = [filterSize, filterSize]; end
             

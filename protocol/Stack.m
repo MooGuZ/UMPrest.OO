@@ -1,38 +1,22 @@
 % STACK is a simple implementation of stack STRUCTURE
-% [API] push, pop, numel
-% [INTERFACE]
-%   tof = isqualified(obj, unit)
 %
 % MooGu Z. <hzhu@case.edu>
 % Nov 20, 2015
 
-% [Change Log]
-% Nov 20, 2015 - initial commit
-
-classdef Stack < handle
+classdef Stack
     % ================= API =================
-    methods
-        function push(obj, unit)
-            assert(obj.isqualified(unit), ...
-                'specified unit is not qualified for this stack');
-            obj.stack{end + 1} = unit;
+    methods (Static)
+        function S = push(S, el)
+            S = {S{:}, el};
         end
 
-        function unit = pop(obj)
-            unit = obj.stack{end};
-            obj.stack = obj.stack(1 : end - 1);
+        function el = pop(S)
+            el = S{end};
+            S  = S(1 : end-1);
         end
 
-        function n = numel(obj)
-            n = numel(obj.stack);
+        function value = size(S)
+            value = numel(S);
         end
-    end
-    % ================= INTERFACE FOR SUBCLASS =================
-    methods (Abstract, Access = protected)
-        tof = isqualified(obj, unit)
-    end
-    % ================= DATA STRUCTURE =================
-    properties
-        stack = {};
     end
 end

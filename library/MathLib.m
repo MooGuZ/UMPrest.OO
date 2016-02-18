@@ -11,13 +11,14 @@
 % Nov 20, 2015
 
 % TO-DO
-% 1. add more activate function
-% 2. add more pooling function
-% 3. add more normalize function
-% 4. reform the structure and names
+% 1. [ ] add more activate function
+% 2. [ ] add more pooling function
+% 3. [ ] add more normalize function
+% 4. [ ] reform the structure and names
+% 5. [x] make functions static
 
-classdef MathLib < handle
-    methods (Access = protected)
+classdef MathLib
+    methods (Static)
         % Gaussian Distribution
         function p = Gauss(~, x, sigma, mu)
             if ~exist('mu', 'var'), mu = 0; end

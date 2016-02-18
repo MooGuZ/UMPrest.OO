@@ -3,11 +3,8 @@
 %
 % MooGu Z. <hzhu@case.edu> 
 % Feb 11, 2016
-classdef MLP < handle & UtilityLib
-    properties
-        debug = false;
-    end
-    % ================= DPMODULE IMPLEMENTATION =================
+classdef MLP < LModel & UtilityLib
+    % ================= LMODEL IMPLEMENTATION =================
     methods
         function output = proc(obj, input)
             output = obj.feedfoward(input);
