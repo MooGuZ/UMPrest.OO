@@ -9,10 +9,13 @@
 %
 % MooGu Z. <hzhu@case.edu>
 % Nov 20, 2015
-%
-% [Change Log]
-% Nov 20, 2015 - initial commit
-% Dec 09, 2015 - convert anonymous functions to normal functions
+
+% TO-DO
+% 1. add more activate function
+% 2. add more pooling function
+% 3. add more normalize function
+% 4. reform the structure and names
+
 classdef MathLib < handle
     methods (Access = protected)
         % Gaussian Distribution

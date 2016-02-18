@@ -18,13 +18,13 @@ classdef Perceptron < handle & MathLib
             obj.I = input; obj.O = output;
         end
         
-        function delta = backpropagate(obj, delta, stepSize)
+        function delta = backpropagate(obj, delta, optimp)
             dB = delta .* obj.activation.derv(obj.O);
             dW = dB * obj.I';
             delta = obj.W' * dB;
             
-            obj.W = obj.W - stepSize * dW;
-            obj.B = obj.B - stepSize * dB;
+            obj.W = obj.W - optimp * dW;
+            obj.B = obj.B - optimp * dB;
         end
     end
     
@@ -36,11 +36,7 @@ classdef Perceptron < handle & MathLib
         O % output states
     end
     properties (Access = private)
-        % properties of activation function
-        act = struct( ...
-            'type', 'off', ...
-            'op',   nan, ...
-            'derv', nan);
+        act = struct('type', 'off', 'op', nan, 'derv', nan); % activation function
     end
     
     % ================= FUNCTIONAL PARAM =================

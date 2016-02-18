@@ -2,24 +2,31 @@
 %
 % MooGu Z. <hzhu@case.edu>
 % Feb 12, 2016
+
+% TO-DO
+% 1. finish dependent function of 'poolingType' and 'normalizeType'
+
 classdef ConvPerceptron < Perceptron
     % ================= OVERRIDE API =================
     methods
         function output = feedforward(obj, input)
-            output = obj.op(input);
-            output = obj.act.op(output);            
-            obj.I  = input;
-            obj.O  = output;
+            input  = obj.norm_proc(input);  % normalization stage
+            output = obj.op(input);         % convolution stage
+            output = obj.act.op(output);    % activate stage
+            output = obj.pool_proc(output); % pool stage
+            
+            obj.I  = input;                 % record input state
+            obj.O  = output;                % record output state
         end
         
-        function delta = backpropagate(obj, delta, stepSize)
-            % back-propagate through activation function
-            delta = delta .* obj.dfun(obj.O);
-            % back-propagate through convolutional layer
-            [delta, dW, dB] = obj.derv(delta);
-            % update filter and bias
-            obj.W = obj.W - stepSize * dW;
-            obj.B = obj.B - stepSize * dB;
+        function delta = backpropagate(obj, delta, optimp)
+            delta = obj.pool_invp(delta);         % pool stage
+            delta = delta .* obj.act.derv(obj.O); % activate stage
+            [delta, dW, dB] = obj.derv(delta);    % convolution stage
+            delta = obj.norm_invp(delta);         % normalization stage
+
+            obj.W = obj.W - optimp * dW;          % update filter bank
+            obj.B = obj.B - optimp * dB;          % update bias vector
         end
     end
     
@@ -99,9 +106,29 @@ classdef ConvPerceptron < Perceptron
                 end
             end
         end
+        
+        % normalization process and its inverse
+        function v = norm_proc(obj, x)
+            [v, obj.P.norm] = obj.norm.op(x);
+        end
+        function delta = norm_invp(obj, delta)
+            delta = obj.norm.derv(delta, obj.P.norm);
+        end
+        
+        % pool process and its inverse
+        function v = pool_proc(obj, x)
+            [v, obj.P.pool] = obj.pool.op(x);
+        end
+        function delta = pool_invp(obj, delta)
+            delta = obj.pool.derv(delta, obj.P.pool);
+        end
     end
     
     % ================= DATA & PARAM =================
+    properties (Access = private)
+        pool = struct('type', 'off', 'op', nan, 'derv', nan); % pooling
+        norm = struct('type', 'off', 'op', nan, 'derv', nan); % normalization
+    end
     properties (Constant)
         convArea = 'valid'; % convolution operation type : {'full', 'same', 'valid'}
     end
@@ -110,6 +137,7 @@ classdef ConvPerceptron < Perceptron
     properties (Dependent)
         nfilter, nchannel
         filterSize, filterHeight, filterWidth
+        poolingType, normalizeType
     end
     methods
         function value = get.nfilter(obj)
@@ -117,12 +145,7 @@ classdef ConvPerceptron < Perceptron
         end
         
         function value = get.nchannel(obj)
-            value = size(obj.W{1}, 3);
-            if obj.debug
-                for i = 2 : numel(obj.W)
-                    assert(size(obj.W{i}, 3) == value);
-                end
-            end
+            value = size(obj.W, 3);
         end
         
         function value = get.filterHeight(obj)
@@ -140,24 +163,22 @@ classdef ConvPerceptron < Perceptron
     
     % ================= CONSTRUCTOR =================
     methods
-        function obj = ConvPerceptron(nfilter, filterSize, nchannel, activateType)
+        function obj = ConvPerceptron(nfilter, filterSize, nchannel, ...
+                                      activateType, poolingType, normalizeType)
             % set default values
             if ~exist('nchannel', 'var'),     nchannel     = 3;         end
             if ~exist('activateType', 'var'), activateType = 'sigmoid'; end
+            
             % formalize FILTERSIZE
-            switch numel(filterSize)
-              case {1}
-                filterSize = [filterSize, filterSize];
-              case {2}
-                filterSize = filterSize(:)';
-              otherwise
-                error('Input arg[2] (filterSize) required to be 1 or 2 number array');
-            end
-            % initialization
-            obj.W = randn([filterSize, nchannel, nfilter]);
-            obj.B = zeros(nfilter, 1);
-            % set activate function
-            obj.activateType = activateType;
+            assert(numel(filterSize) < 3 && ~isempty(filterSize));
+            if numel(filterSize) == 1, filterSize = [filterSize, filterSize]; end
+            
+            obj.W = randn([filterSize, nchannel, nfilter]); % initialize filter bank
+            obj.B = zeros(nfilter, 1);                      % initialize bias vector
+            
+            obj.activateType  = activateType;  % setup activate function
+            obj.poolingType   = poolingType;   % setup pooling stage
+            obj.normalizeType = normalizeType; % setup normalize stage
         end
     end
 end
