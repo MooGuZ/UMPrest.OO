@@ -3,20 +3,15 @@
 % MooGu Z. <hzhu@case.edu>
 % Feb 18, 2016
 
-classdef ConvNet < LModel
-    % ============= LMODEL IMPLEMENTATION =============
+classdef ConvNet < HModel
+    % ============= HMODEL IMPLEMENTATION =============
     methods
-        function [input, ref] = decompose(data)
-            input = data.D;
-            ref   = data.R;
+        function value = objective(~, y, ref)
+            value = MathLib.logistic(y, ref);
         end
         
-        function value = evaluate(~, output, ref)
-            value = MathLib.logistic(output, ref);
-        end
-        
-        function signal = impulse(~, output, ref)
-            signal = MathLib.logistic_derv(output, ref);
+        function d = delta(~, y, ref)
+            d = MathLib.logistic_derv(y, ref);
         end
     end
     

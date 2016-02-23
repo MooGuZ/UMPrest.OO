@@ -3,13 +3,17 @@
 % MooGu Z <hzhu@case.edu>
 % Feb 17, 2016
 
-classdef HModel < Unit
+classdef HModel < Model
     % ================= API  =================
     methods
         % feedforward data process
         function output = proc(obj, input)
             if isstruct(input)
-                input = input.x;
+                try
+                    input = input.x;
+                catch err
+                    throw(err);
+                end
             end
             % traverse units to get output
             unit = obj.first;
@@ -19,9 +23,6 @@ classdef HModel < Unit
                 unit = unit.next;
             end
             output = data;
-            % record input and output
-            obj.I = input;
-            obj.O = output;
         end
         
         % back-propagation methods to update model
@@ -37,6 +38,11 @@ classdef HModel < Unit
         end
         
         function trainproc(obj, input)
+            if isempty(obj.optimizer)
+                warning('[%s] optimizer is not available.\n Training Aborded.', ...
+                        class(obj));
+                return
+            end
             output = obj.proc(input);
             obj.bprop(obj.delta(output, input.y));
         end
@@ -58,31 +64,18 @@ classdef HModel < Unit
             end
         end
     end
-    
-    % ============= INTERFACE =============
-    methods (Abstract)
-        % objective function 
-        value = objective(obj, output, ref)
-        % calculate delta of output according to objective function
-        d = delta(obj, output, ref)
-    end
         
     % ================= ASSISTANT METHOD =================
     methods
         function unit = addUnit(obj, unit)
-            assert(isa(unit, 'Unit'));
+            assert(isa(unit, 'Unit') || isa(unit, 'HModel'));
             unit.connect(obj)
         end
     end
     
     % ================= DATA & PARAM =================
-    properties
+    properties (Access = protected)
         U                               % stack of learning units
-        I                               % input state of model
-        O                               % output state of model
-    end
-    properties (Abstract)
-        optimizer
     end
     
     % ================= FUNCTIONAL PROP =================
@@ -90,6 +83,8 @@ classdef HModel < Unit
         size                            % number of learning units
         first                           % first unit of model
         last                            % last unit of model
+        I                               % input state of model
+        O                               % output state of model
     end
     methods
         function value = get.size(obj)

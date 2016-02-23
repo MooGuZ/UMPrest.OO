@@ -1,15 +1,17 @@
-classdef SGD
+classdef SGD < Optimizer
     % SGD implement stochastic gradient decent methods over LModels.
     
     % MooGu Z. <hzhu@case.edu>
     % Feb 19, 2016
     methods
         function [grad, wspace] = proc(obj, grad, wspace)
-            if ~isfield(wspace, 'lrate')
-                wspace.lrate = obj.lrate;
+            if ~isfield(wspace, 'sgd')
+                wspace.sgd.lrate = obj.lrate;
+                wspace.sgd.count = 1;
             end
             
-            grad = wspace.lrate * grad;
+            grad = wspace.sgd.lrate * grad;
+            wspace.sgd.count = wspace.sgd.count + 1;
         end
     end
     

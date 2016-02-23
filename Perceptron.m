@@ -19,7 +19,7 @@ classdef Perceptron < Unit
         end
         
         function delta = bprop(obj, delta, optimizer)
-            dB = delta .* obj.activation.derv(obj.O);
+            dB = delta .* obj.activation.bprop(obj.O);
             dW = dB * obj.I';
             delta = obj.W' * dB;
             
@@ -50,7 +50,7 @@ classdef Perceptron < Unit
         wspace                          % work space
     end
     properties
-        act = struct('type', 'off', 'op', nan, 'derv', nan); % activation function
+        act = struct('type', 'off', 'op', nan, 'bprop', nan); % activation function
     end
     
     % ================= FUNCTIONAL PARAM =================
@@ -64,9 +64,25 @@ classdef Perceptron < Unit
         function set.activateType(obj, value)
             switch lower(value)
               case {'sigmoid', 'logistic'}
-                obj.act.type = lower(value);
-                obj.act.op   = @MathLib.sigmoid;
-                obj.act.derv = @MathLib.sigmoid_derv;
+                obj.act.type  = value;
+                obj.act.op    = @MathLib.Sigmoid;
+                obj.act.bprop = @MathLib.Sigmoid_bprop;
+              
+              case {'tanh'}
+                obj.act.type  = value;
+                obj.act.op    = @MathLib.Tanh;
+                obj.act.bprop = @MathLib.Tanh_bprop;
+                
+              case {'relu'}
+                obj.act.type  = value;
+                obj.act.op    = @MathLib.ReLU;
+                obj.act.bprop = @MathLib.ReLU_bprop;
+                
+              case {'off'}
+                obj.act.type  = 'off';
+                obj.act.op    = @nullfunc;
+                obj.act.bprop = @nullfunc;
+                
               otherwise
                 warning('Unrecognized activation type');
             end

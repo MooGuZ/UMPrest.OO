@@ -3,31 +3,18 @@
 %
 % MooGu Z. <hzhu@case.edu> 
 % Feb 11, 2016
-classdef MLP < DPModule
-    % ================= LMODEL IMPLEMENTATION =================
+classdef MLP < HModel
+% ================= HMODEL IMPLEMENTATION =================
     methods
-        function y = proc(obj, data)
-            y = obj.process(data.x);
+        function value = objective(~, y, ref)
+            value = MathLib.logistic(y, ref);
         end
         
-        
-        
-        function value = evaluate(~, output, ref)
-            value = MathLib.logistic(output, ref);
-        end
-        
-        function signal = impulse(~, output, ref)
-            signal = MathLib.logistic_derv(output, ref);
+        function d = delta(~, y, ref)
+            d = MathLib.logistic_derv(y, ref);
         end
     end
     
-    methods
-        function y = process(obj, x)
-            unit = obj.first;
-            
-        
-        
-    end
     % ================= Constructor =================
     methods
         function obj = MLP(numElemArr, activateType)
@@ -48,3 +35,6 @@ classdef MLP < DPModule
         end
     end
 end
+
+
+

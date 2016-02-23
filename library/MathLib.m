@@ -114,11 +114,24 @@ classdef MathLib
             d = kai * sin(x - mu);
         end
         % ============= ACITVATION FUNCTION =============
-        function v = sigmoid(x)
+        function v = Sigmoid(x)
             v = 1 ./ (1 + exp(-x));
         end
-        function d = sigmoid_derv(x)
+        function d = Sigmoid_bprop(x)
             d = x .* (1 - x);
+        end
+        function v = ReLU(x)
+            v = max(x, 0);
+        end
+        function d = ReLU_bprop(x)
+            d = ones(size(x));
+            d(x < 0) = 0;
+        end
+        function v = Tanh(x)
+            v = tanh(x);
+        end
+        function d = Tanh_bprop(x)
+            d = 1 - x.^2;
         end
         % ============= EVALUATION FUNTION =============
         function v = logistic(x, ref)
