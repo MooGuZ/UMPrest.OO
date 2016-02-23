@@ -1,3 +1,4 @@
+classdef Perceptron < Unit
 % Perceptron is an abstraction of perceptron in brain.
 % 
 % PERCEPTRON is the base class of other kind of perceptrons, such as convolutional
@@ -10,32 +11,32 @@
 % TO-DO
 % 1. add more activation type
 
-classdef Perceptron < LUnit
-    % ================= API =================
+    % ============= LUNIT INTERFACE =============
     methods
-        function output = feedforward(obj, input)
+        function output = proc(obj, input)
             output = obj.act.op(obj.W * input(:) + obj.B);
             obj.I = input; obj.O = output;
         end
         
-        function delta = backpropagate(obj, delta, optimp)
+        function delta = bprop(obj, delta, optimizer)
             dB = delta .* obj.activation.derv(obj.O);
             dW = dB * obj.I';
             delta = obj.W' * dB;
             
-            obj.W = obj.W - optimp * dW;
-            obj.B = obj.B - optimp * dB;
+            [dW, obj.wspace.w] = optimizer.proc(dW, obj.wspace.w);
+            [dB, obj.wspace.b] = optimizer.proc(dB, obj.wspace.b);
+            
+            obj.W = obj.W - dW;
+            obj.B = obj.B - dB;
         end
         
-        function tof = connect(obj, unit)
-            if dimatch(obj.dimout, unit.dimin)
-                obj.next  = unit;
-                unit.prev = obj;
-                tof       = true;
-            else
-                tof       = false;
-            end
+        function value = dimin(obj)
+            value = size(obj.W, 2);
         end
+        
+        function value = dimout(obj, ~)
+            value = size(obj.W, 1);
+        end         
     end
     
     % ================= DATA & PARAM =================
@@ -46,17 +47,15 @@ classdef Perceptron < LUnit
         O                               % output states
         prev = nan;                     % previous unit
         next = nan;                     % next unit
+        wspace                          % work space
     end
-    properties (Access = private)
+    properties
         act = struct('type', 'off', 'op', nan, 'derv', nan); % activation function
     end
     
     % ================= FUNCTIONAL PARAM =================
     properties (Dependent)
         activateType
-    end
-    properties (Dependent, SetAccess = private)
-        dimin, dimout
     end
     methods
         function value = get.activateType(obj)
@@ -66,28 +65,29 @@ classdef Perceptron < LUnit
             switch lower(value)
               case {'sigmoid', 'logistic'}
                 obj.act.type = lower(value);
-                obj.act.op   = @obj.sigmoid;
-                obj.act.derv = @obj.sigmoid_derv;
+                obj.act.op   = @MathLib.sigmoid;
+                obj.act.derv = @MathLib.sigmoid_derv;
               otherwise
                 warning('Unrecognized activation type');
             end
-        end
-        
-        function value = get.dimin(obj)
-            value = size(W, 2);
-        end
-        
-        function value = get.dimout(obj)
-            value = size(W, 1);
-        end
+        end        
     end
     
     % ================= CONSTRUCTOR =================
     methods
         function obj = Perceptron(dimin, dimout, activateType)
-            obj.W = (rand(dimout, dimin) - 0.5) * (2 / sqrt(dimin));
-            obj.B = zeros(dimout, 1);
-            obj.activateType = activateType;
+            if nargin > 0
+                obj.W = (rand(dimout, dimin) - 0.5) * (2 / sqrt(dimin));
+                obj.B = zeros(dimout, 1);
+                if exist('activateType', 'var')
+                    obj.activateType = activateType;
+                else
+                    obj.activateType = 'sigmoid';
+                end
+            end
+            % initialize work space
+            obj.wspace.w = struct();
+            obj.wspace.b = struct();
         end
     end
 end

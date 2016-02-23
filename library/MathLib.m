@@ -118,7 +118,7 @@ classdef MathLib
             v = 1 ./ (1 + exp(-x));
         end
         function d = sigmoid_derv(x)
-            v = x .* (1 - x);
+            d = x .* (1 - x);
         end
         % ============= EVALUATION FUNTION =============
         function v = logistic(x, ref)
@@ -130,7 +130,7 @@ classdef MathLib
             end
         end
         function d = logistic_derv(x, ref)
-            d = - (ref ./ x - (1 - ref) ./ (1 - x)) / numel(x)
+            d = - (ref ./ x - (1 - ref) ./ (1 - x)) / numel(x);
             if any(isinf(d(:))) || any(isnan(d(:)))
                 x(x == 0) = eps;
                 x(x == 1) = 1 - eps;

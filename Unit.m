@@ -3,29 +3,26 @@
 % MooGu Z. <hzhu@case.edu>
 % 2016-02-18
 
-classdef LUnit < handle
+classdef Unit < DPModule
     % ============= INTERFACE =============
     methods
-        function connect(obj, otherUnit)
-            if dimatch(obj.dimout(), otherUnit.dimin())
-                obj.prev = otherUnit;
-                otherUnit.next = obj;
+        function connect(obj, unit)
+            if dimatch(obj.dimin(), unit.dimout())
+                obj.prev = unit;
+                unit.next = obj;
             else
                 error('LUNIT:CONNECTFAILED', ...
-                      'Connection between units %s to %s failed.', ...
-                      obj, otherUnit);
+                      'Connection between %s to %s failed.', ...
+                      class(unit), class(obj));
             end
         end
     end
     
     % ============= DATA & PROPERTY =============
-    properties
+    properties (Abstract)
         prev, next                      % points to previous/next unit
     end
     properties (Abstract)
         I, O                            % state of last input/output
-    end
-    methods (Abstract)
-        dimin, dimout                   % diminionality of input/output
     end
 end

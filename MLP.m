@@ -3,13 +3,14 @@
 %
 % MooGu Z. <hzhu@case.edu> 
 % Feb 11, 2016
-classdef MLP < LModel & UtilityLib
+classdef MLP < DPModule
     % ================= LMODEL IMPLEMENTATION =================
     methods
-        function [input, ref] = decompose(data)
-            input = data.D;
-            ref   = data.R;
+        function y = proc(obj, data)
+            y = obj.process(data.x);
         end
+        
+        
         
         function value = evaluate(~, output, ref)
             value = MathLib.logistic(output, ref);
@@ -20,6 +21,13 @@ classdef MLP < LModel & UtilityLib
         end
     end
     
+    methods
+        function y = process(obj, x)
+            unit = obj.first;
+            
+        
+        
+    end
     % ================= Constructor =================
     methods
         function obj = MLP(numElemArr, activateType)
