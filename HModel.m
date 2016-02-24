@@ -8,21 +8,18 @@ classdef HModel < Model
     methods
         % feedforward data process
         function output = proc(obj, input)
-            if isstruct(input)
-                try
-                    input = input.x;
-                catch err
-                    throw(err);
-                end
-            end
-            % traverse units to get output
+            data = input.x;
+            
             unit = obj.first;
-            data = input;
-            while ~isnan(unit)
-                data = unit.feedforward(data);
+            while ~isempty(unit)
+                data = unit.proc(data);
                 unit = unit.next;
             end
-            output = data;
+            
+            output.x = data;
+            
+            obj.I = input;
+            obj.O = output;
         end
         
         % back-propagation methods to update model
@@ -31,8 +28,8 @@ classdef HModel < Model
                    '[LMODEL:BPROP] optimizer is not available');
             % traverse units backwards
             unit = obj.last;
-            while ~isnan(unit)
-                delta = unit.bprop(signal, obj.optimizer);
+            while ~isempty(unit)
+                delta = unit.bprop(delta, obj.optimizer);
                 unit  = unit.prev;
             end
         end
@@ -44,11 +41,20 @@ classdef HModel < Model
                 return
             end
             output = obj.proc(input);
-            obj.bprop(obj.delta(output, input.y));
+            obj.bprop(obj.delta(output.x, input.y));
         end
         
-        function dim = dimin(obj)
-            dim = obj.first.dimin();
+        function dim = dimin(obj, dimout)
+            if exist('dimout', 'var')
+                unit = obj.last;
+                dim  = dimout;
+                while ~isnan(unit)
+                    dim = unit.dimin(dim);
+                    unit = unit.prev;
+                end
+            else                
+                dim = obj.first.dimin();
+            end
         end
         
         function dim = dimout(obj, dimin)
@@ -68,8 +74,14 @@ classdef HModel < Model
     % ================= ASSISTANT METHOD =================
     methods
         function unit = addUnit(obj, unit)
-            assert(isa(unit, 'Unit') || isa(unit, 'HModel'));
-            unit.connect(obj)
+            assert(isa(unit, 'Connectable'));
+            if obj.size == 0
+                obj.U = {unit};
+            elseif unit.connect(obj.last)
+                obj.U = [obj.U, {unit}];
+            else
+                warning('[%s] Connection failed, new unit can not add to the model.');
+            end
         end
     end
     
@@ -79,12 +91,10 @@ classdef HModel < Model
     end
     
     % ================= FUNCTIONAL PROP =================
-    properties (Dependent, Access = protected)
+    properties (Dependent)
         size                            % number of learning units
         first                           % first unit of model
         last                            % last unit of model
-        I                               % input state of model
-        O                               % output state of model
     end
     methods
         function value = get.size(obj)
@@ -92,30 +102,16 @@ classdef HModel < Model
         end
         
         function unit = get.first(obj)
-            unit = nan;
+            unit = [];
             if obj.size > 0
                 unit = obj.U{1};
             end
         end
         
         function unit = get.last(obj)
-            unit = nan;
+            unit = [];
             if obj.size > 0
                 unit = obj.U{end};
-            end
-        end
-        
-        function state = get.I(obj)
-            state = [];
-            if obj.size > 0
-                state = obj.U{1}.I;
-            end
-        end
-        
-        function state = get.O(obj)
-            state = [];
-            if obj.size > 0
-                state = obj.U{end}.O;
             end
         end
     end        

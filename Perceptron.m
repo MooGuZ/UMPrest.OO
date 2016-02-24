@@ -1,4 +1,4 @@
-classdef Perceptron < Unit
+classdef Perceptron < Unit & Activation & UtilityLib
 % Perceptron is an abstraction of perceptron in brain.
 % 
 % PERCEPTRON is the base class of other kind of perceptrons, such as convolutional
@@ -8,18 +8,18 @@ classdef Perceptron < Unit
 % MooGu Z. <hzhu@case.edu>
 % Feb 11, 2016
 
-% TO-DO
-% 1. add more activation type
-
-    % ============= LUNIT INTERFACE =============
+    % ============= UNIT IMPLEMENTATION =============
     methods
         function output = proc(obj, input)
-            output = obj.act.op(obj.W * input(:) + obj.B);
-            obj.I = input; obj.O = output;
+            input  = input(:);            
+            output = obj.act.proc(obj.W * input + obj.B);
+            
+            obj.I = input; 
+            obj.O = output;
         end
         
         function delta = bprop(obj, delta, optimizer)
-            dB = delta .* obj.activation.bprop(obj.O);
+            dB = delta .* obj.act.derv(obj.O);
             dW = dB * obj.I';
             delta = obj.W' * dB;
             
@@ -29,78 +29,43 @@ classdef Perceptron < Unit
             obj.W = obj.W - dW;
             obj.B = obj.B - dB;
         end
-        
-        function value = dimin(obj)
+    end
+    
+    % ============= CONNECTABLE IMPLEMENTATION =============
+    methods    
+        function value = dimin(obj, ~)
             value = size(obj.W, 2);
         end
         
         function value = dimout(obj, ~)
             value = size(obj.W, 1);
-        end         
+        end
+        
+        function tof = connect(self, other)
+            dim = other.dimout();
+            if prod(dim) ~= 0 && prod(dim) ~= self.dimin()
+                tof = false;
+                return
+            end
+            self.prev = other;
+            other.next = self;
+            tof = true;
+        end
     end
     
     % ================= DATA & PARAM =================
     properties
         W                               % weight matrix
         B                               % bias vector
-        I                               % input states
-        O                               % output states
-        prev = nan;                     % previous unit
-        next = nan;                     % next unit
-        wspace                          % work space
-    end
-    properties
-        act = struct('type', 'off', 'op', nan, 'bprop', nan); % activation function
-    end
-    
-    % ================= FUNCTIONAL PARAM =================
-    properties (Dependent)
-        activateType
-    end
-    methods
-        function value = get.activateType(obj)
-            value = obj.act.type;
-        end
-        function set.activateType(obj, value)
-            switch lower(value)
-              case {'sigmoid', 'logistic'}
-                obj.act.type  = value;
-                obj.act.op    = @MathLib.Sigmoid;
-                obj.act.bprop = @MathLib.Sigmoid_bprop;
-              
-              case {'tanh'}
-                obj.act.type  = value;
-                obj.act.op    = @MathLib.Tanh;
-                obj.act.bprop = @MathLib.Tanh_bprop;
-                
-              case {'relu'}
-                obj.act.type  = value;
-                obj.act.op    = @MathLib.ReLU;
-                obj.act.bprop = @MathLib.ReLU_bprop;
-                
-              case {'off'}
-                obj.act.type  = 'off';
-                obj.act.op    = @nullfunc;
-                obj.act.bprop = @nullfunc;
-                
-              otherwise
-                warning('Unrecognized activation type');
-            end
-        end        
     end
     
     % ================= CONSTRUCTOR =================
     methods
-        function obj = Perceptron(dimin, dimout, activateType)
-            if nargin > 0
-                obj.W = (rand(dimout, dimin) - 0.5) * (2 / sqrt(dimin));
-                obj.B = zeros(dimout, 1);
-                if exist('activateType', 'var')
-                    obj.activateType = activateType;
-                else
-                    obj.activateType = 'sigmoid';
-                end
-            end
+        function obj = Perceptron(dimin, dimout, varargin)
+            obj.setupByArg(varargin{:});
+            % initialize weights and bias
+            obj.W = (rand(dimout, dimin) - 0.5) * (2 / sqrt(dimin));
+            obj.B = zeros(dimout, 1);
             % initialize work space
             obj.wspace.w = struct();
             obj.wspace.b = struct();

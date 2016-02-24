@@ -11,9 +11,9 @@
 % Nov 20, 2015
 
 % TO-DO
-% 1. [ ] add more activate function
-% 2. [ ] add more pooling function
-% 3. [ ] add more normalize function
+% 1. [x] add more activate function
+% 2. [x] add more pooling function
+% 3. [x] add more normalize function
 % 4. [ ] reform the structure and names
 % 5. [x] make functions static
 % 6. [ ] evaluation function : mse, logistic ...
@@ -113,34 +113,15 @@ classdef MathLib
             if ~exist('kai', 'var'), kai = 1; end
             d = kai * sin(x - mu);
         end
-        % ============= ACITVATION FUNCTION =============
-        function v = Sigmoid(x)
-            v = 1 ./ (1 + exp(-x));
-        end
-        function d = Sigmoid_bprop(x)
-            d = x .* (1 - x);
-        end
-        function v = ReLU(x)
-            v = max(x, 0);
-        end
-        function d = ReLU_bprop(x)
-            d = ones(size(x));
-            d(x < 0) = 0;
-        end
-        function v = Tanh(x)
-            v = tanh(x);
-        end
-        function d = Tanh_bprop(x)
-            d = 1 - x.^2;
-        end
         % ============= EVALUATION FUNTION =============
         function v = logistic(x, ref)
             v = - (ref .* log(x) + (1 - ref) .* log(1 - x)) / numel(x);
             if any(isinf(v(:))) || any(isnan(v(:)))
                 x(x == 0) = eps;
                 x(x == 1) = 1 - eps;
-                v = - (ref ./ x - (1 - ref) ./ (1 - x)) / numel(x);
+                v = - (ref .* log(x) + (1 - ref) .* log(1 - x)) / numel(x);
             end
+            v = sum(v(:));
         end
         function d = logistic_derv(x, ref)
             d = - (ref ./ x - (1 - ref) ./ (1 - x)) / numel(x);

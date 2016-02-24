@@ -6,11 +6,6 @@ classdef Connectable < handle
 % MooGu Z. <hzhu@case.edu>
 % 2 23, 2016
 
-    properties
-        prev = nan;                     % link to previous object
-        next = nan;                     % link to next object
-    end
-    
     methods (Abstract)
         dim = dimin(obj, dimout)
         % DIM = obj.DIMIN() returns dimension of inherient input requirement in form of
@@ -26,27 +21,32 @@ classdef Connectable < handle
         % DIM = obj.DIMOUT(DIMIN) returns output dimension in the condition of
         % given input dimension.
         
-        connect(self, other)
+        tof = connect(self, other)
         % CONNECT create connection to another object. During this process,
         % callers should check whether or not its requirements have been all
         % satisfied by the other object. A typical problems is data mismatch
         % between different objects.
     end
     
-    methods
-        % ENFORCEDIMIN / ENFORCEDIMOUT is prepared for objects whoes
-        % dimensionality of input/output is flexible. Then other object can
-        % require them to fix to some dimension. By default, these two method
-        % would return FALSE everytime. This is the expected responds of
-        % fixed dimension objects.
-        
-        function tof = enforceDimin(obj, dimin)
-            tof = false;
-        end
-        
-        function tof = enforceDimout(obj, dimout)
-            tof = false;
-        end
+    % methods
+    %     % ENFORCEDIMIN / ENFORCEDIMOUT is prepared for objects whoes
+    %     % dimensionality of input/output is flexible. Then other object can
+    %     % require them to fix to some dimension. By default, these two method
+    %     % would return FALSE everytime. This is the expected responds of
+    %     % fixed dimension objects.
+    %     
+    %     function tof = enforceDimin(obj, dimin)
+    %         tof = false;
+    %     end
+    %     
+    %     function tof = enforceDimout(obj, dimout)
+    %         tof = false;
+    %     end
+    % end
+    
+    properties
+        prev                          % link to previous object
+        next                          % link to next object
     end
 end
 

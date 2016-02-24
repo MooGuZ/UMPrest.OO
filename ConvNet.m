@@ -18,43 +18,75 @@ classdef ConvNet < HModel
     % ============= CONSTRUCTOR =============
     methods
         function obj = ConvNet(dimin, dimout, nfilters, szfilters, ...
-                           activateType, poolingType, normalizeType)
-            nunit = numel(nfilterArray);
+                           actType, poolType, poolSize, normType)
+            nunit = numel(nfilters);
             
             % set default value
-            if ~exist('activateType', 'var'),  activateType = 'sigmoid'; end
-            if ~exist('poolingType', 'var'),   poolingType  = 'max';     end
-            if ~exist('normalizeType', 'var'), normalizeType = 'norm';   end
+            if ~exist('actType', 'var'),  actType  = 'sigmoid'; end
+            if ~exist('poolType', 'var'), poolType = 'max';     end
+            if ~exist('poolType', 'var'), poolSize = 3;         end
+            if ~exist('normType', 'var'), normType = 'batch';   end
             
             % check validity of input arguments
-            assert(numel(dimin) == 3);
+            assert(numel(dimin) <= 3);
             assert(numel(dimout) == 1);
             assert(numel(szfilters) == nunit);
-            assert((iscellstr(activateType) && numel(activateType) == nunit+1) ...
-                   || ischar(activateType));
-            assert((iscellstr(poolingType) && numel(poolingType) == nunit) ...
-                   || ischar(poolingType));
-            assert((iscellstr(normalizeType) && numel(normalizeType) == nunit+1) ...
-                   || ischar(normalizeType));
+            assert((iscellstr(actType) && numel(actType) == nunit+1) ...
+                   || ischar(actType));
+            assert((iscellstr(poolType) && numel(poolType) == nunit) ...
+                   || ischar(poolType));
+            assert(isscalar(poolSize) || numel(poolSize) == nunit);
+            assert((iscellstr(normType) && numel(normType) == nunit) ...
+                   || ischar(normType));
             
             % construct convolutional layers
             datadim = dimin;
             for i = 1 : nunit
+                if ischar(actType)
+                    atype = actType;
+                else
+                    atype = actType{i};
+                end
+                
+                if ischar(poolType)
+                    ptype = poolType;
+                else
+                    ptype = poolType{i};
+                end
+                
+                if isscalar(poolSize)
+                    psize = poolSize;
+                else
+                    psize = poolSize(i);
+                end
+                
+                if ischar(normType)
+                    ntype = normType;
+                else
+                    ntype = normType{i};
+                end
+                
                 unit = obj.addUnit(ConvPerceptron( ...
                     nfilters(i), ...
-                    szfilter(i), ...
+                    szfilters(i), ...
                     datadim(3), ...
-                    ite(ischar(activateType), activateType, activateType{i}), ...
-                    ite(ischar(poolingType), poolingType, poolingType{i}), ...
-                    ite(ischar(normalizeType), normalizeType, normalizeType{i}));
-                unit.dimin = datadim;
-                datadim    = unit.dimout;
+                    'actType', atype, ...
+                    'poolType', ptype, ...
+                    'poolSize', psize, ...
+                    'normType', ntype));
+                datadim = unit.dimout(datadim);
             end
+            
             % construct full-connected layer
+            if ischar(actType)
+                atype = actType;
+            else
+                atype = actType{end};
+            end
             obj.addUnit(Perceptron( ...
-                datadim, ...
+                prod(datadim), ...
                 dimout, ...
-                ite(ischar(activateType), activateType, activateType{end}));
+                'actType', atype));
         end
     end
 end

@@ -11,6 +11,8 @@ function str = var2str(var)
 
 if (isnumeric(var) || islogical(var)) && (numel(var) == 1)
     str = num2str(var);
+elseif ischar(var)
+    str = var;
 elseif numel(var) <= 3
     str = sprintf('%s %s', mat2str(var), class(var));
 else

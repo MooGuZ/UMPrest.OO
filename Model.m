@@ -13,16 +13,11 @@ classdef Model < handle
         trainproc(obj, data)
         
         value = objective(obj, y, ref)
-        
-        dim = dimin(obj)
-        
-        dim = dimout(obj, dimin)
-        % dimin is optional 
     end
     
     properties
         optimizer
+        I, O
     end
-    
 end
 
