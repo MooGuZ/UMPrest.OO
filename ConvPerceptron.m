@@ -10,10 +10,9 @@ classdef ConvPerceptron < Unit & Activation & Pooling & Normalize & UtilityLib
     % ================= UNIT IMPLEMENTATION =================
     methods
         function output = proc(obj, input)
-            input  = obj.norm.proc(input);
             output = obj.conv(input);
+            output = obj.norm.proc(output);
             output = obj.act.proc(output); 
-            obj.OA = output;
             output = obj.pool.proc(output);
             
             obj.I  = input;
@@ -22,7 +21,7 @@ classdef ConvPerceptron < Unit & Activation & Pooling & Normalize & UtilityLib
         
         function delta = bprop(obj, delta, optimizer)
             delta = obj.pool.bprop(delta);
-            delta = delta .* obj.act.derv(obj.OA);
+            delta = delta .* obj.act.derv();
             [delta, dW, dB] = obj.convbp(delta);
             delta = obj.norm.bprop(delta);
 

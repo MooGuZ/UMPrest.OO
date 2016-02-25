@@ -10,6 +10,10 @@ classdef Activation < handle
                      'derv', @Activation.ReLU_derv);
     end
     
+    properties (Abstract)
+        wspace
+    end
+    
     properties (Dependent)
         actType
     end
@@ -45,27 +49,38 @@ classdef Activation < handle
         end
     end
     
-    methods (Static)
-        function y = sigmoid(x)
+    methods % (Access = protected)
+        function y = sigmoid(obj, x)
             y = 1 ./ (1 + exp(-x));
+            obj.wspace.act.y = y;
         end
-        function d = sigmoid_derv(y)
+        function d = sigmoid_derv(obj)
+            y = obj.wspace.act.y;
             d = y .* (1 - y);
         end
         
-        function y = hypertgt(x)
+        function y = hypertgt(obj, x)
             y = tanh(x);
+            obj.wspace.act.y = y;
         end
-        function d = hypertgt_derv(y)
-            d = 1 - y.^2;
+        function d = hypertgt_derv(obj)
+            d = 1 - obj.wspace.act.y .^ 2;
         end
         
-        function y = ReLU(x)
+        function y = ReLU(obj, x)
             y = max(x, 0);
+            obj.wspace.act.y = y;
         end
-        function d = ReLU_derv(y)
+        function d = ReLU_derv(obj)
+            y = obj.wspace.act.y;
             d = ones(size(y));
             d(y <= 0) = 0;
+        end
+    end
+    
+    methods
+        function obj = Activation()
+            obj.wspace.act = struct();
         end
     end
 end
