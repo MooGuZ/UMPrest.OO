@@ -5,9 +5,9 @@ classdef Activation < handle
 % Feb 23, 2016
 
     properties (Access = protected)
-        act = struct('type', 'relu', ...
-                     'proc', @Activation.ReLU, ...
-                     'derv', @Activation.ReLU_derv);
+        act = struct('type',  'off', ...
+                     'proc',  @nullfunc, ...
+                     'bprop', @nullfunc);
     end
     
     properties (Abstract)
@@ -24,24 +24,24 @@ classdef Activation < handle
         function set.actType(obj, value)
             switch lower(value)
               case {'sigmoid', 'logistic'}
-                obj.act.type = value;
-                obj.act.proc = @Activation.sigmoid;
-                obj.act.derv = @Activation.sigmoid_derv;
+                obj.act.type  = value;
+                obj.act.proc  = @obj.sigmoid;
+                obj.act.bprop = @obj.sigmoid_bprop;
               
               case {'tanh'}
-                obj.act.type = value;
-                obj.act.proc = @Activation.tanh;
-                obj.act.derv = @Activation.tanh_derv;
+                obj.act.type  = value;
+                obj.act.proc  = @obj.hypertgt;
+                obj.act.bprop = @obj.hypertgt_bprop;
                 
               case {'relu'}
-                obj.act.type = value;
-                obj.act.proc = @Activation.ReLU;
-                obj.act.derv = @Activation.ReLU_derv;
+                obj.act.type  = value;
+                obj.act.proc  = @obj.ReLU;
+                obj.act.bprop = @obj.ReLU_bprop;
                 
               case {'off'}
-                obj.act.type = 'off';
-                obj.act.proc = @nullfunc;
-                obj.act.derv = @nullfunc;
+                obj.act.type  = 'off';
+                obj.act.proc  = @nullfunc;
+                obj.act.bprop = @nullfunc;
                 
               otherwise
                 warning('[ACTIVATION] Unrecognized type');
@@ -51,36 +51,34 @@ classdef Activation < handle
     
     methods % (Access = protected)
         function y = sigmoid(obj, x)
-            y = 1 ./ (1 + exp(-x));
-            obj.wspace.act.y = y;
-        end
-        function d = sigmoid_derv(obj)
+            obj.wspace.act.y = 1 ./ (1 + exp(-x));
             y = obj.wspace.act.y;
-            d = y .* (1 - y);
+        end
+        function delta = sigmoid_bprop(obj, delta)
+            delta = delta .* (obj.wspace.act.y .* (1 - obj.wspace.act.y));
         end
         
         function y = hypertgt(obj, x)
-            y = tanh(x);
-            obj.wspace.act.y = y;
+            obj.wspace.act.y = tanh(x);
+            y = obj.wspace.act.y;
         end
-        function d = hypertgt_derv(obj)
-            d = 1 - obj.wspace.act.y .^ 2;
+        function delta = hypertgt_bprop(obj, delta)
+            delta = delta .* (1 - obj.wspace.act.y .^ 2);
         end
         
         function y = ReLU(obj, x)
-            y = max(x, 0);
-            obj.wspace.act.y = y;
-        end
-        function d = ReLU_derv(obj)
+            obj.wspace.act.y = max(x, 0);
             y = obj.wspace.act.y;
-            d = ones(size(y));
-            d(y <= 0) = 0;
+        end
+        function delta = ReLU_bprop(obj, delta)
+            delta(obj.wspace.act.y <= 0) = 0;
         end
     end
     
     methods
         function obj = Activation()
             obj.wspace.act = struct();
+            obj.actType    = 'ReLU';
         end
     end
 end

@@ -5,7 +5,7 @@ classdef Normalize < handle
 % Feb 24, 2016
 
 % TO-DO
-% [ ] implement Batch Normalization
+% [x] implement Batch Normalization
 
     properties (Access = protected)
         norm = struct('type',  'off', ...
@@ -41,6 +41,7 @@ classdef Normalize < handle
 
     methods
         function out = batchnorm(obj, in)
+            out = in;
             switch class(obj)
               case {'Perceptron'}
                 if size(in, 2) > 1
@@ -79,7 +80,7 @@ classdef Normalize < handle
                     gamma = obj.wspace.norm.gamma;
                     beta  = obj.wspace.norm.beta;
                     
-                    n = prod(size(in)) / size(in, 3);
+                    n = numel(in) / size(in, 3);
                     m = sum(sum(sum(in, 1), 2), 4) / n;
                     s = sqrt(sum(sum(sum((in - m).^2, 1), 2), 4) / n);
                     out = bsxfun(@rdivide, bsxfun(@minus, in, m), s + eps);
@@ -95,7 +96,7 @@ classdef Normalize < handle
             switch class(obj)
               case {'Perceptron'}
                 if size(delta, 2) > 1
-                    m = obj.wspace.norm.mean;
+                    % m = obj.wspace.norm.mean;
                     s = obj.wspace.norm.std;
                     
                     gamma = obj.wspace.norm.gamma;
@@ -108,7 +109,7 @@ classdef Normalize < handle
                     
                     dxhat = bsxfun(@times, delta, gamma);
                     dvar  = - sum(bsxfun(@rdivide, dxhat .* xhat, s.^2), 2) / 2;
-                    debia = bsxfun(@times, xhat, s + eps)
+                    debia = bsxfun(@times, xhat, s + eps);
                     dmean = - sum(bsxfun(@rdivide, dxhat, s + eps), 2) ...
                             - (2 / size(delta, 2)) * dvar .* sum(debia, 2);
                     delta = bsxfun(@rdivide, dxhat, s + eps) ...
@@ -119,8 +120,8 @@ classdef Normalize < handle
                 end
                 
               case {'ConvPerceptron'}
-                if size(delta, 2) > 1
-                    m = obj.wspace.norm.mean;
+                if size(delta, 4) > 1
+                    % m = obj.wspace.norm.mean;
                     s = obj.wspace.norm.std;
                     
                     gamma = obj.wspace.norm.gamma;
@@ -133,7 +134,7 @@ classdef Normalize < handle
                     
                     dxhat = bsxfun(@times, delta, gamma);
                     dvar  = - sum(sum(sum(bsxfun(@rdivide, dxhat .* xhat, s.^2), 1), 2), 4) / 2;
-                    debia = bsxfun(@times, xhat, s + eps)
+                    debia = bsxfun(@times, xhat, s + eps);
                     dmean = - sum(sum(sum(bsxfun(@rdivide, dxhat, s + eps), 1), 2), 4) ...
                             - (2 / size(delta, 2)) * dvar .* sum(sum(sum(debia, 1), 2), 4);
                     delta = bsxfun(@rdivide, dxhat, s + eps) ...
@@ -143,12 +144,12 @@ classdef Normalize < handle
                     obj.wspace.norm.beta  = beta  - optimizer.proc(dbeta, obj.wspace.beta);
                 end
             end
-            
-            methods
-                function obj = Normalize()
-                    obj.wspace.norm = struct();
-                end
-            end
+        end
+    end
+    
+    methods
+        function obj = Normalize()
+            obj.wspace.norm = struct();
         end
     end
 end

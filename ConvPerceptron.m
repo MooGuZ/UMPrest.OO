@@ -21,7 +21,7 @@ classdef ConvPerceptron < Unit & Activation & Pooling & Normalize & UtilityLib
         
         function delta = bprop(obj, delta, optimizer)
             delta = obj.pool.bprop(delta);
-            delta = delta .* obj.act.derv();
+            delta = obj.act.bprop(delta);
             [delta, dW, dB] = obj.convbp(delta);
             delta = obj.norm.bprop(delta);
 
@@ -151,7 +151,7 @@ classdef ConvPerceptron < Unit & Activation & Pooling & Normalize & UtilityLib
         function [dI, dW, dB, gI, gW, gB] = checkGrad(obj, input, precision)
             output = obj.proc(input);
             delta  = obj.pool.bprop(ones(size(output)));
-            delta  = delta .* obj.act.derv(obj.OA);
+            delta  = obj.act.bprop(delta);
             [delta, dW, dB] = obj.convbp(delta);
             dI = obj.norm.bprop(delta);
             

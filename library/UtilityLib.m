@@ -30,7 +30,7 @@ classdef UtilityLib < handle
                 ret = findSubField(obj, fields);
                 if iscell(ret)
                     eval(sprintf('obj.%s = value;', strcatby(ret, '.')));
-                    fprintf('%-13s %17s : %s\n', ...
+                    fprintf('%-17s %17s : %s\n', ...
                         ['[',class(obj),']'], strcatby(ret, '.'), var2str(value));
                 end
             end

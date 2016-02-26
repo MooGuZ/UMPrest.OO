@@ -19,7 +19,7 @@ classdef Perceptron < Unit & Activation & UtilityLib
         end
         
         function delta = bprop(obj, delta, optimizer)
-            dB = delta .* obj.act.derv();
+            dB = obj.act.bprop(delta);
             dW = dB * obj.I';
             delta = obj.W' * dB;
             

@@ -115,20 +115,20 @@ classdef MathLib
         end
         % ============= EVALUATION FUNTION =============
         function v = logistic(x, ref)
-            v = - (ref .* log(x) + (1 - ref) .* log(1 - x)) / numel(x);
+            v = - (ref .* log(x) + (1 - ref) .* log(1 - x));
             if any(isinf(v(:))) || any(isnan(v(:)))
                 x(x == 0) = eps;
                 x(x == 1) = 1 - eps;
-                v = - (ref .* log(x) + (1 - ref) .* log(1 - x)) / numel(x);
+                v = - (ref .* log(x) + (1 - ref) .* log(1 - x));
             end
             v = sum(v(:));
         end
         function d = logistic_derv(x, ref)
-            d = - (ref ./ x - (1 - ref) ./ (1 - x)) / numel(x);
+            d = - (ref ./ x - (1 - ref) ./ (1 - x));
             if any(isinf(d(:))) || any(isnan(d(:)))
                 x(x == 0) = eps;
                 x(x == 1) = 1 - eps;
-                d = - (ref ./ x - (1 - ref) ./ (1 - x)) / numel(x);
+                d = - (ref ./ x - (1 - ref) ./ (1 - x));
             end
         end     
     end
