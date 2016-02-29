@@ -47,7 +47,7 @@ classdef Pooling < handle
     end
     
     methods (Access = protected)
-        function dimout = poolin2out(obj, dimin)
+        function dimout = poolDimout(obj, dimin)
             switch obj.pool.type
                 case 'off'
                     dimout = dimin;

@@ -8,7 +8,7 @@ classdef HModel < Model
     methods
         % feedforward data process
         function output = proc(obj, input)
-            data = input.x;
+            data = datafmt(input.x, obj.dimin());
             
             unit = obj.first;
             while ~isempty(unit)
@@ -26,6 +26,8 @@ classdef HModel < Model
         function delta = bprop(obj, delta)
             assert(~isempty(obj.optimizer), ...
                    '[LMODEL:BPROP] optimizer is not available');
+            
+            delta = datafmt(delta, obj.dimout());
             % traverse units backwards
             unit = obj.last;
             while ~isempty(unit)
@@ -83,6 +85,14 @@ classdef HModel < Model
                 warning('[%s] Connection failed, new unit can not add to the model.');
             end
         end
+        
+        function unit = getUnit(obj, idx)
+            if idx <= obj.size
+                unit = obj.U{idx};
+            else
+                unit = [];
+            end
+        end
     end
     
     % ================= DATA & PARAM =================
@@ -102,16 +112,18 @@ classdef HModel < Model
         end
         
         function unit = get.first(obj)
-            unit = [];
             if obj.size > 0
                 unit = obj.U{1};
+            else
+                unit = [];
             end
         end
         
         function unit = get.last(obj)
-            unit = [];
             if obj.size > 0
                 unit = obj.U{end};
+            else
+                unit = [];
             end
         end
     end        

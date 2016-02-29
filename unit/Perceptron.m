@@ -1,4 +1,4 @@
-classdef Perceptron < Unit & Activation & UtilityLib
+classdef Perceptron < FUnit & Activation & UtilityLib
 % Perceptron is an abstraction of perceptron in brain.
 % 
 % PERCEPTRON is the base class of other kind of perceptrons, such as convolutional
@@ -11,45 +11,47 @@ classdef Perceptron < Unit & Activation & UtilityLib
     % ============= UNIT IMPLEMENTATION =============
     methods
         function output = proc(obj, input)
-            input  = input(:);            
+            input  = datafmt(input, obj.dimin());
             output = obj.act.proc(obj.W * input + obj.B);
             
             obj.I = input; 
             obj.O = output;
         end
         
-        function delta = bprop(obj, delta, optimizer)
+        function delta = bprop(obj, delta)
+            delta = datafmt(delta, obj.dimout());
+            
             dB = obj.act.bprop(delta);
             dW = dB * obj.I';
+            
             delta = obj.W' * dB;
             
-            [dW, obj.wspace.w] = optimizer.proc(dW, obj.wspace.w);
-            [dB, obj.wspace.b] = optimizer.proc(dB, obj.wspace.b);
+            obj.addGradient(dB, @obj.updateBias);
+            obj.addGradient(dW, @obj.updateWeight);
             
-            obj.W = obj.W - dW;
-            obj.B = obj.B - dB;
+            obj.optimize();
         end
     end
     
     % ============= CONNECTABLE IMPLEMENTATION =============
     methods    
-        function value = dimin(obj, ~)
+        function value = dimin(obj)
             value = size(obj.W, 2);
         end
         
-        function value = dimout(obj, ~)
+        function value = dimout(obj)
             value = size(obj.W, 1);
         end
+    end
+    
+    % ============= ASSISTANT METHODS =============
+    methods
+        function updateBias(obj, delta)
+            obj.B = obj.B - delta;
+        end
         
-        function tof = connect(self, other)
-            dim = other.dimout();
-            if prod(dim) ~= 0 && prod(dim) ~= self.dimin()
-                tof = false;
-                return
-            end
-            self.prev = other;
-            other.next = self;
-            tof = true;
+        function updateWeight(obj, delta)
+            obj.W = obj.W - delta;
         end
     end
     
@@ -66,9 +68,6 @@ classdef Perceptron < Unit & Activation & UtilityLib
             % initialize weights and bias
             obj.W = (rand(dimout, dimin) - 0.5) * (2 / sqrt(dimin));
             obj.B = zeros(dimout, 1);
-            % initialize work space
-            obj.wspace.w = struct();
-            obj.wspace.b = struct();
         end
     end
 end

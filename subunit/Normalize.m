@@ -6,15 +6,19 @@ classdef Normalize < handle
 
 % TO-DO
 % [x] implement Batch Normalization
-
+    
+    properties (Abstract)
+        wspace
+    end
+    
+    methods (Abstract)
+        addGradient(grad, updatefunc)
+    end
+    
     properties (Access = protected)
         norm = struct('type',  'off', ...
                       'proc',  @nullfunc, ...
                       'bprop', @nullfunc);
-    end
-    
-    properties (Abstract)
-        wspace
     end
     
     properties (Dependent)
@@ -49,8 +53,6 @@ classdef Normalize < handle
                            && isfield(obj.wspace.norm, 'beta'))
                         obj.wspace.norm.gamma = ones(size(in, 1), 1);
                         obj.wspace.norm.beta  = zeros(size(in, 1), 1);
-                        obj.wspace.gamme = struct();
-                        obj.wspace.beta  = struct();
                     end
                     
                     gamma = obj.wspace.norm.gamma;
@@ -73,8 +75,6 @@ classdef Normalize < handle
                            && isfield(obj.wspace.norm, 'beta'))
                         obj.wspace.norm.gamma = ones(1, 1, size(in, 3));
                         obj.wspace.norm.beta  = zeros(1, 1, size(in, 3));
-                        obj.wspace.gamme = struct();
-                        obj.wspace.beta  = struct();
                     end
                     
                     gamma = obj.wspace.norm.gamma;
@@ -92,7 +92,7 @@ classdef Normalize < handle
                 end
             end
         end
-        function delta = batchnorm_bprop(obj, delta, optimizer)
+        function delta = batchnorm_bprop(obj, delta)
             switch class(obj)
               case {'Perceptron'}
                 if size(delta, 2) > 1
@@ -100,7 +100,7 @@ classdef Normalize < handle
                     s = obj.wspace.norm.std;
                     
                     gamma = obj.wspace.norm.gamma;
-                    beta  = obj.wspace.norm.beta;
+                    % beta  = obj.wspace.norm.beta;
                     
                     xhat  = obj.wspace.norm.xhat;
                     
@@ -115,8 +115,8 @@ classdef Normalize < handle
                     delta = bsxfun(@rdivide, dxhat, s + eps) ...
                             + (bsxfun(@plus, 2 * (bsxfun(@times, dvar, debia)), dmean) / size(delta, 2));
                     
-                    obj.wspace.norm.gamma = gamma - optimizer.proc(dgamma, obj.wspace.gamma);
-                    obj.wspace.norm.beta  = beta  - optimizer.proc(dbeta, obj.wspace.beta);
+                    obj.addGradient(dgamma, @obj.updateGamma);
+                    obj.addGradient(dbeta,  @obj.updateBeta);
                 end
                 
               case {'ConvPerceptron'}
@@ -125,7 +125,7 @@ classdef Normalize < handle
                     s = obj.wspace.norm.std;
                     
                     gamma = obj.wspace.norm.gamma;
-                    beta  = obj.wspace.norm.beta;
+                    % beta  = obj.wspace.norm.beta;
                     
                     xhat  = obj.wspace.norm.xhat;
                     
@@ -140,13 +140,25 @@ classdef Normalize < handle
                     delta = bsxfun(@rdivide, dxhat, s + eps) ...
                             + (bsxfun(@plus, 2 * (bsxfun(@times, dvar, debia)), dmean) / size(delta, 2));
                     
-                    obj.wspace.norm.gamma = gamma - optimizer.proc(dgamma, obj.wspace.gamma);
-                    obj.wspace.norm.beta  = beta  - optimizer.proc(dbeta, obj.wspace.beta);
+                    obj.addGradient(dgamma, @obj.updateGamma);
+                    obj.addGradient(dbeta,  @obj.updateBeta);
                 end
             end
         end
     end
     
+    % ================= ASSISTANT METHODS =================
+    methods
+        function updateGamma(obj, delta)
+            obj.wspace.norm.gamma = obj.wspace.norm.gamma - delta;
+        end
+        
+        function updateBeta(obj, delta)
+            obj.wspace.norm.beta = obj.wspace.norm.beta - delta;
+        end
+    end
+    
+    % ================= CONSTRUCTOR =================
     methods
         function obj = Normalize()
             obj.wspace.norm = struct();

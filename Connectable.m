@@ -7,25 +7,19 @@ classdef Connectable < handle
 % 2 23, 2016
 
     methods (Abstract)
-        dim = dimin(obj, dimout)
+        dim = dimin(obj)
         % DIM = obj.DIMIN() returns dimension of inherient input requirement in form of
-        % a vector. '0' in the vector means that dimension is not restrictd.
-        %
-        % DIM = obj.DIMIN(DIMOUT) returns input dimension in the condition of
-        % given output dimension.
+        % a vector. 
         
-        dim = dimout(obj, dimin)
+        dim = dimout(obj)
         % DIM = obj.DIMOUT() returns dimension of inherient output requirement in form
-        % of a vector. '0' in the vector means that dimension is not restricted.
-        %
-        % DIM = obj.DIMOUT(DIMIN) returns output dimension in the condition of
-        % given input dimension.
+        % of a vector.
         
-        tof = connect(self, other)
-        % CONNECT create connection to another object. During this process,
-        % callers should check whether or not its requirements have been all
-        % satisfied by the other object. A typical problems is data mismatch
-        % between different objects.
+%         tof = connect(self, other)
+%         % CONNECT create connection to another object. During this process,
+%         % callers should check whether or not its requirements have been all
+%         % satisfied by the other object. A typical problems is data mismatch
+%         % between different objects.
     end
     
     % methods
@@ -47,6 +41,48 @@ classdef Connectable < handle
     properties
         prev                          % link to previous object
         next                          % link to next object
+    end
+    
+    methods (Static)
+        function tof = dimatch(objA, objB)
+            dimA = size(objA);
+            dimB = size(objB);
+            
+            assert(all([dimA, dimB]), ...
+                '[CONNECTABLE] Flexible dimension is not allowed in current edition.');
+            
+            % remove padding '1' in dimension
+            dimA = dimA(1 : find(dimA > 1, 1, 'last'));
+            dimB = dimB(1 : find(dimB > 1, 1, 'last'));
+            
+            % [case] exactly the same
+            if (numel(a) == numel(b)) && all(a == b)
+                tof = true;
+            % [case] get same number of element    
+            elseif prod(dimA) == prod(dimB)
+                % one of object require 1D data, then it is 
+                % save to reshape data in process.
+                if numel(dimA) == 1 || numel(dimB) == 1
+                    tof = true;
+                % both objects require structure data, should
+                % warn user that this is unsave
+                else
+                    warning('[CONNECTABLE] it is dangerous to reshape data between objects.');
+                    tof = true;
+                end
+            else
+                tof = false;
+            end
+        end
+        
+        function tof = connect(objA, objB)
+            if Connectable.dimatch(objA, objB)
+                objA.next = objB;
+                objB.prev = objA;
+            end
+            
+            tof = false;
+        end                
     end
 end
 

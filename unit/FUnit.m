@@ -1,12 +1,14 @@
-% LUNIT is an abstraction of learning units.
+classdef FUnit < Connectable & Optimizable
+% FUNIT is an abstraction of feedforward units.
 %
+% See also, Perceptron, ConvPerceptron.
+
 % MooGu Z. <hzhu@case.edu>
 % 2016-02-18
 
-classdef Unit < Connectable
     methods (Abstract)
         data  = proc(obj, data)
-        delta = bprop(obj, delta, optimizer)
+        delta = bprop(obj, delta)
     end
     
     properties

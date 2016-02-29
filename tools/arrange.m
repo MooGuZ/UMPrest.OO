@@ -1,6 +1,6 @@
 function [r, c] = arrange(n)
-% ARRANGE returns quantity of rows and columns to set N elements in a good
-% shape.
+% ARRANGE returns quantity of rows and columns to make N elements in a good
+% arrangement of matrix form.
 %
 % [R, C] = ARRANGE(N) returns number of rows (R) and columns (C) that can
 % contain N element (R x C >= N), while, R and C are as close as possible.
@@ -18,8 +18,9 @@ function [r, c] = arrange(n)
 %  current value. If not return R = R + 1, and C = C - 1.
 %
 %  Because, each interation in step 2 would decrease value of R x C by C -
-%  R + 1. This create a arithmetic progression. We can use formula to solve
-%  the step we need instead of really folloing the steps.
+%  R + 1. This create an arithmetic progression. The implementation uses a
+%  formula to get number of steps needed before stop the procedure in a 
+%  parametric fashion.
 
 % MooGu Z. <hzhu@case.edu>
 % Feb 22, 2016

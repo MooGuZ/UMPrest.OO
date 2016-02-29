@@ -1,4 +1,4 @@
-classdef ConvPerceptron < Unit & Activation & Pooling & Normalize & UtilityLib
+classdef ConvPerceptron < Unit & Optimizable & Activation & Pooling & Normalize & UtilityLib
 % ConvPerceptron is an abstraction of local connected layer in neural network
 %
 % MooGu Z. <hzhu@case.edu>
@@ -10,64 +10,49 @@ classdef ConvPerceptron < Unit & Activation & Pooling & Normalize & UtilityLib
     % ================= UNIT IMPLEMENTATION =================
     methods
         function output = proc(obj, input)
-            output = obj.conv(input);
-            output = obj.norm.proc(output);
-            output = obj.act.proc(output); 
-            output = obj.pool.proc(output);
+            input = datafmt(input, obj.dimin());
+            
+            data   = obj.conv(input);
+            
+            data   = obj.norm.proc(data);
+            data   = obj.act.proc(data); 
+            output = obj.pool.proc(data);
             
             obj.I  = input;
             obj.O  = output;
         end
         
-        function delta = bprop(obj, delta, optimizer)
+        function delta = bprop(obj, delta)
+            delta = datafmt(delta, obj.dimout());
+            
             delta = obj.pool.bprop(delta);
             delta = obj.act.bprop(delta);
-            [delta, dW, dB] = obj.convbp(delta);
             delta = obj.norm.bprop(delta);
-
-            [dW, obj.wspace.w] = optimizer.proc(dW, obj.wspace.w);
-            [dB, obj.wspace.b] = optimizer.proc(dB, obj.wspace.b);
             
-            obj.W = obj.W - dW;
-            obj.B = obj.B - dB;
+            [delta, dW, dB] = obj.convbp(delta);
+            
+            obj.addGradient(dW, @obj.updateWeight);
+            obj.addGradient(dB, @obj.updateBias);
+            
+            obj.optimize();
         end
     end
     
     % ================= CONNECTABLE IMPLEMENTATION =================
     methods
-        function dim = dimin(obj, ~)
-            if exist('dimout', 'var')
-                warning('[ConvPerceptron] do not support this now.');
-            else
-                dim = [0, 0, obj.nchannel];
-            end
+        function dim = dimin(obj)
+            dim = [obj.channelSize, obj.nchannel];
         end
         
-        function dim = dimout(obj, dimin)
-            if exist('dimin', 'var')
-                dim = obj.poolin2out(obj.convin2out(dimin));
-            else
-                dim = [0, 0, obj.nfilter];
-            end
-        end
-        
-        function tof = connect(self, other)
-            dim = other.dimout();
-            if (numel(dim) == 3 || dim(3) == obj.nchannel) ...
-                    || (numel(dim) == 2 || obj.nchannel == 1)
-                self.prev = other;
-                other.next = self;
-                tof = true;
-            else
-                tof = false;                
-            end
+        function dim = dimout(obj)
+            dim = obj.poolDimout(obj.convDimout(obj.dimin()));
         end
     end
     
     % ================= ASSISTANT METHOD =================
     methods (Access = private)
         % assistant function to calculate dimension after convolution
-        function dimout = convin2out(obj, dimin)
+        function dimout = convDimout(obj, dimin)
             switch obj.convArea
                 case 'valid'
                     dimout = [dimin(1:2) - obj.filterSize + 1, obj.nfilter];
@@ -144,6 +129,14 @@ classdef ConvPerceptron < Unit & Activation & Pooling & Normalize & UtilityLib
                 end
             end
         end
+        
+        function updateBias(obj, delta)
+            obj.B = obj.B - delta;
+        end
+        
+        function updateWeight(obj, delta)
+            obj.W = obj.W - delta;
+        end
     end
     
     % ================= DEBUG =================
@@ -193,8 +186,8 @@ classdef ConvPerceptron < Unit & Activation & Pooling & Normalize & UtilityLib
     
     % ================= DATA & PARAM =================
     properties
-        W, B % wights and bias
-        OA   % output of activation
+        W, B        % wights and bias
+        channelSize % size of input on each Channel
     end
     properties %(Access = private)
         convArea = 'same'; % convolution operation type : {'full', 'same', 'valid'}
@@ -229,22 +222,24 @@ classdef ConvPerceptron < Unit & Activation & Pooling & Normalize & UtilityLib
 
     % ================= CONSTRUCTOR =================
     methods
-        function obj = ConvPerceptron(nfilter, filterSize, nchannel, varargin)
-            obj.setupByArg(varargin{:});
+        function obj = ConvPerceptron(nfilter, filterSize, nchannel, channelSize, varargin)
+            assert(any(numel(filterSize)  == (1 : 3)));
+            assert(any(numel(channelSize) == (1 : 3)));
             
-            if iscell(filterSize)
-                filterSize = filterSize{1}; 
-            end
-            assert(numel(filterSize) < 3 && ~isempty(filterSize));
             if numel(filterSize) == 1
                 filterSize = [filterSize, filterSize]; 
             end
             
+            if numel(channelSize) == 1
+                obj.channelSize = [channelSize, channelSize];
+            else
+                obj.channelSize = channleSize;
+            end
+            
+            obj.setupByArg(varargin{:});            
+            
             obj.W = randn([filterSize, nchannel, nfilter]);
             obj.B = zeros(nfilter, 1);
-            
-            obj.wspace.w = struct();
-            obj.wspace.b = struct();
         end
     end
 end

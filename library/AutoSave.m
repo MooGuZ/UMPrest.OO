@@ -30,62 +30,63 @@ classdef AutoSave < handle
                         warning(['[AUTOSAVE] KEY is not necessary in %s mode. We will take ' ...
                             'current time as KEY.'], obj.mode);
                         key = now();
-                        case {'count', 'iteration', 'sample'}
-                            assert(exist('key', 'var'), ...
-                                '[AUTOSAVE] KEY is necessary in %s mode', upper(obj.mode));
                     end
-                    % check save criteria before saving
-                    if obj.saveCriteria(key)
-                        save(fullfile(obj.savePath, ...
-                            sprintf('%s-%s.mat', obj.taskCode, obj.timestamp())), ...
-                            'obj');
-                        obj.lastsave = key;
-                        tof = true;
-                    else
-                        tof = false;
-                    end
+                case {'count', 'iteration', 'sample'}
+                    assert(exist('key', 'var'), ...
+                        '[AUTOSAVE] KEY is necessary in %s mode', upper(obj.mode));
             end
-        end
-        
-        methods (Access = protected)
-            function tof = saveCriteria(obj, key)
+            % check save criteria before saving
+            if obj.saveCriteria(key)
+                save(fullfile(obj.savePath, ...
+                    sprintf('%s-%s.mat', obj.taskCode, obj.timestamp())), ...
+                    'obj');
+                obj.lastsave = key;
+                tof = true;
+            else
                 tof = false;
-                if islogical(key) && key
-                    tof = true;
-                elseif obj.lastsave == -inf
-                    if key >= obj.interval * obj.unit
-                        tof = true;
-                    end
-                elseif key - obj.lastsave >= obj.interval * obj.unit
-                    tof = true;
-                end
-            end
-        end
-        properties
-            mode = 'count';
-            interval = 5000;
-            savePath = './';
-            taskCode;
-        end
-        properties (Access = protected)
-            timestamp = @() datestr(now, 30);
-        end
-        properties (Access = private)
-            lastsave = -inf;
-        end
-        properties (Dependent, Hidden)
-            unit
-        end
-        methods
-            function value = get.unit(obj)
-                switch lower(obj.mode)
-                    case {'time', 'second'}
-                        value = datenum(0, 0, 0, 0, 0, 1);
-                    case {'count', 'iteration', 'sample'}
-                        value = 1;
-                    otherwise
-                        error('[AUTOSAVE] unrecognized mode : %s', obj.mode)
-                end
             end
         end
     end
+    
+    methods (Access = protected)
+        function tof = saveCriteria(obj, key)
+            tof = false;
+            if islogical(key) && key
+                tof = true;
+            elseif obj.lastsave == -inf
+                if key >= obj.interval * obj.unit
+                    tof = true;
+                end
+            elseif key - obj.lastsave >= obj.interval * obj.unit
+                tof = true;
+            end
+        end
+    end
+    properties
+        mode = 'count';
+        interval = 5000;
+        savePath = './';
+        taskCode;
+    end
+    properties (Access = protected)
+        timestamp = @() datestr(now, 30);
+    end
+    properties (Access = private)
+        lastsave = -inf;
+    end
+    properties (Dependent, Hidden)
+        unit
+    end
+    methods
+        function value = get.unit(obj)
+            switch lower(obj.mode)
+                case {'time', 'second'}
+                    value = datenum(0, 0, 0, 0, 0, 1);
+                case {'count', 'iteration', 'sample'}
+                    value = 1;
+                otherwise
+                    error('[AUTOSAVE] unrecognized mode : %s', obj.mode)
+            end
+        end
+    end
+end
