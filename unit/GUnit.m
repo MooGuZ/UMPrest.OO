@@ -5,9 +5,9 @@ classdef GUnit < Connectable & Optimizable
 % Feb 29, 2016
 
     methods (Abstract)
-        param = proc(obj, data)
-        data  = invp(obj, param)
-        delta = fprop(obj, delta)
+        data  = proc(obj, param)
+        param = invp(obj, data)
+        delta = bprop(obj, delta)
     end
     
     properties

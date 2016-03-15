@@ -117,21 +117,29 @@ classdef Optimizable < handle
                 obj.opt.momentum = false;
                 
               case {'adagrad'}
-                obj.optAlgo = @obj.AdaGrad;
+                obj.optAlgo      = @obj.AdaGrad;
                 obj.opt.momentum = false;
                 
               case {'rmsprop'}
-                obj.optAlgo = @obj.RMSProp;
+                obj.optAlgo      = @obj.RMSProp;
                 obj.opt.momentum = true;
                 
               case {'adam'}
-                obj.optAlgo = @obj.Adam;
+                obj.optAlgo      = @obj.Adam;
                 obj.opt.momentum = false;
                 
               otherwise
                 warning('[%s] Unknow optmization method', class(obj));
             end
         end
+        
+        function value = get.Momentum(obj)
+            value = obj.opt.momentum;
+        end
+        function set.Momentum(obj, value)
+            assert(islogical(value), '[MOMENTUM] TRUE or FALSE only');
+            obj.opt.momentum = value;
+        end            
     end
     
     methods
@@ -168,8 +176,8 @@ classdef Optimizable < handle
             obj.wspace.opt.r = 0;       % gradient accumulation in AdaGrad
             obj.wspace.opt.s = 0;       % first order estimation in Adam
             
-            obj.wspace.opt.grads = cell(0);
-            obj.wspace.opt.updatafunc = cell(0);
+            obj.wspace.opt.grads = {};
+            obj.wspace.opt.updatafunc = {};
             
             if exist('method', 'var')
                 obj.optMethod = method;

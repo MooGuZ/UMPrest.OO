@@ -18,8 +18,8 @@
 % 5. [x] make functions static
 % 6. [ ] evaluation function : mse, logistic ...
 
-classdef MathLib
-    methods (Static)
+classdef MathLib < handle
+    methods
         % Gaussian Distribution
         function p = Gauss(~, x, sigma, mu)
             if ~exist('mu', 'var'), mu = 0; end
@@ -113,6 +113,9 @@ classdef MathLib
             if ~exist('kai', 'var'), kai = 1; end
             d = kai * sin(x - mu);
         end
+    end
+    
+    methods (Static)
         % ============= EVALUATION FUNTION =============
         function v = logistic(x, ref)
             v = - (ref .* log(x) + (1 - ref) .* log(1 - x));

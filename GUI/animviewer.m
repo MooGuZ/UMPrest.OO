@@ -35,8 +35,10 @@ function f = animviewer(data, cmap, resolution)
     ws.nframe = size(data, 3);
     ws.fcount = 1;
     
-    ws.icon.play  = imresize(imread('./material/play.png', 'png'), [16, 16]);
-    ws.icon.pause = imresize(imread('./material/pause.png', 'png'), [16, 16]);
+    icnpath = fullfile(fileparts(mfilename('fullpath')), 'material');
+    
+    ws.icon.play  = imresize(imread(fullfile(icnpath, 'play.png'), 'png'), [16, 16]);
+    ws.icon.pause = imresize(imread(fullfile(icnpath, 'pause.png'), 'png'), [16, 16]);
     
     % ------------- ELEMENTS -------------
     f = figure('Name',            'Animation Viewer', ...

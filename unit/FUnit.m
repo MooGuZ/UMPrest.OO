@@ -7,7 +7,7 @@ classdef FUnit < Connectable & Optimizable
 % 2016-02-18
 
     methods (Abstract)
-        data  = proc(obj, data)
+        param = proc(obj, data)
         delta = bprop(obj, delta)
     end
     

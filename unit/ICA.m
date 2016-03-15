@@ -5,31 +5,41 @@ classdef ICA < GUnit
 % Feb 29, 2016
 
     methods
-        function param = proc(obj, data)
+        function param = invp(obj, data)
             data  = datafmt(data, obj.dimin());
             param = minFunc(@obj.objFunc, obj.initParam(data), inferOptions, data);
         end
         
-        function data = invp(obj, param)
+        function data = proc(obj, param)
             param = datafmt(param, obj.dimout());
-            data  = obj.operator(param);
+            data  = obj.operate(param);
         end
         
-        function delta = fprop(obj, delta)
-            [delta, dBase] = obj.gradient(delta);
-            
+        function delta = bprop(obj, delta)
+            [delta, dBase] = obj.eprop(delta);
             obj.addGradient(dBase, @obj.updateBase);
-            
             obj.optimize();
         end
     end
     
     methods
-        function [objval, delta] = gradient(obj, delta)
+        function [objval, grad] = objFunc(obj, param, data)
+            recdata = obj.operate(param);
+            objval  = obj.objective(recdata, data)
+            if nargout > 1
+                d = obj.delta(recdata, data);
+                grad = obj.eprop(d);
+                grad = grad(:);
+            end
+        end
+    end
     
     methods (Abstract)
         param = initParam(obj, data)
-        [delta, dBase] = gradient(obj, delta)
+        data  = operate(obj, param)
+        [delta, dBase] = eprop(obj, delta) % error propagation
+        updateBase(obj, delta)
+        value = objective(obj, output, ref)
+        d     = delta(obj, output, ref)
     end
-
 end
