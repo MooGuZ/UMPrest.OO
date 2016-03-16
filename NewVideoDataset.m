@@ -8,7 +8,6 @@ classdef NewVideoDataset < Dataset
 % 1. initialize database in constructor, ensure 'db' is not empty
 % 2. ensure every video get same length
 % 3. currently only support one dimension tags
-% 4. video data
 
     methods
         function value = volumn(obj)
@@ -111,9 +110,65 @@ classdef NewVideoDataset < Dataset
         end
 
         function dbrefresh(obj)
-
+            obj.iterDataBlock = 0;
+            % count on quantity of patches have been croped
+            if obj.patch.status
+                obj.patch.count = obj.patch.count - 1;
+                if obj.patch.count > 0
+                    return
+                else
+                    obj.patch.count = obj.patch.n;
+                end
+            end
+            % reload data file to dataBlockSet if necessary
+            if obj.autoload.complete
+                obj.db  = obj.db(randperm(numel(obj.db)));
+            elseif obj.autoload.ifile < numel(obj.autoload.flist)
+                nfile = min(numel(obj.autoload.flist) - obj.autoload.ifile, ...
+                            obj.autoload.capacity);
+                obj.dataload(obj.autoload.ifile + (1 : n));
+                obj.autoload.ifile = obj.autoload.ifile + nfile;
+            else
+                obj.dbinit();
+            end            
         end
+        
+        function dataload(obj, idx)
+        % remove unreadible file from file list and show warning
+        end
+        
+        function dbinit(obj, fpath)
+            if exist('fpath', 'var')
+                obj.autoload.froot = fpath;
+                reload = true;
+            else
+                fpath = obj.autoload.froot;
+                reload = false;
+            end
 
+            % search data file under specified path
+            if isempty(obj.autoload.flist) || reload
+                obj.autoload.flist = listFileWithExt(fpath, obj.autoload.ftype);
+                assert(~isempty(obj.autoload.flist), ...
+                       'no qualified data file found in specified path');
+            end
+            
+            % load data into memory
+            obj.autoload.flist = obj.autoload.flist( ...
+                randperm(numel(obj.autoload.flist)));
+            if obj.autoload.capacity < numel(obj.autoload.flist)
+                obj.dataload(1 : obj.autoload.capacity);
+                obj.autoload.complete = false;
+            else
+                obj.dataload(1 : numel(obj.autoload.flist));
+                obj.autoload.complete = true;
+            end
+            obj.autoload.ifile = numel(obj.db);
+            obj.idb = 0;      
+        end
+       
+        
+        
         function data = datainfo(obj, data, tag)
             if exist('tag', 'var')
                 data = struct( ...
@@ -122,6 +177,10 @@ classdef NewVideoDataset < Dataset
             else
                 data = struct('x', data);
             end
+            
+            ...
+            % 1. add fild of 'help' in structure to contain help information of
+            %    each field of 'data' structure
         end
 
         function [data, tag] = dataform(obj, datasrc)
@@ -161,46 +220,32 @@ classdef NewVideoDataset < Dataset
 
     methods
         function obj = NewVideoDataset(fpath)
-            obj.fpath = fpath;
-            obj.flist = listFileWithExt(fpath, {'.gif', ''});
+            obj.tagged = false;         % [!restriction]
             
-            obj.db = cell(numel(obj.flist)); jdb = 0;
-           
-            for i = 1 : numel(obj.flist)
-                [~, ~, ext] = fileparts(obj.flist{i})
-                try
-                    switch lower(ext)
-                      case {''}
-                        data = obj.loadRawVideo(fullfile(obj.fpath, obj.flist{i}));
-                        
-                      case {'.gif'}
-                        data = obj.loadGifVideo(fullfile(obj.fpath, obj.flist{i}));
-                        
-                      otherwise
-                        error('[VIDEODATASET] unrecognized video file type.');
-                    end
-                catch excpt
-                    warning(excpt.msg);
-                    continue
-                end
-                obj.db{j} = data; 
-                j = j + 1;
-            end
+            obj.dbinit(fpath);
             
-            if j ~= numel(obj.flist)
-                obj.db = obj.db(1 : j);
+            if obj.patch.status
+                obj.patch.count = obj.patch.n;
             end
-            obj.idb = 0;
         end
     end
+    
     properties
         autoload = struct(...
-            'flist', cell());
+            'froot', '', ...
+            'ftype', {'', '.gif'}, ...
+            'flist', {}, ...
+            'complete', false, ...
+            'capacity', 5e4);
 
         db
         idb
 
-        patch = struct('status', false, 'size', []);
+        patch = struct( ...
+            'status', false, ...
+            'size', [], ...
+            'n', 7, ...
+            'count', []);
 
         postproc = struct('method', []);
 
