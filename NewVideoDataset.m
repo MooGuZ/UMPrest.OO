@@ -8,7 +8,7 @@ classdef NewVideoDataset < Dataset
 % 1. initialize database in constructor, ensure 'db' is not empty
 % 2. ensure every video get same length
 % 3. currently only support one dimension tags
-
+% 4. frame dimension need to be the same
     methods
         function value = volumn(obj)
             value = numel(obj.autoload.flist)
@@ -134,7 +134,48 @@ classdef NewVideoDataset < Dataset
         end
         
         function dataload(obj, idx)
-        % remove unreadible file from file list and show warning
+        % NOTE : 
+        % 1. remove unreadible file from file list and show warning
+        % 2. create function 'videoread' (return empty array if failed and show
+        %    warning)
+            
+            obj.db = cell(numel(idx));
+            for i = 1 : numel(idx)
+                fname = fullfile(obj.autoload.froot, obj.autoload.flist{idx(i)});
+                
+                [~, ~, ext] = fileparts(fname);
+                switch lower(ext)
+                  case {''}
+                    if isfield(obj.autoload.read, 'raw')
+                        obj.db{i} = videoread(fname, 'raw', obj.autoload.read.raw);
+                    else
+                        obj.db{i} = videoread(fname, 'raw');
+                    end
+                    
+                  case {'.gif'}
+                    obj.db{i} = videoread(fname, 'gif');
+                    
+                  otherwise
+                    error'VideoDataset:UnrecognizeFileType', ...
+                        'Unrecognize File Type : %s', ext);
+                end
+                
+                if obj.statistic.status
+                    obj.dbstat(obj.db{i});
+                end
+            end
+            % delete empty element
+            obj.db = obj.db(cellfun(@isempty), obj.db);
+        end
+        
+        function dbstat(obj, data)
+            frmdim = numel(size(data));
+            obj.statistic.fcount = obj.statistic.fcount + size(data, frmdim);
+            obj.statistic.frmsum = obj.statistic.frmsum + sum(data, frmdim);
+            obj.statistic.seqsum = obj.statistic.seqsum + sum(data.^2, frmdim);
+            
+            data = reshape(data, [numel(data) / frmdim, frmdim]);
+            obj.statistic.covmat = obj.statistic.covmat + data * data';
         end
         
         function dbinit(obj, fpath)
@@ -166,8 +207,6 @@ classdef NewVideoDataset < Dataset
             obj.autoload.ifile = numel(obj.db);
             obj.idb = 0;      
         end
-       
-        
         
         function data = datainfo(obj, data, tag)
             if exist('tag', 'var')
@@ -194,6 +233,9 @@ classdef NewVideoDataset < Dataset
             end
 
             switch lower(obj.postproc.method)
+              case {'none'}
+                % do nothing
+                
               case {'whitening'}
                 data = obj.whitening(data);
 
@@ -204,11 +246,97 @@ classdef NewVideoDataset < Dataset
                 data = obj.recenter(data);
 
               otherwise
-                error('[VIDEODATASET] unrecognized post-processing method.');
+                error('VideoDataset:ConfigError', ...
+                      'Unrecognized post-processing method.');
             end
         end
+        
+        function data = videorecover(obj, data)
+            if isstruct(data)
+                data = data.x;
+            end
+            
+            switch lower(obj.postproc.method)
+              case {'none'}
+                % do nothing
+                
+              case {'whitening'}
+                data = obj.whiteningDecode(data);
+                
+              case {'dimnorm'}
+                data = obj.dimnormDecode(data);
+                
+              case {'recenter'}
+                data = obj.recenterDecode(data);
+                
+              otherwise
+                error('VideoDataset:ConfigError', ...
+                      'Unrecognized post-processing method.');
+            end
+        end
+        
+        function whiteningSetup(obj, static)
+            assert(obj.statistic.status, ...
+                   'VideoDataset:ConfigError', ...
+                   'whitening operation need statistic information.');
+            
+            if obj.patch.status
+                stat = obj.patchstat();
+            else
+                stat = obj.statistic;
+            end
+            
+            % bias vector
+            obj.wspace.bias   = stat.frmsum / stat.fcount;
+            
+            % principle component analysis
+            [vec, val] = eig(stat.covmat / stat.fcount);
+            [val, idx] = sort(diag(val), 'descend');
+            vec = vec(:, idx);
+            
+            % output dimension according to eigen value
+            pixelvar = ( ...
+                    (sum(stat.seqsum(:)) / npixel) ...
+                    - (sum(stat.frmsum(:)) / npixel).^2 ...
+                ) / stat.fcount;
+            
+            threshold = pixelvar * obj.postproc.whitening.cutoffRatio;
+            dim = sum(val > threshold);
+            
+            val = val(1 : dim);
+            vec = vec(: 1 : dim);
+            
+            obj.wspace.encode = diag(1 ./ sqrt(val)) * vec';
+            obj.wspace.decode = vec * diag(sqrt(val));
+            
+            obj.wspace.zerophase = vec * diag(1 ./ sqrt(val)) * vec';
+            
+            rodim = sum(val > pixelvar * obj.postproc.whitening.rolloffFactor);
+            obj.wspace.pixelweight = ...
+                MathLib.rolloff(dim, rodim) / obj.postproc.whitening.noiseRatio;
+        end
 
-        function data = whitening(obj, data)
+        function data = whiteningEncode(obj, data)
+            data = bsxfun(@minus, data, obj.wspace.bias);
+            
+            nfrm = size(data, 3);
+            data = obj.wspace.encode * reshape(data, numel(data) / nfrm, nfrm);
+        end
+        
+        function data = whiteningDecode(obj, data, zerophase)
+            if exist('zerophase', 'var')
+                data = obj.wspace.zerophase * data;
+            else
+                data = obj.wspace.decode * data;
+            end
+            
+            if obj.patch.status
+                data = reshape(data, obj.patch.frmsize, size(data, 2));
+            else
+                data = reshape(data, obj.framesize, size(data, 2));
+            end
+            
+            data = bsxfun(@plus, data, obj.wspace.bias);
         end
 
         function data = dimnorm(obj, data)
@@ -227,6 +355,8 @@ classdef NewVideoDataset < Dataset
             if obj.patch.status
                 obj.patch.count = obj.patch.n;
             end
+            
+            obj.wspace = struct();
         end
     end
     
@@ -236,19 +366,36 @@ classdef NewVideoDataset < Dataset
             'ftype', {'', '.gif'}, ...
             'flist', {}, ...
             'complete', false, ...
-            'capacity', 5e4);
+            'capacity', 5e4, ...
+            'read', struct());
 
         db
         idb
+        
+        wspace
+        
+        framesize
 
         patch = struct( ...
             'status', false, ...
-            'size', [], ...
+            'frmsize', [], ...
+            'nframe', [], ...
             'n', 7, ...
             'count', []);
 
-        postproc = struct('method', []);
+        postproc = struct( ...
+            'method', 'none', ...
+            'whitening', struct( ...
+                'noiseRatio', 0.1, ...
+                'cutoffRatio', 0.1, ...
+                'rolloffFactor', 3));
 
-        statistic
+        statistic = struct( ...
+            'status', true, ...
+            'fcount', 0, ...
+            'frmsum', 0, ...
+            'seqsum', 0, ...
+            'covmat', 0, ...
+            'stable', false);
     end
 end

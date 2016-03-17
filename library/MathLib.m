@@ -135,4 +135,11 @@ classdef MathLib < handle
             end
         end     
     end
+    
+    methods (Static)
+        function v = rolloff(n, m)
+            v = ones(n, 1);
+            v(m + 1 : end) = 0.5 * (1 + cos(linspace(0, pi, n - m)));
+        end
+    end
 end
