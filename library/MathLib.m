@@ -141,5 +141,43 @@ classdef MathLib < handle
             v = ones(n, 1);
             v(m + 1 : end) = 0.5 * (1 + cos(linspace(0, pi, n - m)));
         end
+        
+        function x = vec(x, dim, mode)
+            if exist('dim', 'var')
+                if ~exist('mode', 'var')
+                    mode = 'front';
+                end
+                
+                sz = size(x);
+                
+                switch lower(mode)
+                  case {'front'}
+                    if numel(sz) > dim
+                        x = reshape(x, [prod(sz(1 : dim)), sz(dim + 1 : end)]);
+                    else
+                        x = x(:);
+                    end
+                    
+                  case {'back'}
+                    if numel(sz) > dim
+                        x = reshape(x, [sz(1 : dim), prod(sz(dim + 1 : end))])
+                    end
+                    
+                  case {'both'}
+                    if numel(sz) > dim
+                        x = reshape(x, ...
+                                    [prod(sz(1 : dim)), prod(sz(dim + 1 : end))]);
+                    else
+                        x = x(:);
+                    end
+                    
+                  otherwise
+                    error('ArguemntError:MathLib', ...
+                          'Unrecognized vectorization mode : %s', upper(mode));
+                end
+            else
+                x = x(:);
+            end
+        end
     end
 end
