@@ -1,11 +1,11 @@
-classdef Autoload < Statitsitcs
+classdef Autoload < handle
 % AUTOLOAD provide methods to help sub-class control memeory allocation in file
 % loading tasks. This unit also provide statistics of data.
 
 % MooGu Z. <hzhu@case.edu>
 % 3 22, 2016
     
-% ================= INTERFACE FOR SUBCLASS ================= 
+    % ================= INTERFACE FOR SUBCLASS ================= 
     methods (Abstract)
         data = id2data(obj, id)
         idlist = getIDList(obj)
@@ -14,7 +14,7 @@ classdef Autoload < Statitsitcs
     % ================= CALLBACK FUNCTIONS =================
     methods (Abstract) 
         dbinitCallback(obj)
-        dbupdataCallback(obj, data)
+        dbupdateCallback(obj, data)
     end
 
     % ================= APPLICATION INTERFACE =================
@@ -47,7 +47,6 @@ classdef Autoload < Statitsitcs
                 obj.autoload.complete  = true;
                 obj.autoload.traversed = true;
             end
-            obj.irepeat = obj.autoload.repeat;
             obj.index = numel(obj.db);
             obj.idb = 0;
         end
@@ -91,8 +90,8 @@ classdef Autoload < Statitsitcs
                 try
                     obj.db{i} = obj.id2data(obj.autoload.idlist{idx(i)});
                 catch ME
-                    warning('File Loading Failure : %s\n[MESSAGE] %s', ...
-                            fname, ME.message);
+                    warning('File Loading Failure : %s\n[MESSAGE] %s\n', ...
+                            obj.autoload.idlist{idx(i)}, ME.message);
                     failidx(i) = true;
                     continue
                 end
@@ -102,23 +101,14 @@ classdef Autoload < Statitsitcs
             % delete empty element and remove that file from list of autoload system
             if any(failidx)
                 obj.db = obj.db(~failidx);
-                index = true(numel(obj.autoload.idlist), 1);
-                index(idx(failidx)) = false;
-                obj.autoload.idlist = obj.autoload.idlist(index);
+                logicidx = true(numel(obj.autoload.idlist), 1);
+                logicidx(idx(failidx)) = false;
+                obj.autoload.idlist = obj.autoload.idlist(logicidx);
             end
         end
 
         function dbrefresh(obj)
             obj.idb = 0;
-            % count on quantity of patches have been croped
-            if obj.autoload.repeat
-                obj.irepeat = obj.irepeat - 1;
-                if obj.irepeat > 0
-                    return
-                else
-                    obj.irepeat = obj.autoload.repeat;
-                end
-            end
             % reload data file to dataBlockSet if necessary
             if obj.autoload.complete
                 idx = randperm(numel(obj.db));
@@ -134,6 +124,9 @@ classdef Autoload < Statitsitcs
                     obj.autoload.traversed = true;
                 end
             else
+                % initialization here would not enforce reload data file
+                % list. So, it essentially reload data following a new
+                % random order.
                 obj.dbinit();
             end
         end
@@ -162,14 +155,14 @@ classdef Autoload < Statitsitcs
     properties
         db
     end
-    properties (Access = protected)
+    properties % (Access = protected)
         autoload = struct(...
-            'idlist',    {}, ...
+            'idlist',    [], ...
             'capacity',  5e4, ...
             'complete',  false, ...
             'traversed', false);
     end
-    properties (Access = private)
+    properties % (Access = private)
         idb
         index
     end

@@ -160,7 +160,7 @@ classdef MathLib < handle
                     
                   case {'back'}
                     if numel(sz) > dim
-                        x = reshape(x, [sz(1 : dim), prod(sz(dim + 1 : end))])
+                        x = reshape(x, [sz(1 : dim), prod(sz(dim + 1 : end))]);
                     end
                     
                   case {'both'}

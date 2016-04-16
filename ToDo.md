@@ -40,10 +40,10 @@
 
 ## Dec 10, 2015
 - [ ] add test scripts to the project
-- [ ] check possibility to integrate 'derivateCheck' elegantly. If negative, implement a general form in 'tools'
+- [x] check possibility to integrate 'derivateCheck' elegantly. If negative, implement a general form in 'tools'
 
 ## Jan 12, 2016
-- [ ] check correctness of objective function of COCBaseLearner
+- [x] check correctness of objective function of COCBaseLearner
 
 ## Jan 21, 2016
 - [ ] implement memeory limitation in calculating of GenerativeModel

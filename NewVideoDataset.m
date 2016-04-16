@@ -10,14 +10,14 @@ classdef NewVideoDataset < Autoload & Statistics
 % 3. currently only support one dimension tags
 % 4. frame dimension need to be the same
     
-    % ================= [AUTOLOD] IMPLEMENTATION =================
+    % ================= [AUTOLOAD] IMPLEMENTATION =================
     methods
         function idlist = getIDList(obj)
             idlist = listFileWithExt(obj.dataPath, {'', '.gif'});
         end
         
         function data = id2data(obj, id)
-            data = videoread(fullfile(obj.dataPath, id));
+            data = videoread(fullfile(obj.dataPath, id), obj.config.raw);
             % check input data size
             datasize = size(data);
             assert(numel(datasize) == obj.unitdim + 1); % debug
@@ -30,16 +30,18 @@ classdef NewVideoDataset < Autoload & Statistics
                 obj.frmPerSmp = datasize(end);
             end
             % check consistancy of size
-            if obj.patchmode
-                assert(datasize(end) == frmPerSmp)
-            else
-                assert(all(datasize == [obj.unitsize, frmPerSmp]), ...
+            if not(obj.patchmode)
+                assert(all(datasize(1 : obj.unitdim) == obj.unitsize), ...
                        'Data size mismatch.');
             end
         end
         
         function dbinitCallback(obj)
             obj.statInit(obj.unitdim);
+            % search and load configuration file
+            if exist(fullfile(obj.dataPath, 'rawconfig.mat'), 'file') == 2
+                obj.config.raw = load(fullfile(obj.dataPath, 'rawconfig.mat'));
+            end
         end
         
         function dbupdateCallback(obj, sample)
@@ -65,14 +67,24 @@ classdef NewVideoDataset < Autoload & Statistics
         end
         
         function data = next(obj, n)
-        % TODO : patchPerSmp implementation
+        % LIMIT : current implementation of multiple patches per sample is
+        %         roughly one. It would ignore the last sample in last
+        %         fetch, even if the count of patches of it is not
+        %         complete.
             if exist('n', 'var')
                 assert(n > 0 && n == floor(n));
             else
                 n = 1;
             end
+            
+            if obj.patchmode
+                data = repmat(obj.fetch(ceil(n / obj.patchPerSmp)), ...
+                    [obj.patchPerSmp, 1]);
+            else
+                data = obj.fetch(n);
+            end
 
-            data = obj.dataform(obj.fetch(n));
+            data = obj.dataform(data);
         end
         
         function data = datainfo(obj, data)
@@ -105,8 +117,20 @@ classdef NewVideoDataset < Autoload & Statistics
                 data = struct('x', x, 'y', y);
                 data = datainfo(data);
             else % single case
-                if obj.patch.status
+                if obj.patchmode
                     data = randpatch(datacell , obj.patch.size);
+                end
+                
+                if size(data, obj.unitdim + 1) > obj.frmPerSmp
+                    data = MathLib.vec(data, obj.unitdim, 'front');
+                    data = reshape(data(:, 1 : obj.frmPerSmp), ...
+                        [obj.unitsize, obj.frmPerSmp]);
+                    warning('Data has been truncated');
+                elseif size(data, obj.unitdim + 1) < obj.frmPerSmp
+                    data = MathLib.vec(data, obj.unitdim, 'front');
+                    data = reshape([data, ...
+                        repmat(data(:, end), [1, obj.frmPerSmp - datasize(end)])], ...
+                        [obj.unitsize, obj.frmPerSmp]);                    
                 end
                 
                 data = obj.encode(data);
@@ -135,9 +159,17 @@ classdef NewVideoDataset < Autoload & Statistics
             end
         end
         function set.patchsize(obj, value)
-            assert(isnumeric(value) && numel(value) = obj.unitdim);
+            assert(isnumeric(value));
             obj.patchmode = true;
-            obj.unitsize  = value;
+            if numel(value) ~= obj.unitdim
+                if numel(value) == 1
+                    obj.unitsize = value * ones(1, obj.unitdim);
+                else
+                    assert('ArgumentError:Patchsize', 'Illegal patch size');
+                end
+            else
+                obj.unitsize  = value;
+            end
         end
     end
 
@@ -148,16 +180,23 @@ classdef NewVideoDataset < Autoload & Statistics
     end
 
     properties
-        patchmode = false;
+        dataPath
         patchPerSmp = 7;
         frmPerSmp = nan;
         unitsize  = nan;
+        config
+    end
+    
+    properties (SetAccess = private)
+        patchmode = false;
     end
     
     % ================= CONSTRUCTOR ================= 
     methods
-        function obj = NewVideoDataset()
-        % !!!
+        function obj = NewVideoDataset(dataPath)
+            obj.dataPath = dataPath;
+            obj.patchsize = 32;
+            obj.dbinit();
         end
     end
 end

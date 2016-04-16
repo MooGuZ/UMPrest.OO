@@ -17,6 +17,7 @@ classdef Statistics < handle
             obj.stat = struct(  ...
                 'status', true, ...
                 'dim',    dim,  ...
+                'size',   [],   ...
                 'count',  0,    ...
                 'sum',    0,    ...
                 'sum2',   0,    ...
@@ -36,6 +37,17 @@ classdef Statistics < handle
             assert(obj.stat.status, 'ApplicationError:Statistics', ...
                 'Statistics module has not been initialized.');
             
+            % check size of input data
+            datasize = size(data);
+            if isempty(obj.stat.size)
+                obj.stat.size = datasize(1 : obj.stat.dim);
+            else
+                assert(all(datasize(1 : obj.stat.dim) == obj.stat.size), ...
+                    'RuntimeError:Statistics', ...
+                    'Data dimension mismatch for statistics');
+            end
+            
+            % calculate statistics
             data = MathLib.vec(data, obj.stat.dim, 'back');
             
             obj.stat.sum  = obj.stat.sum + sum(data, obj.stat.dim + 1);
@@ -114,8 +126,9 @@ classdef Statistics < handle
     % ================= STATISTIC CODER =================
     methods
         function data = encode(obj, data)
-            if strcmpi(obj.statCoder.status, 'outdated')
-                inputSize = size(data);
+            inputSize = size(data);
+            if strcmpi(obj.statCoder.status, 'outdated') ...
+                    || not(all(inputSize(1 : obj.stat.dim) == obj.statCoder.insize))
                 obj.statCoderUpdate(inputSize(1 : obj.stat.dim));
             end
             
@@ -208,11 +221,11 @@ classdef Statistics < handle
     
     % ================= DYNAMIC ATTRIBUTES =================
     properties (Dependent)
-        statistics
+        statmode
         statUnitSize
     end
     methods
-        function value = get.statistics(obj)
+        function value = get.statmode(obj)
             value = obj.stat.status;
         end
         
