@@ -61,8 +61,9 @@ function f = animcompare(dataL, dataR, cmap, resolution)
     ws.nframe = min(size(dataL, 3), size(dataR, 3));
     ws.fcount = 1;
     
-    ws.icon.play  = imresize(imread('./material/play.png', 'png'), [16, 16]);
-    ws.icon.pause = imresize(imread('./material/pause.png', 'png'), [16, 16]);
+    curdir = fileparts(mfilename('fullpath'));
+    ws.icon.play  = imresize(imread(fullfile(curdir, 'material/play.png'), 'png'), [16, 16]);
+    ws.icon.pause = imresize(imread(fullfile(curdir, 'material/pause.png'), 'png'), [16, 16]);
     
     % ------------- ELEMENTS -------------
     f = figure('Name',            'Animation Compare', ...
