@@ -9,6 +9,8 @@ classdef NewVideoDataset < Autoload & Statistics
 % 2. ensure every video get same length
 % 3. currently only support one dimension tags
 % 4. frame dimension need to be the same
+% 5. solve the problem that Statistic failed with non-formated data that
+%    prepared to work in patchsize.
     
     % ================= [AUTOLOAD] IMPLEMENTATION =================
     methods
@@ -17,7 +19,11 @@ classdef NewVideoDataset < Autoload & Statistics
         end
         
         function data = id2data(obj, id)
-            data = videoread(fullfile(obj.dataPath, id), obj.config.raw);
+            if isfield(obj.config, 'raw')
+                data = videoread(fullfile(obj.dataPath, id), obj.config.raw);
+            else
+                data = videoread(fullfile(obj.dataPath, id));
+            end
             % check input data size
             datasize = size(data);
             assert(numel(datasize) == obj.unitdim + 1); % debug
@@ -60,7 +66,10 @@ classdef NewVideoDataset < Autoload & Statistics
         function dim = dimout(obj)
             if strcmpi(obj.statCoder.mode, 'whiten')
                 % condition : statistical encoding (whitening)
-                dim = [size(obj.statCoder.encode, 1), obj.frmPerSmp];
+                if isempty(obj.whitenOutDimension)
+                    obj.statCoderUpdate(obj.unitsize);
+                end
+                dim = [obj.whitenOutDimension, obj.frmPerSmp];
             else
                 dim = [obj.unitsize, obj.frmPerSmp];
             end
@@ -81,7 +90,7 @@ classdef NewVideoDataset < Autoload & Statistics
                 data = repmat(obj.fetch(ceil(n / obj.patchPerSmp)), ...
                     [obj.patchPerSmp, 1]);
             else
-                data = obj.fetch(n);
+                data = obj.dbfetch(n);
             end
 
             data = obj.dataform(data);
@@ -114,11 +123,17 @@ classdef NewVideoDataset < Autoload & Statistics
                 
                 x = reshape(x, [obj.dimout, n]);
                 
-                data = struct('x', x, 'y', y);
-                data = datainfo(data);
+                if obj.tagged
+                    data = struct('x', x, 'y', y);
+                else
+                    data = struct('x', x);
+                end
+                data = obj.datainfo(data);
             else % single case
                 if obj.patchmode
                     data = randpatch(datacell , obj.patch.size);
+                else
+                    data = datacell;
                 end
                 
                 if size(data, obj.unitdim + 1) > obj.frmPerSmp
@@ -191,12 +206,64 @@ classdef NewVideoDataset < Autoload & Statistics
         patchmode = false;
     end
     
+    % ================= SAVE&LOAD SUPPORT =================
+    methods
+        function sobj = saveobj(obj)
+            % -------------------------------------------------------------
+            % Cannot deal with partial dataset at this time
+            if not(obj.autoload.complete)
+                warning('Dataset is too big to save into pure structure');
+                sobj = obj;
+                return
+            end
+            % -------------------------------------------------------------
+            sobj.db = obj.db;
+            sobj.id = obj.autoload.idlist;
+            if obj.statmode
+                sobj.stat = obj.stat;
+            end
+            if obj.patchmode
+                sobj.patchsize = obj.patchsize;
+            end
+        end
+    end
+    methods (Static)
+        function obj = loadobj(sobj)
+            if isstruct(sobj)
+                obj = NewVideoDataset();
+                obj.dbimport(sobj.db, sobj.id);
+                [nd, dim] = obj.datadim();
+                if all(not(isnan(dim))) && nd >= obj.unitdim
+                    obj.unitsize = dim(1 : obj.unitdim);
+                    if nd > obj.unitdim
+                        obj.frmPerSmp = dim(obj.unitdim + 1);
+                    else
+                        obj.frmPerSmp = 1;
+                    end
+                else
+                    error('Loaded data do not meet dimension requirement of VideoDataset');
+                end                    
+                if isfield(sobj, 'stat')
+                    obj.statInit(obj.unitdim);
+                    obj.stat = sobj.stat;
+                end
+                if isfield(sobj, 'patchsize')
+                    obj.patchsize = sobj.patchsize;
+                end
+            else
+                obj = sobj;
+            end
+        end
+    end
+    
     % ================= CONSTRUCTOR ================= 
     methods
         function obj = NewVideoDataset(dataPath)
-            obj.dataPath = dataPath;
-            obj.patchsize = 32;
-            obj.dbinit();
+            if exist('dataPath', 'var')
+                obj.dataPath = dataPath;
+                % obj.patchsize = 32;
+                obj.dbinit();
+            end
         end
     end
 end

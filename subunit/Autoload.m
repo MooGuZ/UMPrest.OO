@@ -86,7 +86,10 @@ classdef Autoload < handle
         function dataload(obj, idx)
             obj.db  = cell(numel(idx), 1);
             failidx = false(numel(idx), 1);
+            hwbar = waitbar(0);
             for i = 1 : numel(idx)
+                waitbar(i / numel(idx), hwbar, sprintf('Loading file (%d / %d) : %s...', ...
+                    i, numel(idx), obj.autoload.idlist{idx(i)}));
                 try
                     obj.db{i} = obj.id2data(obj.autoload.idlist{idx(i)});
                 catch ME
@@ -95,9 +98,9 @@ classdef Autoload < handle
                     failidx(i) = true;
                     continue
                 end
-
                 obj.dbupdateCallback(obj.db{i});
             end
+            close(hwbar);
             % delete empty element and remove that file from list of autoload system
             if any(failidx)
                 obj.db = obj.db(~failidx);
@@ -106,7 +109,39 @@ classdef Autoload < handle
                 obj.autoload.idlist = obj.autoload.idlist(logicidx);
             end
         end
+        
+        function [nd, dim] = datadim(obj)
+            nd  = nan;
+            dim = nan;
+            if numel(obj.db) > 0
+                buffer = cellfun('ndims', obj.db);
+                if all(buffer == buffer(1))
+                    nd  = buffer(1);
+                    dim = nan(1, nd);
+                    for d = 1 : nd
+                        buffer = cellfun('size', obj.db, d);
+                        if all(buffer == buffer(1))
+                            dim(d) = buffer(1);
+                        end
+                    end
+                end
+            end
+        end
 
+        function dbimport(obj, out_db, out_id)
+            obj.db = out_db;
+            obj.autoload.idlist = out_id;
+            assert(numel(out_db) == numel(out_id), ...
+                'The quantity of data and id mismatch!');
+            if obj.autoload.capacity < numel(obj.db)
+                obj.autoload.capacity = numel(obj.db);
+            end
+            obj.idb = 0;
+            obj.index = numel(obj.db);
+            obj.autoload.complete = true;
+            obj.autoload.traversed = true;
+        end
+        
         function dbrefresh(obj)
             obj.idb = 0;
             % reload data file to dataBlockSet if necessary

@@ -75,7 +75,7 @@ classdef Statistics < handle
             assert(numel(inputSize) == obj.stat.dim, 'ArgumentError:Statistics', ...
                 'Provided size information has wrong dimension.');
             
-            assert(all(inputSize < size(obj.statUnitSize)), 'RuntimeError:Statistics', ...
+            assert(all(inputSize <= obj.statUnitSize), 'RuntimeError:Statistics', ...
                 'Provided size information is unavailable for statistics');
             
             if strcmpi(obj.statCache.status, 'outdated') ...
@@ -109,7 +109,7 @@ classdef Statistics < handle
                 obj.statCache.mean   = sinfo.sum / sinfo.count;
                 obj.statCache.std    = sqrt(sinfo.sum2 / sinfo.count - obj.statCache.mean.^2);
                 obj.statCache.covmat = sinfo.covmat / sinfo.count ...
-                    - obj.statCache.mean * obj.statCache.mean';
+                    - obj.statCache.mean(:) * obj.statCache.mean(:)';
                 obj.statCache.status = 'updated';
             end
             
@@ -126,30 +126,30 @@ classdef Statistics < handle
     % ================= STATISTIC CODER =================
     methods
         function data = encode(obj, data)
-            inputSize = size(data);
-            if strcmpi(obj.statCoder.status, 'outdated') ...
-                    || not(all(inputSize(1 : obj.stat.dim) == obj.statCoder.insize))
-                obj.statCoderUpdate(inputSize(1 : obj.stat.dim));
-            end
-            
-            switch lower(obj.statCoder.mode)
-                case {'off'}
-                    
-                case {'debias'}
-                    data = bsxfun(@minus, data, obj.statCoder.offset);
-                    
-                case {'normalize'}
-                    data = bsxfun(@minus, data, obj.statCoder.offset);
-                    data = bsxfun(@rdivide, data, obj.statCoder.scale);
-                    
-                case {'whiten'}
-                    data = bsxfun(@minus, data, obj.statCoder.offset);
-                    data = MathLib.vec(data, obj.stat.dim, 'front');
-                    data = mtimesnd(obj.statCoder.encode, data);
-                    
-                otherwise
-                    error('ConfigError:Statistic', 'Unrecognized coding mode : %s', ...
-                        upper(obj.statCoder.mode));
+            if not(strcmpi(obj.statCoder.mode, 'off'))
+                inputSize = size(data);
+                if strcmpi(obj.statCoder.status, 'outdated') ...
+                        || not(all(inputSize(1 : obj.stat.dim) == obj.statCoder.insize))
+                    obj.statCoderUpdate(inputSize(1 : obj.stat.dim));
+                end
+                
+                switch lower(obj.statCoder.mode)
+                    case {'debias'}
+                        data = bsxfun(@minus, data, obj.statCoder.offset);
+                        
+                    case {'normalize'}
+                        data = bsxfun(@minus, data, obj.statCoder.offset);
+                        data = bsxfun(@rdivide, data, obj.statCoder.scale);
+                        
+                    case {'whiten'}
+                        data = bsxfun(@minus, data, obj.statCoder.offset);
+                        data = MathLib.vec(data, obj.stat.dim, 'front');
+                        data = mtimesnd(obj.statCoder.encode, data);
+                        
+                    otherwise
+                        error('ConfigError:Statistic', 'Unrecognized coding mode : %s', ...
+                            upper(obj.statCoder.mode));
+                end
             end
         end
         
@@ -168,6 +168,7 @@ classdef Statistics < handle
                     data = mtimesnd(obj.statCoder.decode, data);
                     temp = size(data);
                     data = reshape(data, [obj.statCoder.insize, temp(2:end)]);
+                    data = bsxfun(@plus, data, obj.statCoder.offset);
                     
                 otherwise
                     error('ConfigError:Statistic', 'Unrecognized coding mode : %s', ...
@@ -194,13 +195,22 @@ classdef Statistics < handle
                 vec = vec(:, idx);
                 
                 npixel = s.count * numel(s.sum);
-                pixelvar = (sum(s.sum(:)) / npixel) ...
-                    - (sum(s.frmsum(:)) / npixel).^2;
+                pixelvar = (sum(s.sum2(:)) / npixel) ...
+                    - (sum(s.sum(:)) / npixel).^2;
                 
+                % >>> Cadieu & Olshausen's method <<<
+                % if isempty(obj.whitenOutDimension)
+                %     threshold = pixelvar * obj.whitenCutoffRatio;
+                %     obj.whitenOutDimension = sum(val > threshold);
+                % end
+                
+                % >>> Method based on percentage of Power <<<
+                % - practise shows '0.95' is good point to choose, which is
+                % - balance for performance and storage sufficience.
                 if isempty(obj.whitenOutDimension)
-                    threshold = pixelvar * obj.whitenCutoffRatio;
-                    obj.whitenOutDimension = sum(val > threshold);
-                end
+                    cumval = cumsum(val);
+                    obj.whitenOutDimension = sum((cumval / cumval(end)) < 0.95);
+                end                
                 
                 dim = obj.whitenOutDimension;
                 rodim = sum(val > pixelvar * obj.whitenRolloffFactor);
