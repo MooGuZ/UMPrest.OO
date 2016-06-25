@@ -131,7 +131,7 @@ classdef NewVideoDataset < Autoload & Statistics
                 data = obj.datainfo(data);
             else % single case
                 if obj.patchmode
-                    data = randpatch(datacell , obj.patch.size);
+                    data = randcrop(datacell , obj.patch.size);
                 else
                     data = datacell;
                 end
@@ -158,6 +158,41 @@ classdef NewVideoDataset < Autoload & Statistics
             end
             
             data = obj.decode(data);
+        end
+    end
+    
+    methods
+        function dataset = subset(obj, index)
+            conf = struct2plist(obj.getConfig());
+            switch obj.sourcType
+                case {'folder', 'file'}
+                    dataset = NewVideoDataset.files(obj.autoload.idlist(index), conf{:});
+                    
+                case {'memory'}
+                    dataset = NewVideoDataset.memory(obj.id2data(obj.autoload.idlist(index)), conf{:});
+                    
+                otherwise
+                    error('TBC');
+            end
+        end
+        
+        function varargout = subsets(obj, division)
+            assert(isnumeric(division) && isvector(division));
+            assert(sum(division) <= 1);
+            
+            % get number of elements in each subset
+            n = round(division * obj.volumn());
+            if sum(n) > obj.volumn()
+                ind = randperm(numel(n), sum(n) - obj.volumn());
+                n(ind) = n(ind) - 1;
+            end
+            
+            % generate subset one by one
+            pos = 0;
+            ind = randperm(obj.volumn());
+            for i = 1 : min(numel(n), nargout)
+                varargout{i} = obj.subset(ind(pos + (1:n(i))));
+            end
         end
     end
     
@@ -256,14 +291,54 @@ classdef NewVideoDataset < Autoload & Statistics
         end
     end
     
-    % ================= CONSTRUCTOR ================= 
+    % ================= CONSTRUCTOR =================
     methods
-        function obj = NewVideoDataset(dataPath)
-            if exist('dataPath', 'var')
-                obj.dataPath = dataPath;
-                % obj.patchsize = 32;
-                obj.dbinit();
+        function obj = NewVideoDataset(mode, target, varargin)
+            switch lower(mode)
+                case {'folder'}
+                    obj.sourceType = 'folder';
+                    obj.dataPath = target;     
+                    
+                case {'file'}
+                    obj.sourceType = 'file';
+                    obj.autolod.idlist = target;
+                    
+                case {'memory'}
+                    obj.sourceType = 'memory';
             end
+            conf = Config.parse(varargin);
+            Config.apply(obj, conf);
+            obj.dbinit();
+        end
+    end
+    
+    methods (Static)
+        function obj = folder(path, varargin)
+            if ischar(path)
+                assert(isdir(path));
+            else
+                assert(iscell(path));
+                for i = 1 : numel(path)
+                    assert(isdir(path{i}));
+                end
+            end
+            obj = NewVideoDataset('folder', path, varargin{:});
+        end
+        
+        function obj = file(flist, varargin)
+            if ischar(flist)
+                assert(exist(flist, 'file') == 2);
+            else
+                assert(iscell(flist));
+                for i = 1 : numel(flist)
+                    assert(exist(flist{i}, 'file') == 2);
+                end
+            end
+            obj = NewVideoDataset('file', flist, varargin{:});
+        end
+        
+        function obj = memory(db, varargin)
+            obj = NewVideoDataset('memory', db, varargin{:});
         end
     end
 end

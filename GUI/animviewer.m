@@ -37,7 +37,7 @@ function f = animviewer(data, cmap, resolution)
     end
     
     % formalize data
-    if isstruct(data)
+    if isstruct(data) || isa(data, 'DataPackage')
         data = data.data;
     end
     if numel(size(data)) == 2

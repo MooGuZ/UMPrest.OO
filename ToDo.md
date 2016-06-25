@@ -39,21 +39,24 @@
 - [C] general random number generator -> inverse transform method can not be generalized in program, just create random number generator for specific distributions
 
 ## Dec 10, 2015
-- [ ] add test scripts to the project
+- [x] add test scripts to the project
 - [x] check possibility to integrate 'derivateCheck' elegantly. If negative, implement a general form in 'tools'
 
 ## Jan 12, 2016
 - [x] check correctness of objective function of COCBaseLearner
 
 ## Jan 21, 2016
-- [ ] implement memeory limitation in calculating of GenerativeModel
-  by implant Divide & Conquer in the abstract class. At thist time
+  
+## Jun 07, 2016
+- [ ] `errprop` may need to deal with the situation that input is a cell array instead of numerical/logical array, when the size of data in DataPackage is not unified.
 
-## Future
-- [ ] implement function 'info'
-- [ ] design draft of 'status'
-- [ ] run experiment 'RealICADebug' on HPC
-- [ ] run experiment 'SmoothPhase' on HPC
-- [ ] consider the value of default implementation instead of interface in some cases, such as update@RealICA
-- [ ] remove LearnerGroup and implement LearnerNetwork
-- [ ] implement transform-mask model
+## Abandoned
+- [x] implement memory limitation in calculating of GenerativeModel
+  by implant Divide & Conquer in the abstract class. At this time
+- [x] implement function 'info'
+- [x] design draft of 'status'
+- [x] run experiment 'RealICADebug' on HPC
+- [x] run experiment 'SmoothPhase' on HPC
+- [x] consider the value of default implementation instead of interface in some cases, such as update@RealICA
+- [x] remove LearnerGroup and implement LearnerNetwork
+- [x] implement transform-mask model

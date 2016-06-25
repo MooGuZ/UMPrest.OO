@@ -94,7 +94,7 @@ classdef Autoload < handle
                     obj.db{i} = obj.id2data(obj.autoload.idlist{idx(i)});
                 catch ME
                     warning('File Loading Failure : %s\n[MESSAGE] %s\n', ...
-                            obj.autoload.idlist{idx(i)}, ME.message);
+                        obj.autoload.idlist{idx(i)}, ME.message);
                     failidx(i) = true;
                     continue
                 end

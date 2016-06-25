@@ -21,77 +21,53 @@
 classdef MathLib < handle
     methods
         % Gaussian Distribution
-        function p = Gauss(~, x, sigma, mu)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('sigma', 'var'), sigma = 1; end
+        function p = gauss(~, x, mu, sigma)
             p = exp(-((x - mu) / sigma).^2 / 2) / (sqrt(2 * pi) * sigma);
         end
-        function d = dGauss(~, x, sigma, mu)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('sigma', 'var'), sigma = 1; end
+        function d = gaussGradient(~, x, mu, sigma)
             d = (mu - x) * exp(-((x - mu) / sigma).^2 / 2) / (sqrt(2 * pi) * sigma^3);
         end
-        function p = nlGauss(~, x, sigma, mu)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('sigma', 'var'), sigma = 1; end
+        function p = negLogGauss(~, x, mu, sigma)
             p = (x - mu).^2 / (2 * sigma^2);
         end
-        function d = dNLGauss(~, x, sigma, mu)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('sigma', 'var'), sigma = 1; end
+        function d = negLogGaussGradient(~, x, mu, sigma)
             d = (x - mu) / sigma^2;
         end
         % Cauchy Distribution
-        function p = Cauchy(~, x, sigma, mu)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('sigma', 'var'), sigma = 1; end
+        function p = cauchy(~, x, mu, sigma)
             p = (1 / (pi * sigma)) ./ (1 + ((x - mu) / sigma).^2);
         end
-        function d = dCauchy(~, x, sigma, mu)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('sigma', 'var'), sigma = 1; end
+        function d = cauchyGradient(~, x, mu, sigma)
             x = (x - mu) /sigma;
             d = - (2 / pi / sigma) * x ./ (1 + (x - mu).^2).^2;
         end
-        function p = nlCauchy(~, x, sigma, mu)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('sigma', 'var'), sigma = 1; end
+        function p = negLogCauchy(~, x, mu, sigma)
             p = log(1 + ((x - mu) / sigma).^2);
         end
-        function d = dNLCauchy(~, x, sigma, mu)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('sigma', 'var'), sigma = 1; end
+        function d = negLogCauchyGradient(~, x, mu, sigma)
             x = (x - mu) / sigma;
             d = (2 / sigma) * x ./ (1 + x.^2);
         end
-        function rdv = randcc(~, sz, sigma, mu)
+        function rdv = randcc(~, sz, mu, sigma)
             if ~exist('mu', 'var'), mu = 0; end
             if ~exist('sigma', 'var'), sigma = 1; end
             rdv = sigma * tan(pi * (rand(sz) - 0.5)) + mu;
         end
         % Laplace Distribution
-        function p = Laplace(~, x, sigma, mu)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('sigma', 'var'), sigma = 1; end
+        function p = laplace(~, x, mu, sigma)
             p = exp(-abs(x - mu) / sigma) / (2 * sigma);
         end
-        function d = dLaplace(~, x, sigma, mu)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('sigma', 'var'), sigma = 1; end
+        function d = laplaceGradient(~, x, mu, sigma)
             x = abs(x - mu) / sigma;
             d = - sign(x) * exp(-x) / (2 * sigma^2);
         end
-        function p = nlLaplace(~, x, sigma, mu)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('sigma', 'var'), sigma = 1; end
+        function p = negLogLaplace(~, x, mu, sigma)
             p = abs(x - mu) / sigma;
         end
-        function d = dNLLaplace(~, x, sigma, mu)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('sigma', 'var'), sigma = 1; end
+        function d = negLogLaplaceGradient(~, x, mu, sigma)
             d = sign(x - mu) / sigma;
         end
-        function rdv = randll(~, sz, sigma, mu)
+        function rdv = randll(~, sz, mu, sigma)
             if ~exist('mu', 'var'), mu = 0; end
             if ~exist('sigma', 'var'), sigma = 1; end
             rdv = rand(sz);
@@ -103,40 +79,39 @@ classdef MathLib < handle
             rdv(index) = - sigma * log(2 * (1 - rdv(index))) + mu;
         end
         % von Mise Distribution (Circular Normal Distribution)
-        function p = nlVonMise(~, x, kai, mu)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('kai', 'var'), kai = 1; end
-            p = - kai * cos(x - mu);
+        function p = negLogVonMise(~, x, mu, sigma)
+            p = - sigma * cos(x - mu);
         end
-        function d = dNLVonMise(~, x, kai, mu)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('kai', 'var'), kai = 1; end
-            d = kai * sin(x - mu);
+        function d = negLogVonMiseGradient(~, x, mu, sigma)
+            d = sigma * sin(x - mu);
         end
     end
     
+    % ============= EVALUATION FUNTION =============
     methods (Static)
-        % ============= EVALUATION FUNTION =============
         function v = logistic(x, ref)
+            x = MathLib.bound(x, [eps, 1 - eps]);
             v = - (ref .* log(x) + (1 - ref) .* log(1 - x));
-            if any(isinf(v(:))) || any(isnan(v(:)))
-                x(x == 0) = eps;
-                x(x == 1) = 1 - eps;
-                v = - (ref .* log(x) + (1 - ref) .* log(1 - x));
-            end
             v = sum(v(:));
         end
-        function d = logistic_derv(x, ref)
+        function d = logisticGradient(x, ref)
+            x = MathLib.bound(x, [eps, 1 - eps]);
             d = - (ref ./ x - (1 - ref) ./ (1 - x));
-            if any(isinf(d(:))) || any(isnan(d(:)))
-                x(x == 0) = eps;
-                x(x == 1) = 1 - eps;
-                d = - (ref ./ x - (1 - ref) ./ (1 - x));
-            end
-        end     
+        end
+        
+        function v = mse(x, ref)
+            v = sum((x(:) - ref(:)).^2);
+        end
+        function d = mseGradient(x, ref)
+            d = 2 * (x - ref);
+        end
     end
     
     methods (Static)
+        function tof = isinteger(x)
+            tof = (x == round(x));
+        end
+        
         function v = rolloff(n, m)
             v = ones(n, 1);
             v(m + 1 : end) = 0.5 * (1 + cos(linspace(0, pi, n - m)));
@@ -152,19 +127,25 @@ classdef MathLib < handle
                 
                 switch lower(mode)
                   case {'front'}
-                    if numel(sz) > dim
+                    if dim <= 1
+                        return
+                    elseif numel(sz) > dim
                         x = reshape(x, [prod(sz(1 : dim)), sz(dim + 1 : end)]);
                     else
                         x = x(:);
                     end
                     
                   case {'back'}
-                    if numel(sz) > dim
+                    if dim <= 0
+                        x = x(:)';
+                    elseif numel(sz) > dim
                         x = reshape(x, [sz(1 : dim), prod(sz(dim + 1 : end))]);
                     end
                     
                   case {'both'}
-                    if numel(sz) > dim
+                    if dim <= 0
+                        x = x(:)';
+                    elseif numel(sz) > dim
                         x = reshape(x, ...
                                     [prod(sz(1 : dim)), prod(sz(dim + 1 : end))]);
                     else
@@ -178,6 +159,188 @@ classdef MathLib < handle
             else
                 x = x(:);
             end
+        end
+        
+        function x = mask(x, ind)
+            x(~ind) = 0;
+        end
+        
+        function c = pack2cell(x, dim)
+            orgsz = size(x);
+            if not(exist('dim', 'var'))
+                dim = numel(orgsz);
+            end
+            x = MathLib.vec(x, dim - 1, 'both');
+            c = cell(1, size(x, 2));
+            if dim > 2
+                unitsize = orgsz(1 : dim - 1);
+                for i = 1 : numel(c)
+                    c{i} = reshape(x(:, i), unitsize);
+                end
+            else
+                for i = 1 : numel(c)
+                    c{i} = x(:, i);
+                end
+            end
+        end
+        
+        function tf = ind2tf(x, minValue, maxValue)
+            assert(MathLib.isinteger(minValue) && MathLib.isinteger(maxValue));
+            x  = MathLib.bound(x(:)', [minValue, maxValue]) - (minValue - 1);
+            tf = false(maxValue - minValue + 1, numel(x));
+            i  = x + size(tf, 1) * (0 : numel(x) - 1);
+            tf(i) = true;
+        end
+        
+        function x = bound(x, range)
+            assert(numel(range) == 2, 'MathLib:WrongParameter', ...
+                'RANGE should be in form of [MIN, MAX]');
+            
+            lowerBound = range(1);
+            upperBound = range(2);
+            
+            if lowerBound ~= -inf
+                x(x < lowerBound) = lowerBound;
+            end
+            
+            if upperBound ~= inf
+                x(x > upperBound) = upperBound;
+            end
+        end
+        
+        function x = smpvec(n, v, pos, u)
+            x = ones(1, n) * v;
+            x(pos) = u;
+        end
+        
+        function x = mapToDim(x, dim)
+            x = reshape(x, MathLib.smpvec(max(dim, 2), 1, dim, numel(x)));
+        end
+        
+        function [out, index] = groupmax(in, groupSize, dim)
+            shape = size(in);
+            
+            assert(numel(shape) >= dim, ...
+                'UMPrest:ArgumentError', ...
+                'Operation on dimension %d is not practical', dim);
+            
+            r = mod(shape(dim), groupSize);
+            if r ~= 0
+                padsize = zeros(1, numel(size(in)));
+                padsize(dim) = groupSize - r;
+                in = padarray(in, padsize, -inf, 'post');
+                shape = size(in);
+            end
+            
+            % reshape input matrix
+            n = shape(dim) / groupSize;
+            if dim < numel(shape)
+                shape(dim+1) = shape(dim+1) * n;                
+            else
+                shape = [shape, n];
+            end
+            shape(dim) = groupSize;
+            in = reshape(in, shape);
+
+            % get maximum value and index
+            [out, index] = max(in, [], dim);
+            
+            % reshape return values to match original input shape
+            shape(dim)   = n;
+            shape(dim+1) = shape(dim+1) / n;
+            out   = reshape(out, shape);
+            index = reshape(index, shape);
+            
+            % update indexs
+            index = bsxfun(@plus, index, MathLib.mapToDim((0 : n - 1) * size(in, dim), dim));
+        end
+        
+        function x = offsetOnDim(x, dim, step)
+            x = bsxfun(@plus, x, MathLib.mapToDim((0 : size(x, dim) - 1) * step, dim));
+        end
+        
+        function a = modarr(a, b, allowExtend, validfunc)
+            if not(exist('allowExtend', 'var'))
+                allowExtend = false;
+            end
+            
+            if allowExtend
+                if numel(a) < numel(b)
+                    a = modarr(b, a);
+                    return
+                end
+            else
+                assert(numel(a) >= numel(b), ...
+                    'Do not allow modification that changes size of original array');
+                if exist('validfunc', 'var')
+                    assert(all(arrayfun(validfunc, b, a(1 : numel(b)))));
+                end
+                a(1 : numel(b)) = b(:);
+            end
+        end
+        
+        function arr = trimtail(arr, v)
+            ind = numel(arr);
+            while arr(ind) == v
+                ind = ind - 1;
+            end
+            arr = arr(1 : ind);
+        end
+        
+        function M = concatecell(C)
+            if isempty(C)
+                M = [];
+            elseif numel(C) == 1
+                M = C{1};
+            else
+                elsize = size(C{1});
+                for i = 2 : numel(C)
+                    assert(numel(size(C{i})) == numel(elsize), 'MathLib:RuntimeError', ...
+                        'Size of matrix in the cell mismatch!');
+                    assert(all(size(C{i}) == elsize), 'MathLib:RuntimeError', ...
+                        'Size of matrix in the cell mismatch!');
+                end
+                elsize = MathLib.trimtail(elsize, 1);
+                if isempty(elsize)
+                    elsize = 1;
+                end
+                if numel(elsize) == 1
+                    M = repmat(C{1}, 1, numel(C));
+                else
+                    M = repmat(C{1}, [ones(1, numel(elsize)), numel(C)]);
+                    M = reshape(M, [prod(elsize), numel(C)]);
+                end
+                for i = 2 : numel(C)
+                    M(:, i) = C{i}(:);
+                end
+                if numel(elsize) > 1
+                    M = reshape(M, [MathLib.trimtail(elsize, 1), numel(C)]);
+                end
+            end
+        end
+        
+        function D = dupcell(C, n)
+            assert(iscell(C) && isnumeric(n));
+            assert(numel(C) == numel(n) || isscalar(n));
+            if isscalar(n)
+                D = C(kron(1 : numel(C), ones(1, n)));
+            else
+                n = cumsum(n(:)');
+                n = [n(1 : end - 1) + 1; n(2 : end)];
+                ind = ones(1, n(end));
+                for i = 1 : size(n, 2)
+                    ind(n(1, i) : n(2, i)) = i + 1;
+                end
+                D = C(ind);
+            end
+        end
+        
+        function C = matconcate(A, B)
+            dim = min(ndims(A), ndims(B));
+            unitsize = size(A);
+            unitsize = unitsize(1 : dim - 1);
+            C = [MathLib.vec(A, dim - 1, 'both'), MathLib.vec(B, dim - 1, 'both')];
+            C = reshape(C, [unitsize, size(C, 2)]);
         end
     end
 end

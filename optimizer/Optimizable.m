@@ -95,6 +95,7 @@ classdef Optimizable < handle
         minStepSize
         curStepSize
         optMethod
+        Momentum
     end
     methods
         function value = get.minStepSize(obj)
@@ -170,7 +171,7 @@ classdef Optimizable < handle
     end
     
     methods
-        function obj = Optimizer(method)
+        function obj = Optimizable(method)
             obj.wspace.opt.c = 0;       % iteration count
             obj.wspace.opt.v = 0;       % velocity in Momentum
             obj.wspace.opt.r = 0;       % gradient accumulation in AdaGrad
