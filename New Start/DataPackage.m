@@ -20,9 +20,31 @@ classdef DataPackage < handle
         end
         
         function n = numel(obj)
-            assert(obj.info.nlabel == 0 || obj.info.ndata == obj.info.nlabel, ...
+            assert(obj.nlabel == 0 || obj.ndata == obj.nlabel, ...
                 'UMPrest:RuntimeError', 'Number of data and label does not match');
-            n = obj.info.ndata;
+            n = obj.ndata;
+        end
+        
+        function dpkg = get(obj, index)
+            assert(index <= obj.ndata && index > 0);
+            
+            if isempty(obj.X)
+                D = [];
+            elseif iscell(obj.X)
+                D = obj.X{index}.get();
+            else
+                D = MathLib.slice(obj.data, obj.datadim + 1, index);
+            end
+            
+            if isempty(obj.Y)
+                L = [];
+            elseif iscell(obj.Y)
+                L = obj.Y{index}.get();
+            else
+                L = MathLib.slice(obj.label, obj.labeldim + 1, index);
+            end
+            
+            dpkg = DataPackage({D}, 'label', {L}, 'info', obj.info);
         end
     end
     
@@ -31,25 +53,25 @@ classdef DataPackage < handle
         function c = combine(a, b)
             assert(isa(a, 'DataPackage') && isa(b, 'DataPackage'));
 
-            if a.info.nlabel == 0 && b.info.nlabel == 0
+            if a.nlabel == 0 && b.nlabel == 0
                 labelC = [];
-            elseif not(a.info.nlabel == 0 || b.info.nlabel == 0)
+            elseif not(a.nlabel == 0 || b.nlabel == 0)
                 labelA = a.label;
                 labelB = b.label;
                 if iscell(labelA) && iscell(labelB)
                     labelC = [labelA(:), labelB(:)];
                 elseif iscell(labelA)
-                    labelC = [labelA(:), num2cell(labelB, 1 : b.info.labeldim)];
+                    labelC = [labelA(:), num2cell(labelB, 1 : b.labeldim)];
                 elseif iscell(labelB)
-                    labelC = [num2cell(labelA, 1 : a.info.labeldim), labelB(:)];
+                    labelC = [num2cell(labelA, 1 : a.labeldim), labelB(:)];
                 else
                     labelC = [];
-                    if a.info.labeldim == b.info.labeldim
+                    if a.labeldim == b.labeldim
                         labelC = MathLib.matconcate(labelA, labelB); % TBC
                     end
                     if isempty(labelC)
-                        labelC = [num2cell(labelA, 1 : a.info.labeldim), ...
-                            num2cell(labelB, 1 : b.info.labeldim)];
+                        labelC = [num2cell(labelA, 1 : a.labeldim), ...
+                            num2cell(labelB, 1 : b.labeldim)];
                     end
                 end
             else
@@ -62,26 +84,26 @@ classdef DataPackage < handle
             if iscell(dataA) && iscell(dataB)
                 dataC = [dataA(:), dataB(:)];
             elseif iscell(dataA)
-                dataC = [dataA(:), num2cell(dataB, 1 : b.info.datadim)];
+                dataC = [dataA(:), num2cell(dataB, 1 : b.datadim)];
             elseif iscell(dataB)
-                dataC = [num2cell(dataA, 1 : a.info.datadim), dataB(:)];
+                dataC = [num2cell(dataA, 1 : a.datadim), dataB(:)];
             else
                 dataC = [];
-                if a.info.datadim == b.info.datadim
+                if a.datadim == b.datadim
                     dataC = MathLib.matconcate(dataA, dataB);
                 end
                 if isempty(dataC)
-                    dataC = [num2cell(dataA, 1 : a.info.datadim), ...
-                        num2cell(dataB, 1 : b.info.datadim)];
+                    dataC = [num2cell(dataA, 1 : a.datadim), ...
+                        num2cell(dataB, 1 : b.datadim)];
                 end
             end
             
             c = DataPackage(dataC, 'label', labelC);
             if not(dataC)
-                c.info.datadim = a.info.datadim;
+                c.datadim = a.datadim;
             end
             if not(iscell(labelC) || isempty(labelC))
-                c.info.labeldim = a.info.labeldim;
+                c.labeldim = a.labeldim;
             end
         end
         
@@ -98,15 +120,26 @@ classdef DataPackage < handle
             
             n   = 0;
             dim = [];
+            
+            if isempty(value)
+                data = [];
+                return
+            end
+            
             if iscell(value)
                 if numel(value) == 1
                     value = value{1};
-                    dim = ndims(value);
-                    n = 1;
+                    if isempty(value)
+                        data = [];
+                        return
+                    else
+                        dim = MathLib.ndims(value);
+                        n = 1;
+                    end
                 else
                     try
                         value = MathLib.concatecell(value);
-                        dim = ndims(value) - 1;
+                        dim = MathLib.ndims(value) - 1;
                         n = size(value, dim + 1);
                     catch excpt
                         if not(strcmpi(excpt.identifier, 'MathLib:RuntimeError'))
@@ -115,7 +148,7 @@ classdef DataPackage < handle
                     end
                 end
             else
-                dim = ndims(value) - 1;
+                dim = MathLib.ndims(value) - 1;
                 n = size(value, dim + 1);
             end
             
@@ -131,24 +164,51 @@ classdef DataPackage < handle
                 error('UMPrest:RuntimeError', 'Should not happend');
             end
         end
+        
+        function pkgset = separate(dpkg)
+            pkgset(1, dpkg.ndata) = dpkg.get(dpkg.ndata); % TBC
+            for i = 1 : dpkg.ndata - 1
+                pkgset(1, i) = dpkg.get(i);
+            end
+        end
     end
     
     methods
         function obj = DataPackage(data, varargin)
             conf = Config.parse(varargin);
-            obj.info  = Config.getValue(conf, 'info', struct());
-            obj.label = Config.getValue(conf, 'label', []);
             obj.data  = data;
+            obj.label = Config.getValue(conf, 'label', []);
+            obj.info  = Config.getValue(conf, 'info', struct());
         end
     end
     
     properties
-        info
+        info, ndata, nlabel, datadim, labeldim
     end
     methods
         function set.info(obj, value)
             assert(isstruct(value));
             obj.info = value;
+        end
+        
+        function set.ndata(obj, value)
+            assert(MathLib.isinteger(value) && value >= 0);
+            obj.ndata = value;
+        end
+        
+        function set.nlabel(obj, value)
+            assert(MathLib.isinteger(value) && value >= 0);
+            obj.nlabel = value;
+        end
+        
+        function set.datadim(obj, value)
+            assert(isempty(value) || MathLib.isinteger(value) && value >= 0);
+            obj.datadim = value;
+        end
+        
+        function set.labeldim(obj, value)
+            assert(isempty(value) || MathLib.isinteger(value) && value >= 0);
+            obj.labeldim = value;
         end
     end
     
@@ -157,29 +217,41 @@ classdef DataPackage < handle
     end
     
     properties (Dependent)
-        data, label
+        data, label, isunified
     end
     methods
         function value = get.data(obj)
-            if iscell(obj.X)
-                value = {obj.X{:}.get()};
+            if isempty(obj.X)
+                value = [];
             else
-                value = obj.X.get();
+                if iscell(obj.X)
+                    value = {obj.X{:}.get()};
+                else
+                    value = obj.X.get();
+                end
             end
         end
         function set.data(obj, value)
-            [obj.X, obj.info.datadim, obj.info.ndata] = DataPackage.compact(value);
+            [obj.X, obj.datadim, obj.ndata] = DataPackage.compact(value);
         end
         
         function value = get.label(obj)
-            if iscell(obj.Y)
-                value = {obj.Y{:}.get()};
+            if isempty(obj.Y)
+                value = [];
             else
-                value = obj.Y.get();
+                if iscell(obj.Y)
+                    value = {obj.Y{:}.get()};
+                else
+                    value = obj.Y.get();
+                end
             end
         end
         function set.label(obj, value)
-            [obj.Y, obj.info.labeldim, obj.info.nlabel] = DataPackage.compact(value);
+            [obj.Y, obj.labeldim, obj.nlabel] = DataPackage.compact(value);
+        end
+        
+        function tof = get.isunified(obj)
+            tof = not(iscell(obj.X) || iscell(obj.Y));
         end
     end
 end

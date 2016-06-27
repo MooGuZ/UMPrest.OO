@@ -100,10 +100,10 @@ classdef MathLib < handle
         end
         
         function v = mse(x, ref)
-            v = sum((x(:) - ref(:)).^2);
+            v = sum((x(:) - ref(:)).^2) / numel(x);
         end
         function d = mseGradient(x, ref)
-            d = 2 * (x - ref);
+            d = 2 * (x - ref) / numel(x);
         end
     end
     
@@ -281,10 +281,14 @@ classdef MathLib < handle
         
         function arr = trimtail(arr, v)
             ind = numel(arr);
-            while arr(ind) == v
+            while ind > 0 && arr(ind) == v
                 ind = ind - 1;
             end
             arr = arr(1 : ind);
+        end
+        
+        function n = ndims(mat)
+            n = numel(MathLib.trimtail(size(mat), 1));
         end
         
         function M = concatecell(C)

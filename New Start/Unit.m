@@ -18,7 +18,7 @@ classdef Unit < handle
             if iscell(dataOut)
                 dataIn = cell(1, numel(dataOut));
                 for i = 1 : numel(dataOut)
-                    dataIn{i} = obj.transform(dataOut{i});
+                    dataIn{i} = obj.compose(dataOut{i});
                 end
                 datapkgIn = datapkgOut.derive('data', dataIn);
             else
@@ -27,65 +27,19 @@ classdef Unit < handle
         end
         
         function delta = errprop(obj, delta)
-            if iscell(delta)
-                buffer = cell(1, numel(delta));
-                for i = 1 : numel(buffer)
-                    buffer{i} = obj.deltaproc(delta{i}, true);
-                end
-                delta = buffer; % PROPOSAL: try to reunify it to matrix again
-            else
-                delta = obj.deltaproc(delta, true);
-            end
+            assert(not(iscell(delta)), 'UMPrest:ProgramError', ...
+                   'No cell array allowed in error propagation.');
+            delta = obj.deltaproc(delta, true);
         end
     end
     
-    methods
-        function y = transform(obj, x)
-            y = obj.transproc(x);
-            
-            obj.I = x; 
-            obj.O = y;
-        end
-        
-        function x = inference(obj, y)
-            x = obj.inferproc(y);
-            
-            obj.I = x;
-            obj.O = y;
-        end
-    end
-    
-    methods
-        function dataIn = inferproc(obj, dataOut)
-            warning('UMPrest:OperationUnavailable', 'This method has not been implemented');
-            sizeIn = [obj.size('in'), numel(dataOut) / prod(obj.size('out'))];
-            dataIn = OptimLib.minimize( ...
-                @obj.objfuncOfInference, ...
-                randn(prod(sizeIn)), ...
-                OptimLib.config('default'), ...
-                dataOut, sizeIn);
-            dataIn = reshape(dataIn, sizeIn);
-        end
-        
-        function [value, grad] = objfuncOfInference(obj, dataIn, dataOut, sizeIn)
-            dataIn  = reshape(dataIn, sizeIn);
-            dataGet = obj.transproc(dataIn);
-            value = MathLib.mse(dataGet, dataOut);
-            if not(empty(obj.prior))
-                value = value + obj.prior(dataGet);
-            end
-            if nargout > 1
-                grad = obj.deltaproc(MathLib.mseGradient(dataGet, dataOut));
-                if not(empty(obj.prior))
-                    grad = grad + obj.prior.delta(dataIn);
-                end
-                grad = grad(:);
-            end
-        end
-    end
     methods (Abstract)
-        y = transproc(obj, x)
-        d = deltaproc(obj, d, isEvolving)
+        y = transform(obj, x)
+        x = compose(obj, y)
+        d = deltaproc(obj, d, isEnvolving)
+    end
+    
+    methods (Abstract)
         s = size(obj, io)
     end
     
