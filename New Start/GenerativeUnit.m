@@ -67,6 +67,16 @@ classdef GenerativeUnit < Unit
     end
     
     methods
+        function sz = size(obj, io)
+            if exist('io', 'var')
+                sz = obj.mapunit.size(io);
+            else
+                sz = obj.mapunit.size();
+            end
+        end
+    end
+    
+    methods
         function obj = GenerativeUnit(unit, varargin)
             obj.genunit = unit;
             obj.mapunit = obj.genunit.counterunit(); % TBC

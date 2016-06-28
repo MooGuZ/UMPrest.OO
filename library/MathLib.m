@@ -87,6 +87,40 @@ classdef MathLib < handle
         end
     end
     
+    % ============= ACTIVATION FUNTION =============
+    methods (Static)
+        function y = sigmoid(x)
+            y = 1 ./ (1 + exp(-x));
+        end
+        function x = sigmoidInverse(y)
+            y = MathLib.bound(y, [eps, 1 - eps]);
+            x = -log(1 ./ y - 1)
+        end
+        function d = sigmoidDifferential(d, y)
+            y = MathLib.bound(y, [eps, 1 - eps]);
+            d = d .* (y .* (1 - y));
+        end
+        
+        function x = tanhInverse(y)
+            y = MathLib.bound(y, [eps - 1, 1 - eps]);
+            x = log((1 + y) ./ (1 - y)) / 2;
+        end
+        function d = tanhDifferential(d, y)
+            y = MathLib.bound(y, [eps - 1, 1 - eps]);
+            d = d .* (1 - y.^2);
+        end
+        
+        function y = relu(x)
+            y = max(x, 0);
+        end
+        function x = reluInverse(y)
+            x = max(y, 0);
+        end
+        function d = reluDifferential(d, y)
+            d = MathLib.mask(d, y > 0);
+        end
+    end
+    
     % ============= EVALUATION FUNTION =============
     methods (Static)
         function v = logistic(x, ref)

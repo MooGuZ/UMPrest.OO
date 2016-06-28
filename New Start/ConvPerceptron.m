@@ -1,15 +1,19 @@
 classdef ConvPerceptron < EvolvingUnit
     methods
-        function y = transproc(obj, x)
+        function y = process(obj, x)
             y = obj.act.transform(obj.pool.transform(obj.conv.transform(x)));
         end
         
-        function d = errprop(obj, d)
-            d = obj.conv.errprop(obj.pool.errprop(obj.act.errprop(d)));
+        function d = deltaproc(obj, d)
+            d = obj.conv.deltaproc(obj.pool.deltaproc(obj.act.deltaproc(d)));
         end
         
         function update(obj)
-            obj.trans.update();
+            obj.conv.update();
+        end
+        
+        function unit = symmetryUnit(obj)
+        % TBC
         end
     end
     

@@ -40,10 +40,64 @@ classdef Unit < handle
     end
     
     methods (Abstract)
-        s = size(obj, io)
+        function value = size(obj, io)
+            switch lower(io)
+              case {'in'}
+                value = obj.szinfo.in;
+                
+              case {'out'}
+                value = obj.szinfo.out;
+                
+              otherwise
+                error('UMPrest:ArgumentError', 'Unknow option : %s', upper(io));
+            end
+            index = cellfun(@(v) isa(v, 'sym'), value);
+            temp  = nan(size(index));
+            temp(~index) = value{~index};
+            value = temp;
+        end
+    end
+    
+    methods
+        function tof = sizeCheck(obj, io, datapkg)
+            tof = true;
+            if obj.ndims(io) == datapkg.datadim % TBC
+                requireSize = obj.size(io);
+                for i = 1 : numel(requireSize)
+                    if isnan(requireSize(i)) || ...
+                            requireSize(i) == datapkg.size('data', i);
+                        continue
+                    else
+                        tof = false;
+                    end
+                end
+            else
+                tof = false;
+            end
+        end
+        
+        % DATASIZECHECK check consistency of given size information with the
+        % requirement of current unit. Return value can be in three forms: TRUE,
+        % which mean the given size is acceptable to current unit; FALSE, which mean
+        % the given size has confliction to the requirement of current unit;
+        % SOLUTION, which is a structure contains solution of symbolic value in
+        % given size information that make it acceptable to current unit.
+        function value = sizeSolver(obj, givenSize)
+            if exist('givenSize', 'var')
+                if numel(obj.sizereq) == numel(givenSize)
+                    for i = 1 : numel(givenSize)
+                        if 
+                    end
+                else
+                    error('UMPrest:SizeMismatch', 'Size requirement cannot be satisfied.');
+                end
+            else
+                value = obj.sizereq;
+            end
+        end
     end
     
     properties (Hidden)
-        I, O
+        I, O, szinfo
     end
 end

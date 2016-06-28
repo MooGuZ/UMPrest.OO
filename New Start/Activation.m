@@ -5,18 +5,16 @@ classdef Activation < Unit
 % Problem
 % 1. [ ] inclusive and exclusive boundary
     methods
-        function y = transproc(obj, x)
-            y = obj.actfuncs.transform( ...
-                MathLib.bound(x, obj.actfuncs.range.x));
+        function y = transform(obj, x)
+            y = obj.process(x);
         end
         
-        function x = inferproc(obj, y)
-            x = obj.actfuncs.inference( ...
-                MathLib.bound(y, obj.actfuncs.range.y));
+        function x = compose(obj, y)
+            x = obj.invproc(y);
         end
         
-        function d = errprop(obj, d)
-            d = obj.actfuncs.errprop(d, obj.O);
+        function d = deltaproc(obj, d)
+            d = obj.differential(d, obj.O);
         end
     end
     
@@ -31,7 +29,23 @@ classdef Activation < Unit
     end
     
     properties (Access = private)
-        actfuncs
+        process, invproc, differential
+    end
+    methods
+        function set.process(obj, value)
+            assert(isa(value, 'function_handle'));
+            obj.process = value;
+        end
+        
+        function set.invproc(obj, value)
+            assert(isa(value, 'function_handle'));
+            obj.invproc = value;
+        end
+        
+        function set.differential(obj, value)
+            assert(isa(value, 'function_handle'));
+            obj.differential = value;
+        end
     end
     
     properties (Dependent)
@@ -43,33 +57,24 @@ classdef Activation < Unit
         end
         function set.actType(obj, type)
             switch lower(type)
-                case {'sigmoid', 'logistic'}
-                    obj.actfuncs = struct( ...
-                        'type',      type, ...
-                        'transform', @(x) 1 ./ (1 + exp(-x)), ...
-                        'inference', @(y) -log(1 ./ y - 1), ...
-                        'errprop',   @(d, y) d .* (y .* (1 - y)), ...
-                        'range',     struct('x', [-inf, inf], 'y', [0, 1]));
+              case {'sigmoid', 'logistic'}
+                obj.process = @MathLib.sigmoid;
+                obj.invproc = @MathLib.sigmoidInverse;
+                obj.differential = @MathLib.sigmoidDifferential;
+                
+              case {'hypertgt', 'tanh'}
+                obj.process = @tanh;
+                obj.invproc = @MathLib.tanhInverse;
+                obj.differential = @MathLib.tanhDifferential;
                     
-                case {'hypertgt'}
-                    obj.actfuncs = struct( ...
-                        'type',      type, ...
-                        'transform', @tanh, ...
-                        'inference', @(y) log((1 + x) ./ (1 - x)) / 2, ...
-                        'errprop',   @(d, y) d .* (1 - y.^2), ...
-                        'range',     struct('x', [-inf, inf], 'y', [-1, 1]));
-                    
-                case {'relu'}
-                    obj.actfuncs = struct( ...
-                        'type',      type, ...
-                        'transform', @(x) max(x, 0), ...
-                        'inference', @(y) max(y, 0), ...
-                        'errprop',   @(d, y) MathLib.mask(d, y > 0), ...
-                        'range',     struct('x', [-inf, inf], 'y', [0, inf]));
-                    
-                otherwise
-                    error('UMPrest:ArgumentError', ...
-                        'Unrecognized activation type : %s', upper(type));
+              case {'relu'}
+                obj.process = @MathLib.relu;
+                obj.invproc = @MathLib.reluInverse;
+                obj.differential = @MathLib.reluDifferential;
+                
+              otherwise
+                error('UMPrest:ArgumentError', ...
+                      'Unrecognized activation type : %s', upper(type));
             end
         end
     end
