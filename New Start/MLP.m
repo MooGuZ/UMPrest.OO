@@ -4,6 +4,8 @@ classdef MLP < SequentialModel
             assert(not(isempty(perceptronQuantityList)), ...
                 'UMPrest:ArgumentError', 'Quantity list of percetrons is invalid');
             
+            obj = obj@SequentialModel();
+            
             conf     = Config.parse(varargin);
             hactType = Config.popItem(conf, 'HiddenLayerActType', 'ReLU');
             oactType = Config.popItem(conf, 'OutputLayerActType', 'Logistic');
@@ -13,9 +15,9 @@ classdef MLP < SequentialModel
                 obj.appendUnit(Perceptron(sizeList(i-1), sizeList(i)));
             end
             
-            obj.unitList{end}.actType = oactType;
-            for i = numel(obj.unitList) - 1 : -1 : 1
-                obj.unitList{i}.actType = hactType;
+            obj.units(numel(obj)).actType = oactType;
+            for i = numel(obj) - 1 : -1 : 1
+                obj.units(i).actType = hactType;
             end
             
             Config.apply(obj, conf);
@@ -43,7 +45,8 @@ classdef MLP < SequentialModel
                 MathLib.pack2cell(datasource.X'), ...
                 StatisticCollector(), 'label', ...
                 MathLib.pack2cell(MathLib.ind2tf(datasource.y, 1, 10))));
-            model.train(ds, Likelihood('logistic'));
+            model.likelihood = Likelihood('logistic');
+            Trainer.minibatch(model, ds)
         end
     end
 end

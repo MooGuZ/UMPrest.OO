@@ -2,7 +2,7 @@
 % created in Ian Goodfellow's same name paper in 2014.
 classdef GAN < EvolvingUnit
     methods
-        function y = trainsproc(obj, x)
+        function y = process(obj, x)
             y = obj.gmodel.transform(x);
         end
         
@@ -21,7 +21,7 @@ classdef GAN < EvolvingUnit
     end
        
     methods
-        function trainproc(obj, sdata)
+        function learn(obj, sdata)
             gdata = obj.gmodel.forward(obj.noisegen.next(sdata.numel()));
             gdata.label = false(1, numel(gdata));
             sdata.label = true(1, numel(sdata));
@@ -31,11 +31,14 @@ classdef GAN < EvolvingUnit
                 obj.dmodel.update();
             end
             gdata.label = true(1, numel(gdata));
-            obj.gmodel.errprop(obj.dmodel.errprop(obj.objective.delta(obj.dmodel.forward(gdata))));
+            obj.gmodel.errprop(obj.dmodel.errprop( ...
+                obj.objective.delta(obj.dmodel.forward(gdata)), ...
+                false));
             obj.gmodel.update();
-            obj.dmodel.refresh();
+            obj.dmodel.refresh(); % TBC
         end
         
+        % TODO: remove method 'train' and implement it as a out call to Trainer class
         function train(obj, dataset, objective, varargin)
             obj.objective = objective;
             Trainer.minibatch(obj, dataset, varargin{:});

@@ -1,17 +1,21 @@
 classdef test < handle
     properties
-        a = 2;
+        a
     end
     methods
-        function set.a(obj, value)
-            obj.a.status = value;
-            obj.a.conf   = 2;
-        end
-        function varargout = series(obj)
-            varargout = cell(1, nargout);
-            for i = 1 : nargout-1
-                varargout{i} = obj.a^i;
+        function value = get.a(obj)
+            if isempty(obj.a)
+                obj.a = nan;
             end
+            if isstruct(obj.a)
+                value = fields(obj.a);
+            else
+                value = obj.a;
+            end
+        end
+        function set.a(obj, value)
+        % assert(isnumeric(value));
+            obj.a = value;
         end
     end
 end

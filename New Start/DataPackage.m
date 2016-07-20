@@ -46,6 +46,36 @@ classdef DataPackage < handle
             
             dpkg = DataPackage({D}, 'label', {L}, 'info', obj.info);
         end
+        
+        function value = dataSize(obj)
+            if isempty(obj.X)
+                value = [];
+            elseif isempty(obj.datadim)
+                value = cellfun(@size, obj.X, 'UniformOutput', false);
+            else
+                value = size(obj.X);
+                if numel(value) < obj.datadim
+                    value = [value, ones(1, obj.datadim - numel(value))];
+                else
+                    value = value(1 : obj.datadim);
+                end
+            end
+        end
+        
+        function value = labelSize(obj)
+            if isempty(obj.Y)
+                value = [];
+            elseif isempty(obj.labeldim)
+                value = cellfun(@size, obj.Y, 'UniformOutput', false);
+            else
+                value = size(obj.Y);
+                if numel(value) < obj.labeldim
+                    value = [value, ones(1, obj.labeldim - numel(value))];
+                else
+                    value = value(1 : obj.labeldim);
+                end
+            end
+        end
     end
     
     methods (Static)
@@ -166,7 +196,7 @@ classdef DataPackage < handle
         end
         
         function pkgset = separate(dpkg)
-            pkgset(1, dpkg.ndata) = dpkg.get(dpkg.ndata); % TBC
+            pkgset(1, dpkg.ndata) = dpkg.get(dpkg.ndata);
             for i = 1 : dpkg.ndata - 1
                 pkgset(1, i) = dpkg.get(i);
             end

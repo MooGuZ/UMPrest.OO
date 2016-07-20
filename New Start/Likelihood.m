@@ -5,6 +5,7 @@ classdef Likelihood < Objective
         end
         
         function d = delta(obj, datapkg)
+            assert(datapkg.isunified);
             d = obj.deltaFunction(datapkg.data, datapkg.label);
         end
         

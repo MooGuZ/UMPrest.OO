@@ -7,7 +7,7 @@ classdef Trainer < handle
                         'divisionRatio',    [0.6, 0.1, 0.3], ...
                         'epoch',            10, ...
                         'batchsize',        32, ...
-                        'validateInterval', 20);
+                        'validateInterval', 1000);
             end
             
             conf = containers.Map(fields(conf), struct2cell(conf));
@@ -15,7 +15,7 @@ classdef Trainer < handle
     end
     
     methods (Static)
-        function log = minibatch(model, dataset, varargin)
+        function varargout = minibatch(model, dataset, varargin)
             conf = Config.merge(Trainer.defaultConfig('minibatch'), ...
                 Config.parse(varargin));
             
@@ -36,6 +36,10 @@ classdef Trainer < handle
                     % TBC : modify model parameters according to validation result
                 end
                 log.record('TestSet', tdata);
+            end
+            
+            if nargout > 0
+                varargout{1} = log;
             end
         end
     end

@@ -1,4 +1,4 @@
-classdef LinearTransform < EvolvingUnit
+classdef LinearTransform < MappingUnit
     methods
         function y = process(obj, x)
             if size(x, 2) > 1
@@ -8,7 +8,7 @@ classdef LinearTransform < EvolvingUnit
             end
         end
         
-        function d = deltaproc(obj, d, isEvolving)
+        function d = errprop(obj, d, isEvolving) % TBC
             if isEvolving
                 obj.B.addgrad(sum(d, 2));
                 obj.W.addgrad(d * obj.I');
@@ -16,32 +16,34 @@ classdef LinearTransform < EvolvingUnit
             d = obj.weight' * d;
         end
         
-        function update(obj)
-            obj.W.update();
-            obj.B.update();
-        end
-    end
-    
-    methods
-        function value = size(obj, io)
-            if exist('io', 'var')
-                switch lower(io)
-                  case {'in'}
-                    value = size(obj.W, 2);
-                  case {'out'}
-                    value = size(obj.W, 1);
-                  otherwise
-                    error('UMPrest:ArgumentError', 'Unknow option : %s', upper(io));
-                end
+        function update(obj, stepsize)
+            if exist('stepsize', 'var')
+                obj.W.update(stepsize);
+                obj.B.update(stepsize);
             else
-                value = fliplr(size(obj.W));
+                obj.W.update();
+                obj.B.update();
             end
         end
     end
     
     methods
-        function unit = symmetryUnit(obj)
+        function unit = inverseUnit(obj)
             unit = LinearTransform(obj.weight', zeros(obj.size('in'), 1), true);
+        end
+    end
+    
+    % ======================= SIZE DESCRIPTION =======================
+    properties (Dependent)
+        inputSizeRequirement
+    end
+    methods
+        function value = get.inputSizeRequirement(obj)
+            value = SizeDescription.format(size(obj.W, 2));
+        end
+        
+        function descriptionOut = sizeIn2Out(obj, ~)
+            descriptionOut = SizeDescription.format(size(obj.W, 1));
         end
     end
     

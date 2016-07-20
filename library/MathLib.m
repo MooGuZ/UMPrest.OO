@@ -94,20 +94,20 @@ classdef MathLib < handle
         end
         function x = sigmoidInverse(y)
             y = MathLib.bound(y, [eps, 1 - eps]);
-            x = -log(1 ./ y - 1)
+            x = -log(1 ./ y - 1);
         end
-        function d = sigmoidDifferential(d, y)
+        function d = sigmoidDifferential(y)
             y = MathLib.bound(y, [eps, 1 - eps]);
-            d = d .* (y .* (1 - y));
+            d = y .* (1 - y);
         end
         
         function x = tanhInverse(y)
             y = MathLib.bound(y, [eps - 1, 1 - eps]);
             x = log((1 + y) ./ (1 - y)) / 2;
         end
-        function d = tanhDifferential(d, y)
+        function d = tanhDifferential(y)
             y = MathLib.bound(y, [eps - 1, 1 - eps]);
-            d = d .* (1 - y.^2);
+            d = (1 - y.^2);
         end
         
         function y = relu(x)
@@ -116,8 +116,8 @@ classdef MathLib < handle
         function x = reluInverse(y)
             x = max(y, 0);
         end
-        function d = reluDifferential(d, y)
-            d = MathLib.mask(d, y > 0);
+        function d = reluDifferential(y)
+            d = double(y > 0);
         end
     end
     
@@ -143,7 +143,7 @@ classdef MathLib < handle
     
     methods (Static)
         function tof = isinteger(x)
-            tof = (x == round(x));
+            tof = not(iscell(x)) && all(x == round(x)) && all(not(isinf(x)));
         end
         
         function v = rolloff(n, m)
@@ -322,7 +322,7 @@ classdef MathLib < handle
         end
         
         function n = ndims(mat)
-            n = numel(MathLib.trimtail(size(mat), 1));
+            n = numel(MathLib.trimtail(MathLib.trimtail(size(mat), 0), 1));
         end
         
         function M = concatecell(C)

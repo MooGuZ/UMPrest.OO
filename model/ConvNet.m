@@ -24,7 +24,7 @@ classdef ConvNet < HModel
             % set default value
             if ~exist('actType', 'var'),  actType  = 'sigmoid'; end
             if ~exist('poolType', 'var'), poolType = 'max';     end
-            if ~exist('poolType', 'var'), poolSize = 3;         end
+            if ~exist('poolSize', 'var'), poolSize = 3;         end
             if ~exist('normType', 'var'), normType = 'batch';   end
             
             % check validity of input arguments

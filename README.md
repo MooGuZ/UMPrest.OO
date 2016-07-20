@@ -65,3 +65,42 @@ Because of the existence of inverse-process, the recovery of assistant informati
 # New Design
 1. Optimization is applied in the way that targeting class derived from Optimizable class, which provides API 'optimize()' and 'addGradient(grad, updatefunc)'. The minimum optimizable objects in the design is Unit. SubUnits who require optimization capability should declare an abstract property 'addGradient(grad, updatefunc)' and get access to 'wspace' of the Unit. Every objects call 'addGradient' to register their properties for optimization at first. Then, Unit call 'optimize()' to finish gradient and step size calculation process and apply update to all registered properties automatically through 'updatefunc' they provided in 'addGradient'.
 2. For the connection problem, there seems no perfect solution. At this time, the design prefers to add two function handle 'fproc' and 'bproc' to class 'Connectable', then use method 'connect' to assign proper function to them according to the connection condition. Class 'Connectable' should provide several common functions for convenience. Units should set these two handle defaults to 'getData', which extract 'x' field if the input is a struct. 
+
+# New Start
+## Data Size Problem
+Generally speaking, `UMPrest` works in a way that `DataPackage`s are passed between `Unit`s. Each `Unit` has it own requirement to size of the data contained in the package. For example, unit `LinearTransformation` requires the input data to be a column vector with the same quantity of elements as the second dimension of its transforming matrix. However, some of ‘Unit’s have more flexible requirement to data size. They may only have requirement on partial dimensions. This makes validating a network topology before actually running it much more complicated. 
+
+To solve this problem, `UMPrest` requires,
+1. each `Unit` provides a method, `inputSizeRequirement(obj)`, to return its essential requirement of input data size
+2. each `Unit` provides a method, `sizeIn2Out(obj, inputSize)`, to calculator output size requirement from input size requirement
+2. each `Unit` provides a method, `size(obj, io)`, to return its current size requirement in input/output side, this requirement may be different from the result of `inputSizeRequirement(obj)` (or `obj.sizeIn2Out(obj.inputSizeRequirement())` for output) under the constrain of current topological structure
+3. class `DataSizeCalculator` provides static methods to process size requirements
+4. `Unit`s accept `CommandPackage` of *calcSizeRequirement* to calculate size requirement of each unit under current topological structure
+
+### Format of Size Requirement
+Size requirement can be an integer array or a cell of `sym` and integers. Each element in the requirement, there are three possibilities,
+1. integer, which means a concrete constrain on corresponding dimension
+2. `sym` NaN, which means no restriction on corresponding dimension
+3. other non-numeric `sym`, which means compound restriction with other dimensions
+
+### Size Descriptor
+Size Descriptor is a value used to represent size information of one dimension. This information can be a concrete number, which referring to a determined element quantity in the dimension, or a symbol that describe its range of acceptable value or relationship with size information on other dimensions.
+
+In `UMPrest`, an enumerate class named `SizeDescriptor` create five enumerator to describe size descriptor:
+1. `SizeDescriptor.Unlimted`, corresponds to symbol `sym.nan`, means value of the size can be any positive integer.
+2. `SizeDescriptor.Dependent`, corresponds to a symbol or expression whose value is undetermined, means value of the size related to other size values.
+3. `SizeDescriptor.Concrete`, corresponds to a positive integer, means a determined size value.
+4. `SizeDescriptor.SemiConcrete`, similar to `SizeDescriptor.Concrete`, however is a symbol instead of a numeric in MATLAB
+5. `SizeDescriptor.Illegal`, all the other values is illegal as a size descriptor.
+
+Class `SizeDescriptor` provides a static method `interp` to category a given value to one of size descriptor. **Note, if the given value is a `SizeDescriptor`, `SizeDescriptor.Illegal` will be returned, because it has no information about size by itself.**
+
+### Size Value
+**Size value** is a vector of positive integers that represents size information of an actual object.
+
+### Size Description
+**Size description** is a vector of *size descriptor*. Comparing to *size value*, *size description* can be used to describe not only size information of an actual object, but also the requirement of data size of an `Unit`. For the convenience of calculation, a valid *size description* must to be a row vector instead of a cell array. However, a cell array of positive numbers and symbols those are legal as a *size descriptor* is totally make sense to describe size information. Here we introduce a class `SizeDescription` in `UMPrest` to provide static functions to manipulate *size description*. In them, method `format` convert given description, including the example we mentioned above, to a standard one. If the given one cannot be interpret to a valid description, an error with identifier `UMPrest:RuntimgError` will be raised. 
+
+A special case of size description is the empty vector, which represents no limitation at all. So, it can match to all the size descriptions.
+
+Two major methods of `SizeDescription` are `check` and `match`. The former answer the question ‘Whether or not the given *size value* is allowed, according to the given *size description*?’; while, the later try to solve the problem of making two *size description* accept each other. It returns the answer whether or not it is possible, and if it’s the case, a `solution` will be returned together. This solution represents the condition that make two *size descriptions* match.

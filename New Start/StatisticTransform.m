@@ -1,27 +1,23 @@
-classdef StatisticTransform < Unit
+classdef StatisticTransform < handle
     methods
-        function datapkgOut = forward(obj, datapkgIn)
-            datapkgOut = forward@Unit(obj, datapkgIn);
-            datapkgOut.info.statrans = struct( ...
+        function datapkg = forward(obj, datapkg)
+            datapkg = forward@Unit(obj, datapkg);
+            datapkg.info.statrans = struct( ...
                 'timestamp', obj.cache('timestamp'), ...
-                'inputSize', size(datapkgIn.data));
+                'inputSize', size(datapkg.data));
         end
         
-        function data = transform(obj, data)
-            data = obj.transproc(data, obj.getKernel(size(data)));
-        end
-        
-        function datapkgIn = backward(obj, datapkgOut)
-            if datapkgOut.info.statrans.timestamp == obj.cache('timestamp')
-                kernel = obj.getKernel(datapkgOut.info.statrans.inputSize);
-                datapkgIn = datapkgOut.derive( ...
-                    'data', obj.inferproc(datapkgOut.data, kernel));
+        function datapkg = backward(obj, datapkg)
+            if datapkg.info.statrans.timestamp == obj.cache('timestamp')
+                kernel = obj.getKernel(datapkg.info.statrans.inputSize);
+                datapkg.data = obj.compose(datapkg.data, kernel);
             end
         end
     end
     
     methods    
-        function data = transproc(obj, data, kernel)
+        function data = transform(obj, data)
+            kernel = obj.getKernel(size(data));
             if obj.status
                 switch lower(obj.effectiveMode)
                     case {'debias'}
@@ -43,7 +39,7 @@ classdef StatisticTransform < Unit
             end
         end
         
-        function data = inferproc(obj, data, kernel)
+        function data = compose(obj, data, kernel)
             if obj.status
                 switch lower(obj.effectiveMode)
                     case {'debias'}
@@ -66,9 +62,9 @@ classdef StatisticTransform < Unit
             end
         end
         
-        function d = errprop(~, d)
-            warning('ERRPROP should not be called in StatisticTransform');
-        end
+%         function d = errprop(~, d)
+%             warning('ERRPROP should not be called in StatisticTransform');
+%         end
     end
     
     methods

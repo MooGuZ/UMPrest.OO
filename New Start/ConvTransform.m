@@ -1,7 +1,11 @@
-classdef ConvTransform < Unit
+classdef ConvTransform < MappingUnit
     methods
-        function y = transproc(obj, x)
-            y = zeros(obj.size('out', size(x)), 'like', x);
+        function y = process(obj, x)
+            dataSize = size(x);
+            if numel(dataSize) < 3
+                dataSize = [dataSize, ones(1, 3 - numel(dataSize))];
+            end   
+            y = zeros([obj.sizeIn2Out(dataSize(1:3)), size(x, 4)], 'like', x);
             % calculation
             for i = 1 : obj.nfilter
                 for j = 1 : obj.nchannel
@@ -12,7 +16,7 @@ classdef ConvTransform < Unit
             end
         end
         
-        function d = errprop(obj, d)
+        function d = errprop(obj, d, ~)
             obj.B.addgrad(MathLib.margin(d, 1:2));
             % initialization
             dI = zeros(size(obj.I), 'like', obj.I);
@@ -65,48 +69,54 @@ classdef ConvTransform < Unit
             d = dI;
         end
         
-        function update(obj)
-            obj.W.update();
-            obj.B.update();
-        end
-    end
-    
-    methods
-        function sz = size(obj, mode, opt)
-            if exist('mode', 'var')
-                if isnumeric(mode)
-                    opt  = mode;
-                    mode = 'self';
-                end
+        function update(obj, stepsize)
+            if exist('stepsize', 'var')
+                obj.W.update(stepsize);
+                obj.B.update(stepsize);
             else
-                mode = 'self';
+                obj.W.update();
+                obj.B.update();
             end
-            
-            switch lower(mode)
-                case {'in'}
-                    sz = nan;
-                    
-                case {'out'}
-                    assert(logical(exist('opt', 'var')), 'Input size is required!');
-                    sz = [opt(1:2), size(obj.W, 4)];
-                    
-                case {'self'}
-                    if exist('opt', 'var')
-                        sz = size(obj.W, opt);
-                    else
-                        sz = size(obj.W);
-                    end
-                    
-                otherwise
-                    error('UMPrest:ArgumentError', 'Unrecognized option : %s', upper(mode));
+        end
+        
+        function unit = inverseUnit(obj)
+            unit = obj; % TEMPORAL
+        end
+    end
+    
+    properties (Dependent)
+        inputSizeRequirement
+    end
+    methods
+        function value = get.inputSizeRequirement(obj)
+            value = SizeDescription.format([nan, nan, obj.nchannel]);
+        end
+        
+        function descriptionOut = sizeIn2Out(obj, descriptionIn)
+            switch obj.convShape
+              case {'same'}
+                descriptionOut = [descriptionIn(1 : 2), obj.nfilter];
+              case {'valid'}
+                descriptionOut = [ ...
+                    descriptionIn(1) - size(obj.W, 1) + 1, ...
+                    descriptionIn(2) - size(obj.W, 2) + 1, ...
+                    obj.nfilter];
+              case {'full'}
+                descriptionOut = [ ...
+                    descriptionIn(1) + size(obj.W, 1) - 1, ...
+                    descriptionIn(2) + size(obj.W, 2) - 1, ...
+                    obj.nfilter];
             end
         end
     end
     
     methods
-        function obj = ConvTransform(nfilter, filterSize, nchannel)
-            obj.W = HyperParam([filterSize, nchannel, nfilter]);
-            obj.B = HyperParam(nfilter);
+        function obj = ConvTransform(filterSize, nfilter, nchannel)
+            if numel(filterSize) == 1
+                filterSize = filterSize * [1, 1];
+            end
+            obj.W = HyperParam(randn([filterSize, nchannel, nfilter]));
+            obj.B = HyperParam(zeros(nfilter, 1));
         end
     end
     

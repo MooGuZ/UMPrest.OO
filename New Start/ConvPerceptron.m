@@ -1,50 +1,47 @@
-classdef ConvPerceptron < EvolvingUnit
+classdef ConvPerceptron < MappingUnit
     methods
         function y = process(obj, x)
             y = obj.act.transform(obj.pool.transform(obj.conv.transform(x)));
         end
         
-        function d = deltaproc(obj, d)
-            d = obj.conv.deltaproc(obj.pool.deltaproc(obj.act.deltaproc(d)));
+        function d = errprop(obj, d)
+            d = obj.conv.errprop(obj.pool.errprop(obj.act.errprop(d)));
         end
         
-        function update(obj)
-            obj.conv.update();
+        function update(obj, stepsize)
+            if exist('stepsize', 'var')
+                obj.conv.update(stepsize);
+            else
+                obj.conv.update();
+            end
         end
         
-        function unit = symmetryUnit(obj)
-        % TBC
+        function unit = inverseUnit(obj)
+            unit = obj; % TEMPORAL
         end
     end
     
+    properties (Dependent)
+        inputSizeRequirement
+    end
+    properties
+        outputSizePattern
+    end
     methods
-        function sz = size(obj, mode, opt)
-            if exist('mode', 'var')
-                if isnumeric(mode)
-                    opt  = mode;
-                    mode = 'self';
-                end
-            else
-                mode = 'self';
-            end
-            
-            switch lower(mode)
-                case {'in'}
-                    sz = [obj.inputSize, obj.conv.nchannel];
-                    
-                case {'out'}
-                    sz = obj.pool.size('out', obj.conv.size('out', obj.inputSize));
-                    
-                case {'self'}
-                    if exist('opt', 'var')
-                        sz = obj.conv.size(opt);
-                    else
-                        sz = obj.conv.size();
-                    end
-                    
-                otherwise
-                    error('UMPrest:ArgumentError', 'Unrecognized option : %s', upper(mode));
-            end
+        function value = get.inputSizeRequirement(obj)
+            value = obj.conv.inputSizeDescription;
+        end
+        
+        function set.outputSizePattern(obj, value)
+            assert(isstruct(value) && all(isfield(value, {'in', 'out'})));
+            assert(SizeDescription.islegal(value.in) && ...
+                   SizeDescription.isconcrete(value.out));
+            obj.outputSizePattern = value;
+        end
+        
+        function descriptionOut = sizeIn2Out(obj, descriptionIn)
+            descriptionOut = SizeDescription.applyPattern( ...
+                descriptionIn, obj.outputSizePattern);
         end
     end
     
@@ -52,32 +49,21 @@ classdef ConvPerceptron < EvolvingUnit
         function obj = ConvPerceptron(filterSize, nfilter, nchannel, varargin)
             propmap = Config.parse(varargin{:});
             
-            obj.conv = ConvTransform(nfilter, filterSize, nchannel);
+            obj.conv = ConvTransform(filterSize, nfilter, nchannel);
             obj.pool = MaxPool(Config.getValue(propmap, 'poolSize', 3));
             obj.act  = Activation(Config.getValue(propmap, 'activationType', 'ReLU'));
             
             Config.apply(obj, propmap);
+            
+            % initialize size description of sub-units
+            obj.pool.inputSizeDescription = obj.conv.outputSizeDescription;
+            obj.act.inputSizeDescription  = obj.pool.outputSizeDescription;
+            obj.outputSizePattern = SizeDescription.getPattern( ...
+                obj.conv.inputSizeDescription, obj.act.outputSizeDescription);
         end
     end
     
     properties
         conv, pool, act
-    end
-    
-    properties (Access = private)
-        insize
-    end
-    
-    properties (Dependent)
-        inputSize
-    end
-    methods
-        function value = get.inputSize(obj)
-            value = obj.insize;
-        end
-        function set.inputSize(obj, value)
-            assert(numel(value) == 2, 'Input size should be a 2 elements vector');
-            obj.insize = value;
-        end
     end
 end

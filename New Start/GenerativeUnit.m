@@ -1,4 +1,5 @@
-classdef GenerativeUnit < Unit
+classdef GenerativeUnit < EvolvingUnit
+    % ======================= DATA PROCESSING MODULE =======================
     methods
         function y = transform(obj, x)
             y = obj.infer(x);
@@ -12,22 +13,11 @@ classdef GenerativeUnit < Unit
             obj.O = y;
         end
         
-        function d = deltaproc(obj, d, isEvolving)
-            d = obj.mapunit.deltaproc(d, false);
+        function d = errprop(obj, d, isEvolving)
+            d = obj.mapunit.errprop(d, false);
             if isEvolving
-                obj.genunit.deltaproc(d, true);
+                obj.genunit.errprop(d, true);
             end
-        end
-        
-        function learn(obj, datapkg)
-            obj.genunit.errprop(obj.genunit.likelihood.delta( ...
-                obj.backward(obj.forward(datapkg)).data, ...
-                datapkg.data));
-            obj.genunit.update();
-        end
-        
-        function update(obj)
-            obj.genunit.update();
         end
     end
     
@@ -39,17 +29,11 @@ classdef GenerativeUnit < Unit
                 repsz  = [obj.size('out'), numel(data) / prod(obj.size('in'))];
                 optrep = reshape(OptimLib.minimize(@obj.objfunc, rep(:), ...
                     OptimLib.config('default'), data, repsz), repsz);
-                obj.mapunit.deltaproc(obj.mapunit.likelihood.delta(rep, optrep), true);
+                obj.mapunit.errprop(obj.mapunit.likelihood.delta(rep, optrep), true);
                 obj.mapunit.update();
             end
         end
         
-        function data = process(obj, rep)
-            data = obj.genunit.process(rep);
-        end
-    end
-    
-    methods
         function [value, grad] = objfunc(obj, dataIn, dataOut, sizeIn)
             if nargout > 1
                 [value, grad] = obj.genunit.objfunc(dataIn, dataOut, sizeIn);
@@ -64,22 +48,47 @@ classdef GenerativeUnit < Unit
                 end
             end
         end
-    end
-    
-    methods
-        function sz = size(obj, io)
-            if exist('io', 'var')
-                sz = obj.mapunit.size(io);
-            else
-                sz = obj.mapunit.size();
-            end
+        
+        function data = process(obj, rep)
+            data = obj.genunit.process(rep);
         end
     end
     
+    properties
+        acceptLikelihoodValue = 1e-2;
+    end
+    
+    % ======================= EVOLVING MODULE =======================
+    methods
+        function learn(obj, datapkg)
+            obj.genunit.errprop(obj.genunit.likelihood.delta( ...
+                obj.backward(obj.forward(datapkg)).data, ...
+                datapkg.data));
+            obj.genunit.update();
+        end
+    end
+
+    % ======================= SIZE DESCRIPTION MODULE =======================
+    properties (Dependent)
+        inputSizeRequirement, outputSizeDescription
+    end
+    methods
+        function value = get.inputSizeRequirement(obj)
+            value = obj.mapunit.inputSizeDescription;
+        end
+        
+        % PROBLEM: need more complex solution to deal with units that contains
+        %          sub-units
+        function value = get.outputSizeDescription(obj)
+            value = obj.mapunit.outputSizeDescription;
+        end
+    end
+    
+    % ======================= CONSTRUCTOR =======================
     methods
         function obj = GenerativeUnit(unit, varargin)
             obj.genunit = unit;
-            obj.mapunit = obj.genunit.counterunit(); % TBC
+            obj.mapunit = obj.genunit.symmetryUnit(); % TBC
             conf = Config.parse(varargin);
             obj.likelihood = Config.popItem(conf, 'likelihood', Likelihood('mse'));
             Config.apply(obj, conf);
@@ -110,9 +119,5 @@ classdef GenerativeUnit < Unit
             assert(isempty(value) || isa(value, 'Prior'));
             obj.prior = value;
         end
-    end
-    
-    properties
-        acceptLikelihoodValue = 1e-2;
     end
 end

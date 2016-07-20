@@ -8,7 +8,13 @@ classdef HyperParam < Tensor
             if not(exist('ss', 'var'))
                 ss = obj.stepsize();
             end
-            grad = ss * obj.gradient.pop();
+            
+            if isempty(obj.prior)
+                grad = ss * obj.gradient.pop();
+            else
+                grad = ss * (obj.gradient.pop() + obj.prior.errprop(obj.data));
+            end
+            
             if obj.useMomentum
                 grad = obj.inertia * obj.momentum + grad;
                 obj.momentum = grad;
@@ -48,6 +54,13 @@ classdef HyperParam < Tensor
         stepconf
         gradient
         momentum
+        prior
+    end
+    methods
+        function set.prior(obj, value)
+            assert(isempty(value) || isa(value, 'Prior'));
+            obj.prior = value;
+        end
     end
     
     properties

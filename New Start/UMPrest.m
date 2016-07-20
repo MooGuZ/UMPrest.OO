@@ -1,5 +1,10 @@
 classdef UMPrest < handle
     methods (Static)
+        function envsetup()
+            warning('off', 'symbolic:solve:warnmsg3'); % turn off warning : no
+                                                       % integer solution
+        end
+        
         function p = path(target, fname)
             proot = fileparts(mfilename('fullpath'));
             switch lower(target)

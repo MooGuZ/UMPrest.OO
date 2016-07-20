@@ -1,3 +1,4 @@
+% TODO: redesign the logic and interfaces
 classdef Logger < handle
     methods
         function initRecord(obj, id, datapkg, varargin)
@@ -21,12 +22,12 @@ classdef Logger < handle
             if counter > numel(obj.rec.(id).timestamp)
                 obj.rec.(id) = obj.extendRecord(obj.rec.(id));
             end
-            timestamp = obj.model.updateCounter;
+            timestamp = obj.model.age;
             if counter < 2 || ...
                     timestamp - obj.rec.(id).timestamp(counter - 1) >= obj.rec.(id).interval
                 result = obj.model.forward(datapkg);
                 obj.rec.(id).timestamp(counter) = timestamp;
-                obj.rec.(id).objective(counter) = obj.model.objective.evaluate(result);
+                obj.rec.(id).objective(counter) = obj.model.likelihood.evaluate(result);
                 obj.rec.(id).counter = counter;
                 switch obj.dmode
                     case {'shell'}

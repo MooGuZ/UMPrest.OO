@@ -1,8 +1,8 @@
 classdef MaxPool < Unit
     methods
-        function y = transproc(obj, x)
-            [y, c] = MathLib.groupmax(x, obj.size(2), 2);
-            [y, r] = MathLib.groupmax(y, obj.size(1), 1);
+        function y = transform(obj, x)
+            [y, c] = MathLib.groupmax(x, obj.shape(2), 2);
+            [y, r] = MathLib.groupmax(y, obj.shape(1), 1);
             % calculate column subscription of each element
             ind = MathLib.offsetOnDim(r, 2, size(c, 1));
             ind = MathLib.offsetOnDim(ind, 3, size(c, 1) * size(c, 2));
@@ -14,42 +14,33 @@ classdef MaxPool < Unit
             obj.map.size  = size(x);
         end
         
+        % TODO: deal with the condition that 'obj.map' is empty
+        function x = compose(obj, y)
+            x = obj.errprop(y);
+        end
+        
         function deltaOut = errprop(obj, deltaIn)
             deltaOut = zeros(obj.map.size, 'like', deltaIn);
             deltaOut(obj.map.index) = deltaIn(:);
         end
+        
+        function unit = inverseUnit(obj)
+            unit = obj; % TEMPORAL
+        end
     end
     
+    properties (Dependent)
+        inputSizeRequirement
+    end
     methods
-        function sz = size(obj, mode, opt)
-            if exist('mode', 'var')
-                if isnumeric(mode)
-                    opt  = mode;
-                    mode = 'self';
-                end
-            else
-                mode = 'self';
-            end
-            
-            switch lower(mode)
-                case {'in'}
-                    sz = nan;
-                    
-                case {'out'}
-                    assert(logical(exist('opt', 'var')), 'Input size is required!');
-                    sz = [ceil(opt(1:2) ./ obj.shape), opt(3:end)];
-                    
-                case {'self'}
-                    if exist('opt', 'var')
-                        sz = obj.shape(opt);
-                    else
-                        sz = obj.shape;
-                    end
-                    
-                otherwise
-                    error('UMPrest:ArgumentError', 'Unrecognized option : %s', upper(mode));
-            end
-        end 
+        function value = get.inputSizeRequirement(~)
+            value = [sym('x', 'clear'), sym('y', 'clear'), sym.inf];
+        end
+        
+        function descriptionOut = sizeIn2Out(obj, descriptionIn)
+            descriptionOut = [ceil(descriptionIn(1 : 2) ./ obj.shape), ...
+                descriptionIn(3 : end)];
+        end
     end
     
     methods (Static)
