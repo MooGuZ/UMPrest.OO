@@ -13,7 +13,7 @@ classdef Activation < Unit
             obj.I = x; obj.O = y;
         end
         
-        function d = errprop(obj, d)
+        function d = errprop(obj, d, ~)
             if obj.isinversed
                 d = d ./ obj.differential(obj.I);
             else
@@ -22,7 +22,7 @@ classdef Activation < Unit
         end
     end
     
-    % ======================= LOGIC OF NETWORK NODE =======================
+    % ======================= TOPOLOGY LOGIC =======================
     methods
         function unit = inverseUnit(obj)
             switch obj.type
@@ -44,11 +44,12 @@ classdef Activation < Unit
         end
     end
     
+    % ======================= SIZE DESCRIPTION =======================
     properties (Dependent)
         inputSizeRequirement
     end
     methods
-        function value = get.inputSizeRequirement(obj)
+        function value = get.inputSizeRequirement(~)
             value = sym.inf();
         end
         
@@ -70,33 +71,20 @@ classdef Activation < Unit
     
     % ======================= DATA STRUCTURE =======================
     properties (Access = private)
-        process, invproc, differential, isinversed
-    end
-    methods
-        function set.process(obj, value)
-            assert(isa(value, 'function_handle'));
-            obj.process = value;
-        end
-        
-        function set.invproc(obj, value)
-            assert(isa(value, 'function_handle'));
-            obj.invproc = value;
-        end
-        
-        function set.differential(obj, value)
-            assert(isa(value, 'function_handle'));
-            obj.differential = value;
-        end
+        type, process, invproc, differential, isinversed
     end
     
-    properties
+    properties (Dependent)
         actType
     end
     methods
+        function value = get.actType(obj)
+            value = obj.type;
+        end
         function set.actType(obj, type)
             assert(ischar(type), 'Actiation type should be a string');
-            obj.actType = lower(type);
-            switch obj.actType
+            obj.type = lower(type);
+            switch obj.type
               case {'sigmoid', 'logistic'}
                 obj.process = @MathLib.sigmoid;
                 obj.invproc = @MathLib.sigmoidInverse;

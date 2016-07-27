@@ -100,16 +100,52 @@ classdef MemoryDataBlock < DataBlock
         end
     end
     
+    properties
+        datadim, labeldim
+    end
     methods
-        function obj = MemoryDataBlock(dcell, stat, varargin)
+        function value = get.datadim(obj)
+            if isempty(obj.datadim)
+                if obj.islabelled
+                    dim = unique(cellfun(@MathLib.ndims, obj.cache.data));
+                else
+                    dim = unique(cellfun(@MathLib.ndims, obj.cache));
+                end
+                assert(isscalar(dim), 'Data is not in same dimension');
+                obj.datadim = dim;
+            end
+            value = obj.datadim;
+        end
+        
+        function value = get.labeldim(obj)
+            if isempty(obj.labeldim)
+                if obj.islabelled
+                    dim = unique(cellfun(@MathLib.ndims, obj.cache.label));
+                    assert(isscalar(dim), 'Data is not in same dimension');
+                    obj.labeldim = dim;
+                end
+            end
+            value = obj.labeldim;
+        end
+    end
+    
+    methods
+        function obj = MemoryDataBlock(data, stat, varargin)
             conf = Config.parse(varargin);
+            if not(iscell(data))
+                obj.datadim = numel(size(data)) - 1;
+                data = MathLib.pack2cell(data);
+            end
             if Config.keyExist(conf, 'label')
-                lcell = Config.getValue(conf, 'label', {});
-                assert(iscell(dcell) && iscell(lcell));
-                assert(numel(dcell) == numel(lcell));
-                obj.cache = struct('data', {dcell}, 'label', {lcell});
+                label = Config.getValue(conf, 'label', {});
+                if not(iscell(label))
+                    obj.labeldim = numel(size(label)) - 1;
+                    label = MathLib.pack2cell(label);
+                end
+                assert(numel(data) == numel(label));
+                obj.cache = struct('data', {data}, 'label', {label});
             else
-                obj.cache = dcell;
+                obj.cache = data;
             end
             obj.order  = randperm(obj.volumn());
             obj.icache = 0;
@@ -117,12 +153,14 @@ classdef MemoryDataBlock < DataBlock
                 obj.stat = stat;
                 if obj.stat.status && obj.stat.ncommit == 0
                     for i = 1 : obj.volumn()
-                        obj.stat.commit(dcell{i});
+                        obj.stat.commit(data{i});
                     end
                 end
             else
                 obj.stat = StatisticCollector();
             end
+            obj.datadim = Config.getValue(conf, 'datadim', obj.datadim);
+            obj.labeldim = Config.getValue(conf, 'labeldim', obj.labeldim);
         end
     end
     

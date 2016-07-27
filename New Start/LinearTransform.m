@@ -8,8 +8,8 @@ classdef LinearTransform < MappingUnit
             end
         end
         
-        function d = errprop(obj, d, isEvolving) % TBC
-            if isEvolving
+        function d = errprop(obj, d, isEvolving)
+            if not(exist('isEvolving', 'var')) || isEvolving
                 obj.B.addgrad(sum(d, 2));
                 obj.W.addgrad(d * obj.I');
             end

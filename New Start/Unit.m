@@ -51,15 +51,16 @@ classdef Unit < handle
         I, O
     end                  
     
+    % ======================= TOPOLOGY LOGIC =======================
     methods (Abstract)
         unit = inverseUnit(obj)
     end
     
     % ======================= SIZE DESCRIPTION =======================
-    properties (Dependent, Abstract)
+    properties (Dependent, Hidden, Abstract)
         inputSizeRequirement
     end
-    properties (Dependent)
+    properties (Dependent, Hidden)
         inputSizeDescription, outputSizeDescription
     end
     properties (Access = protected)

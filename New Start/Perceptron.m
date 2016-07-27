@@ -8,7 +8,7 @@ classdef Perceptron < MappingUnit
             if exist('isEvolving', 'var')
                 d = obj.linproc.errprop(obj.act.errprop(d), isEvolving);
             else
-                d = obj.linproc.errprop(obj.act.errprop(d));
+                d = obj.linproc.errprop(obj.act.errprop(d), true);
             end
         end
         
@@ -26,7 +26,7 @@ classdef Perceptron < MappingUnit
             unit = Perceptron( ...
                 double(obj.outputSizeDescription), ...
                 double(obj.inputSizeDescription), ...
-                'ActType', obj.act.actType);
+                'actType', obj.act.actType);
         end
     end
     
@@ -48,7 +48,7 @@ classdef Perceptron < MappingUnit
     methods
         function obj = Perceptron(inputSize, outputSize, varargin)
             obj.linproc = LinearTransform(inputSize, outputSize);
-            obj.act     = Activation(Config.getValue(varargin, 'ActType', 'ReLU'));
+            obj.act     = Activation(Config.getValue(varargin, 'actType', 'ReLU'));
             % setup size description
             obj.act.inputSizeDescription = obj.linproc.outputSizeDescription;
         end
@@ -68,6 +68,41 @@ classdef Perceptron < MappingUnit
         end
         function set.actType(obj, value)
             obj.act.actType = value;
+        end
+    end
+    
+    % ======================= DEVELOPER TOOL =======================
+    methods (Static)
+        function debug()
+            sizein  = 64;
+            sizeout = 16;
+            batchsize = 16;
+            % Setting : Sigmoid
+            refunit = Perceptron(sizein, sizeout, 'actType', 'sigmoid');
+            refunit.linproc.bias = randn(size(refunit.linproc.bias));
+            model = Perceptron(sizein, sizeout, 'actType', 'sigmoid');
+            model.likelihood = Likelihood('logistic');
+            % create validate set
+            data = randn([sizein, 1e2]);
+            validset = DataPackage(data, 'label', refunit.transform(data));
+            % start to learn the linear transformation
+            fprintf('Initial objective value : %.2f\n', ...
+                    model.likelihood.evaluate(model.forward(validset)));
+            for i = 1 : 1e3
+                data  = randn([sizein, batchsize]);
+                label = refunit.transform(data);
+                dpkg  = DataPackage(data, 'label', label);
+                model.learn(dpkg);
+                fprintf('Objective Value after [%04d] turns: %.2f\n', i, ...
+                    model.likelihood.evaluate(model.forward(validset)));
+            end
+            % show result
+            werr = refunit.linproc.weight - model.linproc.weight;
+            berr = refunit.linproc.bias - model.linproc.bias;
+            fprintf('Estimate Weight Error > MEAN:%-8.2e\tVAR:%-8.2e\tMAX:%-8.2e\n', ...
+                mean(werr(:)), var(werr(:)), max(abs(werr(:))));
+            fprintf('Estimate Bias Error   > MEAN:%-8.2e\tVAR:%-8.2e\tMAX:%-8.2e\n', ...
+                mean(berr(:)), var(berr(:)), max(abs(berr(:))));
         end
     end
 end

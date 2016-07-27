@@ -1,5 +1,5 @@
 classdef SequentialModel < Model & MappingUnit
-    
+    % ======================= DATA PROCESSING =======================
     methods
         function data = process(obj, data)
             for i = 1 : numel(obj.nodes)
@@ -27,6 +27,7 @@ classdef SequentialModel < Model & MappingUnit
         end
     end
     
+    % ======================= TOPOLOGY LOGIC =======================
     methods
         function appendUnit(obj, unit)
             node = Node(unit);
@@ -53,25 +54,6 @@ classdef SequentialModel < Model & MappingUnit
             for i = numel(obj.nodes) : -1 : 1
                 unit.appendUnit(obj.nodes{i}.inverseUnit());
             end
-        end
-    end
-    
-    methods
-        function obj = SequentialModel()
-            obj = obj@Model();
-        end
-    end
-    
-    properties
-        nodes
-        logger
-        tasktype
-    end
-    methods
-        function set.tasktype(obj, value)
-            assert(isempty(value) || ...
-                (ischar(value) && any(strcmpi(value, Task.typelist()))));
-            obj.tasktype = value;
         end
     end
     
@@ -105,6 +87,28 @@ classdef SequentialModel < Model & MappingUnit
         end
     end
     
+    % ======================= CONSTRUCTOR =======================
+    methods
+        function obj = SequentialModel()
+            obj = obj@Model();
+        end
+    end
+    
+    % ======================= DATA STRUCTURE =======================
+    properties
+        nodes
+        logger
+        tasktype
+    end
+    methods
+        function set.tasktype(obj, value)
+            assert(isempty(value) || ...
+                (ischar(value) && any(strcmpi(value, Task.typelist()))));
+            obj.tasktype = value;
+        end
+    end
+    
+    % ======================= DEVELOPER TOOL =======================
     methods
         function showNodeDescription(obj)
             for i = 1 : numel(obj.nodes)

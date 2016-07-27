@@ -1,10 +1,13 @@
 classdef Node < handle
+    % ======================= INTERFACE =======================
     methods
         status = propogate(obj)
     end
     
+    % ======================= DATA STRUCTURE =======================
     properties
         unit
+        prev, next, cache
     end
     methods
         function set.unit(obj, value)
@@ -13,13 +16,14 @@ classdef Node < handle
         end
     end
     
+    % ======================= CONSTRUCTOR =======================
     methods
         function obj = Node(unit)
             obj.unit = unit;
         end
     end
     
-    % ======================= TOPOLOGICAL LOGIC =======================
+    % ======================= TOPOLOGY LOGIC =======================
     methods
         % RESOLVEDIMENSION only handle uninitialized units
         function [tof, solution] = resolveDimension(obj, datadim, vargen)
@@ -32,11 +36,22 @@ classdef Node < handle
                 end
                 m = numel(obj.inputSizeRequirement) - 1;
                 if n < m
-                    obj.dimExpend = vargen.next();
-                    solution = [var; obj.dimExpend + m - n];
+                    if isempty(var)
+                        tof = false;
+                        solution = [];
+                    else
+                        obj.dimExpend = vargen.next();
+                        solution = [var; obj.dimExpend + m - n];
+                        tof = true;
+                    end
                 else
-                    obj.dimExpend = var + n - m;
+                    if isempty(var)
+                        obj.dimExpend = sym(n - m);
+                    else
+                        obj.dimExpend = var + n - m;
+                    end
                     solution = [];
+                    tof = true;
                 end
             else
                 obj.dimExpend = [];
@@ -76,10 +91,6 @@ classdef Node < handle
                 obj.inputSizeDescription = SizeDescription.subs(dataSize, solution);
             end
         end
-    end
-    
-    properties
-        prev, next, cache
     end
     
     properties

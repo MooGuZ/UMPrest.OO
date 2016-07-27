@@ -1,5 +1,23 @@
 classdef DataPackage < handle
     methods
+        function setdatadim(obj, dim)
+            datasize = size(obj.X);
+            if dim > obj.datadim
+                datasize = [datasize(1 : obj.datadim), ones(1, dim - obj.datadim), obj.ndata];
+                obj.X.reshape(datasize);
+                obj.datadim = dim;
+            end
+        end
+        
+        function setlabeldim(obj, dim)
+            labelsize = size(obj.Y);
+            if dim > obj.labeldim
+                labelsize = [labelsize(1 : obj.labeldim), ones(1, dim - obj.labeldim), obj.nlabel];
+                obj.Y.reshape(labelsize);
+                obj.labeldim = dim;
+            end
+        end
+        
         % Problem : cannot deal with handle classes as the input
         %           HOWEVER, majority classes in UMPrest provide interfaces
         %           that return non-handle objects. So, this may not be a

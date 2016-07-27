@@ -7,17 +7,19 @@ classdef ConvTransform < MappingUnit
             end   
             y = zeros([obj.sizeIn2Out(dataSize(1:3)), size(x, 4)], 'like', x);
             % calculation
+            for k = 1 : size(x, 4)
             for i = 1 : obj.nfilter
                 for j = 1 : obj.nchannel
-                    y(:, :, i) = y(:, :, i) ...
-                        + conv2(x(:, :, j), obj.weight(:, :, j, i), obj.convShape);
+                    y(:, :, i, k) = y(:, :, i, k) ...
+                        + conv2(x(:, :, j, k), obj.weight(:, :, j, i), obj.convShape);
                 end
-                y(:, :, i) = y(:, :, i) + obj.bias(i);
+                y(:, :, i, k) = y(:, :, i, k) + obj.bias(i);
+            end
             end
         end
         
         function d = errprop(obj, d, ~)
-            obj.B.addgrad(MathLib.margin(d, 1:2));
+            obj.B.addgrad(MathLib.margin(d, 3));
             % initialization
             dI = zeros(size(obj.I), 'like', obj.I);
             dW = zeros(size(obj.weight), 'like', obj.weight);
@@ -32,27 +34,36 @@ classdef ConvTransform < MappingUnit
               case 'valid'
                 for i = 1 : obj.nfilter
                     for j = 1 : obj.nchannel
-                        dW(:, :, j, i) = conv2(FI(:, :, j), d(:, :, i), 'valid');
-                        dI(:, :, j) = dI(:, :, j) + conv2(FW(:, :, j, i), d(:, :, i), 'full');
+                        for k = 1 : size(d, 4)
+                            dW(:, :, j, i) = dW(:, :, j, i) + ...
+                                conv2(FI(:, :, j. k), d(:, :, i, k), 'valid');
+                            dI(:, :, j, k) = dI(:, :, j, k) + ...
+                                conv2(FW(:, :, j, i), d(:, :, i, k), 'full');
+                        end
                     end
                 end
                 
               case 'same'
                 for i = 1 : obj.nfilter
                     for j = 1 : obj.nchannel
-                        % derivative of filters
-                        res = conv2(d(:, :, i), FI(:, :, j), 'full');
-                        tleft  = [irow, icol] - fcenter + 1; % top-left coordinate
-                        bright = tleft + obj.filterSize - 1; % bottom-right coordinate
-                        dW(:, :, j, i) = res(tleft(1) : bright(1), tleft(2) : bright(2));
-                        % derivative of input
-                        if all(mod(obj.filterSize, 2)) % size of filter is odd in both direction
-                            dI(:, :, j) = dI(:, :, j) + conv2(d(:, :, i), FW(:, :, j, i), 'same');
-                        else
-                            res = conv2(d(:, :, i), FW(:, :, j, i), 'full');
-                            tleft  = fcenter - 1;              % top-left coordinate
-                            bright = tleft + [irow, icol] - 1; % bottom-right coordinate
-                            dI(:, :, j) = dI(:, :, j) + res(tleft(1) : bright(1), tleft(2) : bright(2));
+                        for k = 1 : size(d, 4)
+                            % derivative of filters
+                            res = conv2(d(:, :, i, k), FI(:, :, j, k), 'full');
+                            tleft  = [irow, icol] - fcenter + 1; % top-left coordinate
+                            bright = tleft + obj.filterSize - 1; % bottom-right coordinate
+                            dW(:, :, j, i) = dW(:, :, j, i) + ...
+                                res(tleft(1) : bright(1), tleft(2) : bright(2));
+                            % derivative of input
+                            if all(mod(obj.filterSize, 2)) % size of filter is odd in both direction
+                                dI(:, :, j, k) = dI(:, :, j, k) ...
+                                    + conv2(d(:, :, i, k), FW(:, :, j, i), 'same');
+                            else
+                                res = conv2(d(:, :, i,  k), FW(:, :, j, i), 'full');
+                                tleft  = fcenter - 1;              % top-left coordinate
+                                bright = tleft + [irow, icol] - 1; % bottom-right coordinate
+                                dI(:, :, j, k) = dI(:, :, j, k) ...
+                                    + res(tleft(1) : bright(1), tleft(2) : bright(2));
+                            end
                         end
                     end
                 end
@@ -60,8 +71,12 @@ classdef ConvTransform < MappingUnit
               case 'full'
                 for i = 1 : obj.nfilter
                     for j = 1 : obj.nchannel
-                        dW(:, :, j, i) = conv2(d(:, :, i), FI(:, :, j), 'valid');
-                        dI(:, :, j) = dI(:, :, j) + conv2(d(:, :, i), FW(:, :, j, i), 'valid');
+                        for k = 1 : size(d, 4)
+                            dW(:, :, j, i) = dW(:, :, j, i) + ...
+                                conv2(d(:, :, i, k), FI(:, :, j, k), 'valid');
+                            dI(:, :, j, k) = dI(:, :, j, k) + ...
+                                conv2(d(:, :, i, k), FW(:, :, j, i), 'valid');
+                        end
                     end
                 end
             end
@@ -115,7 +130,8 @@ classdef ConvTransform < MappingUnit
             if numel(filterSize) == 1
                 filterSize = filterSize * [1, 1];
             end
-            obj.W = HyperParam(randn([filterSize, nchannel, nfilter]));
+            obj.W = HyperParam((rand([filterSize, nchannel, nfilter]) - 0.5) * ...
+                (2 / sqrt(prod([filterSize, nchannel]))));
             obj.B = HyperParam(zeros(nfilter, 1));
         end
     end
@@ -130,7 +146,7 @@ classdef ConvTransform < MappingUnit
     
     properties (Dependent)
         weight, bias
-        nchannel, nfilter
+        nchannel, nfilter, filterSize
     end
     methods
         function value = get.weight(obj)
@@ -153,6 +169,44 @@ classdef ConvTransform < MappingUnit
         
         function value = get.nfilter(obj)
             value = size(obj.W, 4);
+        end
+        
+        function value = get.filterSize(obj)
+            value = [size(obj.W, 1) size(obj.W, 2)];
+        end
+    end
+    
+    methods (Static)
+        function debug()
+            sizein = [32, 32, 3];
+            filtersize = [5, 5];
+            nfilter = 5;
+            batchsize = 16;
+            refunit = ConvTransform(filtersize, nfilter, sizein(3));
+            refunit.bias = randn(size(refunit.bias));
+            model = ConvTransform(filtersize, nfilter, sizein(3));
+            model.likelihood = Likelihood('mse');
+            % create validate set
+            data = randn([sizein, 1e2]);
+            validset = DataPackage(data, 'label', refunit.transform(data));
+            % start to learn the linear transformation
+            fprintf('Initial objective value : %.2f\n', ...
+                    model.likelihood.evaluate(model.forward(validset)));
+            for i = 1 : 3e1
+                data  = randn([sizein, batchsize]);
+                label = refunit.transform(data);
+                dpkg  = DataPackage(data, 'label', label);
+                model.learn(dpkg);
+                fprintf('Objective Value after [%04d] turns: %.2f\n', i, ...
+                    model.likelihood.evaluate(model.forward(validset)));
+            end
+            % show result
+            werr = refunit.weight - model.weight;
+            berr = refunit.bias - model.bias;
+            fprintf('Estimate Weight Error > MEAN:%-8.2e\tVAR:%-8.2e\tMAX:%-8.2e\n', ...
+                mean(werr(:)), var(werr(:)), max(abs(werr(:))));
+            fprintf('Estimate Bias Error   > MEAN:%-8.2e\tVAR:%-8.2e\tMAX:%-8.2e\n', ...
+                mean(berr(:)), var(berr(:)), max(abs(berr(:))));
         end
     end
 end

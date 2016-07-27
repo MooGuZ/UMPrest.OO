@@ -4,14 +4,20 @@ classdef MaxPool < Unit
             [y, c] = MathLib.groupmax(x, obj.shape(2), 2);
             [y, r] = MathLib.groupmax(y, obj.shape(1), 1);
             % calculate column subscription of each element
-            ind = MathLib.offsetOnDim(r, 2, size(c, 1));
-            ind = MathLib.offsetOnDim(ind, 3, size(c, 1) * size(c, 2));
-            c   = c(ind);
+            ind = r;
+            csize = size(c);
+            for i = 2 : ndims(c)
+                ind = MathLib.offsetOnDim(ind, i, prod(csize(1 : i-1)));
+            end
+            c = c(ind);
+            % record size of input
+            obj.map.size = size(x);
             % compose index of each element
             obj.map.index = (c - 1) * size(x, 1) + r;
-            obj.map.index = MathLib.offsetOnDim(obj.map.index, 3, size(x, 1) * size(x, 2));
-            % record size of input
-            obj.map.size  = size(x);
+            for i = 3 : ndims(x)
+                obj.map.index = MathLib.offsetOnDim(obj.map.index, i, ...
+                    prod(obj.map.size(1 : i - 1)));
+            end
         end
         
         % TODO: deal with the condition that 'obj.map' is empty
@@ -19,7 +25,7 @@ classdef MaxPool < Unit
             x = obj.errprop(y);
         end
         
-        function deltaOut = errprop(obj, deltaIn)
+        function deltaOut = errprop(obj, deltaIn, ~)
             deltaOut = zeros(obj.map.size, 'like', deltaIn);
             deltaOut(obj.map.index) = deltaIn(:);
         end
@@ -41,6 +47,21 @@ classdef MaxPool < Unit
             descriptionOut = [ceil(descriptionIn(1 : 2) ./ obj.shape), ...
                 descriptionIn(3 : end)];
         end
+    end
+    
+    methods
+        function obj = MaxPool(shape)
+            if numel(shape) == 1
+                obj.shape = shape * [1, 1];
+            else
+                obj.shape = shape;
+            end
+        end
+    end
+    
+    properties
+        shape
+        map
     end
     
     methods (Static)
@@ -70,20 +91,5 @@ classdef MaxPool < Unit
                 fprintf('There are %d errors!\n', erecov);
             end
         end
-    end
-    
-    methods
-        function obj = MaxPool(shape)
-            if numel(shape) == 1
-                obj.shape = shape * [1, 1];
-            else
-                obj.shape = shape;
-            end
-        end
-    end
-    
-    properties
-        shape
-        map
     end
 end

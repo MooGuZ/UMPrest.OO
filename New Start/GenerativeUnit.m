@@ -15,7 +15,9 @@ classdef GenerativeUnit < EvolvingUnit
         
         function d = errprop(obj, d, isEvolving)
             d = obj.mapunit.errprop(d, false);
-            if isEvolving
+            if exist('isEvolving', 'var')
+                obj.genunit.errprop(d, isEvolving);
+            else
                 obj.genunit.errprop(d, true);
             end
         end

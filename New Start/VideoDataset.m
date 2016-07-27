@@ -9,13 +9,13 @@ classdef VideoDataset < handle
             
             if obj.islabelled
                 [data, label] = obj.db.fetch(n);
-                dataset = VideoDataset( ...
-                    MemoryDataBlock(data, obj.stat, 'label', label), ...
-                    'coder', obj.coder.mode);
+                datablock = MemoryDataBlock(data, obj.stat, 'label', label, ...
+                    'datadim', obj.db.datadim, 'labeldim', obj.db.labeldim);
+                dataset = VideoDataset(datablock, 'coder', obj.coder.mode);
             else
-                dataset = VideoDataset( ...
-                    MemoryDataBlock(obj.db.fetch(n), obj.stat), ... % TBC
-                    'coder', obj.coder.mode);
+                datablock = MemoryDataBlock(obj.db.fetch(n), obj.stat, ...
+                    'datadim', obj.db.datadim, 'labeldim', obj.db.labeldim);
+                dataset = VideoDataset(datablock, 'coder', obj.coder.mode);
             end
         end
         
@@ -90,6 +90,14 @@ classdef VideoDataset < handle
                 datapkg = DataPackage(dcell, 'label', lcell, 'info', obj.dpkginfo);
             else
                 datapkg = DataPackage(dcell, 'info', obj.dpkginfo);
+            end
+            
+            % adjust data package
+            if not(isempty(obj.db.datadim))
+                datapkg.setdatadim(obj.db.datadim);
+            end
+            if not(isempty(obj.db.labeldim))
+                datapkg.setlabeldim(obj.db.labeldim);
             end
             
             % apply statistic coder

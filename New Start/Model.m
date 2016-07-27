@@ -1,5 +1,49 @@
-% PROBLEM: whether or not 'Model' should inherit from 'Unit'
 classdef Model < handle
+    % ======================= TOPOLOGY LOGIC =======================
+    methods
+        function root(obj, node)
+            if SizeDescription.isexpendable(node.inputSizeRequirement)
+                node.dimExpend = obj.vargen.next();
+            else
+                node.dimExpend = [];
+            end
+        end
+        
+        function connect(obj, nodeA, nodeB)
+            [status, solution] = nodeB.resolveDimension( ...
+                nodeA.outputDimDescription, obj.vargen);
+            if status
+                if not(isempty(solution))
+                    for i = 1 : numel(obj.nodes)
+                        node = obj.iterator(i);
+                        node.dimExpend = subs(node.dimExpend, solution);
+                    end
+                end
+            else
+                error('UMPrest:RuntimeError', ...
+                      'Connection failed : data dimension mismatch');
+            end
+            
+            nodeB.initSizeDescription(obj.vargen);
+            
+            [status, solution] = ...
+                nodeB.updateSizeDescription(nodeA.outputSizeDescription);
+            if status
+                if not(isempty(solution))
+                    for i = 1 : numel(obj.nodes)
+                        node = obj.iterator(i);
+                        node.inputSizeDescription = SizeDescription.subs( ...
+                            node.inputSizeDescription, solution);
+                    end
+                end
+            else
+                error('UMPrest:RuntimeError', ...
+                      'Connection failed : data size mismatch');
+            end
+        end
+    end
+    
+    % ======================= SIZE DESCRIPTION =======================
     methods
         function refreshSizeDescription(obj)
             obj.vargen.refresh();
@@ -53,10 +97,7 @@ classdef Model < handle
         end
     end
     
-    methods (Abstract)
-        node = iterator(obj, index)
-    end
-    
+    % ======================= DATA STRUCTURE =======================
     properties (Abstract)
         nodes
     end
@@ -65,10 +106,8 @@ classdef Model < handle
         vargen % generator of local variables
     end
     
-    methods
-        function obj = Model(varargin)
-            obj.vargen = VarGenerator('d');
-        end
+    methods (Abstract)
+        node = iterator(obj, index)
     end
     
     methods
@@ -77,48 +116,14 @@ classdef Model < handle
         end
         
         function unit = units(obj, index)
-            unit = obj.nodes{index}.unit;
+            unit = obj.iterator(index).unit;
         end
-        
-        function root(obj, node)
-            if SizeDescription.isexpendable(node.inputSizeRequirement)
-                node.dimExpend = obj.vargen.next();
-            else
-                node.dimExpend = [];
-            end
-        end
-        
-        function connect(obj, nodeA, nodeB)
-            [status, solution] = nodeB.resolveDimension( ...
-                nodeA.outputDimDescription, obj.vargen);
-            if status
-                if not(isempty(solution))
-                    for i = 1 : numel(obj.nodes)
-                        node = obj.iterator(i);
-                        node.dimExpend = subs(node.dimExpend, solution);
-                    end
-                end
-            else
-                error('UMPrest:RuntimeError', ...
-                      'Connection failed : data dimension mismatch');
-            end
-            
-            nodeB.initSizeDescription(obj.vargen);
-            
-            [status, solution] = ...
-                nodeB.updateSizeDescription(nodeA.outputSizeDescription);
-            if status
-                if not(isempty(solution))
-                    for i = 1 : numel(obj.nodes)
-                        node = obj.iterator(i);
-                        node.inputSizeDescription = SizeDescription.subs( ...
-                            node.inputSizeDescription, solution);
-                    end
-                end
-            else
-                error('UMPrest:RuntimeError', ...
-                      'Connection failed : data size mismatch');
-            end
+    end
+    
+    % ======================= CONSTRUCTOR =======================
+    methods
+        function obj = Model(varargin)
+            obj.vargen = VarGenerator('d');
         end
     end
 end

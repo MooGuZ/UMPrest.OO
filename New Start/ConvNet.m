@@ -29,7 +29,7 @@ classdef ConvNet < SequentialModel
             for i = 1 : nunit
                 unit = ConvPerceptron( ...
                     filterSize{i}, nfilter(i + 1), nfilter(i), ...
-                    'poolSize', poolSize{i}, 'activationType', hactType);
+                    'poolSize', poolSize{i}, 'actType', hactType);
                 if i == 1
                     unit.inputSizeDescription = dataSize;
                 end
@@ -42,6 +42,8 @@ classdef ConvNet < SequentialModel
                     Perceptron(double(obj.outputSizeDescription), ...
                                labelSize, 'actType', oactType));
             end
+            
+            Config.apply(obj, config);
             % % set default value
             % if ~exist('actType', 'var'),  actType  = 'sigmoid'; end
             % if ~exist('poolType', 'var'), poolType = 'max';     end
@@ -132,11 +134,11 @@ classdef ConvNet < SequentialModel
             datasource = load(UMPrest.path('data', 'tinytest'));
             nsample = size(datasource.X, 1);
             ds = VideoDataset(MemoryDataBlock( ...
-                MathLib.pack2cell(reshape(datasource.X', [20, 20, 1, nsample])), ...
+                reshape(datasource.X', [20, 20, 1, nsample]), ...
                 StatisticCollector(), 'label', ...
-                MathLib.pack2cell(MathLib.ind2tf(datasource.y, 1, 10))));
+                MathLib.ind2tf(datasource.y, 1, 10)));
             model.likelihood = Likelihood('logistic');
-            Trainer.minibatch(model, ds)
+            Trainer.minibatch(model, ds);
         end
     end
 end

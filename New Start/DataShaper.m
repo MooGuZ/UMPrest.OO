@@ -11,7 +11,7 @@ classdef DataShaper < Unit
             x = reshape(y, [obj.sizein, nsample]);
         end
         
-        function d = errprop(obj, d)
+        function d = errprop(obj, d, ~)
             d = obj.compose(d);
         end
     end

@@ -29,6 +29,10 @@ classdef Tensor < handle
         function sz = size(obj, varargin)
             sz = size(obj.data, varargin{:});
         end
+        
+        function reshape(obj, varargin)
+            obj.data = reshape(obj.data, varargin{:});
+        end
     end
     
     methods

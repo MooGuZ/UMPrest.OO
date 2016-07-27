@@ -6,8 +6,12 @@ classdef GAN < EvolvingUnit
             y = obj.gmodel.transform(x);
         end
         
-        function d = errprop(obj, d)
-            d = obj.gmodel.errprop(d);
+        function d = errprop(obj, d, isEvolving)
+            if exist('isEvolving', 'var')
+                d = obj.gmodel.errprop(d, isEvolving);
+            else
+                d = obj.gmodel.errprop(d, true);
+            end
         end
         
         function update(obj)

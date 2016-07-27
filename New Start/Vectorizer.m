@@ -15,7 +15,7 @@ classdef Vectorizer < Unit
             end
         end
         
-        function delta = errprop(obj, delta)
+        function delta = errprop(obj, delta, ~)
             delta = obj.compose(delta);
         end
         

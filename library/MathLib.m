@@ -10,14 +10,6 @@
 % MooGu Z. <hzhu@case.edu>
 % Nov 20, 2015
 
-% TO-DO
-% 1. [x] add more activate function
-% 2. [x] add more pooling function
-% 3. [x] add more normalize function
-% 4. [ ] reform the structure and names
-% 5. [x] make functions static
-% 6. [ ] evaluation function : mse, logistic ...
-
 classdef MathLib < handle
     methods
         % Gaussian Distribution
@@ -126,11 +118,11 @@ classdef MathLib < handle
         function v = logistic(x, ref)
             x = MathLib.bound(x, [eps, 1 - eps]);
             v = - (ref .* log(x) + (1 - ref) .* log(1 - x));
-            v = sum(v(:));
+            v = sum(v(:)) / numel(x);
         end
         function d = logisticGradient(x, ref)
             x = MathLib.bound(x, [eps, 1 - eps]);
-            d = - (ref ./ x - (1 - ref) ./ (1 - x));
+            d = - (ref ./ x - (1 - ref) ./ (1 - x)) / numel(x);
         end
         
         function v = mse(x, ref)
@@ -286,7 +278,7 @@ classdef MathLib < handle
             index = reshape(index, shape);
             
             % update indexs
-            index = bsxfun(@plus, index, MathLib.mapToDim((0 : n - 1) * size(in, dim), dim));
+            index = bsxfun(@plus, index, MathLib.mapToDim((0 : n - 1) * groupSize, dim));
         end
         
         function x = offsetOnDim(x, dim, step)
@@ -321,8 +313,24 @@ classdef MathLib < handle
             arr = arr(1 : ind);
         end
         
+        function value = margin(data, dim)
+            datadim = MathLib.ndims(data);
+            if datadim < dim
+                value = sum(data(:));
+            elseif datadim == dim
+                value = sum(MathLib.vec(data, dim))';
+            else
+                data = MathLib.vec(MathLib.vec(data, dim - 1, 'front'), 2, 'back');
+                value = sum(sum(data, 1), 3)';
+            end
+        end
+        
         function n = ndims(mat)
-            n = numel(MathLib.trimtail(MathLib.trimtail(size(mat), 0), 1));
+            if isempty(mat)
+                n = 0;
+            else
+                n = max(numel(MathLib.trimtail(size(mat), 1)), 1);
+            end
         end
         
         function M = concatecell(C)
