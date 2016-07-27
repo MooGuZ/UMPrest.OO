@@ -39,24 +39,27 @@ classdef Perceptron < MappingUnit
             value = obj.linproc.inputSizeDescription;
         end
         
-        function descriptionOut = sizeIn2Out(obj, ~)
-            descriptionOut = obj.act.outputSizeDescription;
+        function descriptionOut = sizeIn2Out(obj, descriptionIn)
+            descriptionOut = obj.act.sizeIn2Out( ...
+                obj.linproc.sizeIn2Out(descriptionIn));
         end
     end
     
     % ======================= CONSTRUCTOR =======================
     methods
         function obj = Perceptron(inputSize, outputSize, varargin)
+            conf = Config.parse(varargin{:});
             obj.linproc = LinearTransform(inputSize, outputSize);
-            obj.act     = Activation(Config.getValue(varargin, 'actType', 'ReLU'));
-            % setup size description
-            obj.act.inputSizeDescription = obj.linproc.outputSizeDescription;
+            if not(Config.popItem(conf, 'noactivation', false))
+                obj.act = Activation(Config.getValue(conf, 'actType', 'ReLU'));
+            end
+            Config.apply(obj, conf);
         end
     end
     
     % ======================= DATA STRUCTURE =======================
     properties
-        linproc, act
+        linproc, act = NullUnit()
     end
     
     properties (Dependent)

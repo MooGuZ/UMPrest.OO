@@ -61,11 +61,7 @@ classdef Activation < Unit
     % ======================= CONSTRUCTOR =======================
     methods
         function obj = Activation(type)
-            if exist('type', 'var')
-                obj.actType = type;
-            else
-                obj.actType = 'relu';
-            end
+            obj.actType = type;
         end
     end
     

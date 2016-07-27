@@ -40,7 +40,7 @@ classdef MaxPool < Unit
     end
     methods
         function value = get.inputSizeRequirement(~)
-            value = [sym('x', 'clear'), sym('y', 'clear'), sym.inf];
+            value = SizeDescription.format([nan, nan, inf]);
         end
         
         function descriptionOut = sizeIn2Out(obj, descriptionIn)
@@ -51,17 +51,28 @@ classdef MaxPool < Unit
     
     methods
         function obj = MaxPool(shape)
-            if numel(shape) == 1
-                obj.shape = shape * [1, 1];
-            else
-                obj.shape = shape;
-            end
+            obj.shape = shape;
         end
     end
     
     properties
         shape
+    end
+    properties (Access = private)
         map
+    end
+    methods
+        function set.shape(obj, value)
+            assert(MathLib.isinteger(value) && all(value > 0));
+            switch numel(value)
+                case {1}
+                    obj.shape = value * [1, 1];
+                case {2}
+                    obj.shape = value;
+                otherwise
+                    error('Shape of MaxPool should be at most 2D');
+            end
+        end
     end
     
     methods (Static)

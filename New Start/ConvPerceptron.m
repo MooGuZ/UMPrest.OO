@@ -1,87 +1,58 @@
-classdef ConvPerceptron < SequentialModel
-%     methods
-%         function y = process(obj, x)
-%             y = obj.act.transform(obj.pool.transform(obj.conv.transform(x)));
-%         end
-%         
-%         function d = errprop(obj, d, ~)
-%             d = obj.conv.errprop(obj.pool.errprop(obj.act.errprop(d)));
-%         end
-%         
-%         function update(obj, stepsize)
-%             if exist('stepsize', 'var')
-%                 obj.conv.update(stepsize);
-%             else
-%                 obj.conv.update();
-%             end
-%         end
-%         
-%         function unit = inverseUnit(obj)
-%             unit = obj; % TEMPORAL
-%         end
-%     end
+classdef ConvPerceptron < MappingUnit
+    methods
+        function y = process(obj, x)
+            y = obj.act.transform(obj.pool.transform(obj.conv.transform(x)));
+        end
+        
+        function d = errprop(obj, d, ~)
+            d = obj.conv.errprop(obj.pool.errprop(obj.act.errprop(d)));
+        end
+        
+        function update(obj, stepsize)
+            if exist('stepsize', 'var')
+                obj.conv.update(stepsize);
+            else
+                obj.conv.update();
+            end
+        end
+        
+        function unit = inverseUnit(obj)
+            unit = obj; % TEMPORAL
+        end
+    end
+  
+    properties (Dependent)
+        inputSizeRequirement
+    end
+    methods
+        function value = get.inputSizeRequirement(obj)
+            value = obj.conv.inputSizeDescription;
+        end
+        
+        function descriptionOut = sizeIn2Out(obj, descriptionIn)
+            descriptionOut = obj.act.sizeIn2Out( ...
+                obj.pool.sizeIn2Out(obj.conv.sizeIn2Out(descriptionIn)));
+        end
+    end
     
-%     properties (Dependent)
-%         inputSizeRequirement
-%     end
-%     properties
-%         outputSizePattern
-%     end
-%     methods
-%         function value = get.inputSizeRequirement(obj)
-%             value = obj.conv.inputSizeDescription;
-%         end
-%         
-%         function set.outputSizePattern(obj, value)
-%             assert(isstruct(value) && all(isfield(value, {'in', 'out'})));
-%             assert(SizeDescription.islegal(value.in) && ...
-%                    SizeDescription.isconcrete(value.out));
-%             obj.outputSizePattern = value;
-%         end
-%         
-%         function descriptionOut = sizeIn2Out(obj, descriptionIn)
-%             descriptionOut = SizeDescription.applyPattern( ...
-%                 descriptionIn, obj.outputSizePattern);
-%         end
-%     end
-    
-%     methods
-%         function obj = ConvPerceptron(filterSize, nfilter, nchannel, varargin)
-%             propmap = Config.parse(varargin{:});
-%             
-%             obj.conv = ConvTransform(filterSize, nfilter, nchannel);
-%             obj.pool = MaxPool(Config.getValue(propmap, 'poolSize', 2));
-%             obj.act  = Activation(Config.getValue(propmap, 'actType', 'ReLU'));
-%             
-%             Config.apply(obj, propmap);
-%             
-%             % initialize size description of sub-units
-%             obj.pool.inputSizeDescription = obj.conv.outputSizeDescription;
-%             obj.act.inputSizeDescription  = obj.pool.outputSizeDescription;
-%             obj.outputSizePattern = SizeDescription.getPattern( ...
-%                 obj.conv.inputSizeDescription, obj.act.outputSizeDescription);
-%         end
-%     end
-
     methods
         function obj = ConvPerceptron(filterSize, nfilter, nchannel, varargin)
             conf = Config.parse(varargin{:});
             
             obj.conv = ConvTransform(filterSize, nfilter, nchannel);
-            obj.appendUnit(obj.conv);
-            if Config.getValue(conf, 'pooling', true)
-                obj.pool = MaxPool(Config.getValue(conf, 'poolSize', 2));
-                obj.appendUnit(obj.pool);
+            if not(Config.popItem(conf, 'noPooling', false))
+                obj.pool = MaxPool(Config.popItem(conf, 'poolSize', 2));
             end
-            if Config.getValue(conf, 'activation', true)
-                obj.act = Activation(Config.getValue(conf, 'actType', 'ReLU'));
-                obj.appendUnit(obj.act);
-            end            
+            if not(Config.popItem(conf, 'noActivation', false))
+                obj.act = Activation(Config.popItem(conf, 'actType', 'ReLU'));
+            end
+            
+            Config.apply(obj, conf);
         end
     end
     
-    properties
-        conv, pool, act
+    properties (SetAccess = private)
+        conv, pool = NullUnit(), act= NullUnit()
     end
     
     methods (Static)
@@ -92,11 +63,11 @@ classdef ConvPerceptron < SequentialModel
             batchsize = 16;
             % Default Setting : ReLU + MaxPool(2)
             refunit = ConvPerceptron(filtersize, nfilter, sizein(3), ...
-                'actType', 'sigmoid');
+                'actType', 'relu', '-noactivation');
             refunit.conv.bias = randn(size(refunit.conv.bias));
             model = ConvPerceptron(filtersize, nfilter, sizein(3), ...
-                'actType', 'sigmoid');
-            model.likelihood = Likelihood('logistic');
+                'actType', 'relu', '-noactivation');
+            model.likelihood = Likelihood('mse');
             % create validate set
             data = randn([sizein, 1e2]);
             validset = DataPackage(data, 'label', refunit.transform(data));
