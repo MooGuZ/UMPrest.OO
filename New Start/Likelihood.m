@@ -1,12 +1,20 @@
 classdef Likelihood < Objective
     methods
-        function value = evaluate(obj, datapkg)
-            value = obj.evalFunction(datapkg.data, datapkg.label);
+        function value = evaluate(obj, argA, argB)
+            if isa(argA, 'DataPackage')
+                value = obj.evalFunction(argA.data, argA.label);
+            else
+                value = obj.evalFunction(argA, argB);
+            end
         end
         
-        function d = delta(obj, datapkg)
-            assert(datapkg.isunified);
-            d = obj.deltaFunction(datapkg.data, datapkg.label);
+        function d = delta(obj, argA, argB)
+            if isa(argA, 'DataPackage')
+                assert(argA.isunified);
+                d = obj.deltaFunction(argA.data, argA.label);
+            else
+                d = obj.deltaFunction(argA, argB);
+            end
         end
         
 %         function value = evaluate(obj, varargin)

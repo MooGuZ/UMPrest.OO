@@ -103,7 +103,8 @@ classdef Node < handle
     end
     methods
         function set.dimExpend(obj, value)
-            assert(isempty(value) || SizeDescriptor.isconcrete(value));
+            assert(isempty(value) || SizeDescriptor.isconcrete(value) ...
+                || logical(value == 0));
             obj.dimExpend = value;
         end
         
