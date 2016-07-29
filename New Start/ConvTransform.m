@@ -1,87 +1,96 @@
 classdef ConvTransform < MappingUnit
     methods
         function y = process(obj, x)
-            dataSize = size(x);
-            if numel(dataSize) < 3
-                dataSize = [dataSize, ones(1, 3 - numel(dataSize))];
-            end   
-            y = zeros([obj.sizeIn2Out(dataSize(1:3)), size(x, 4)], 'like', x);
-            % calculation
-            for k = 1 : size(x, 4)
-            for i = 1 : obj.nfilter
-                for j = 1 : obj.nchannel
-                    y(:, :, i, k) = y(:, :, i, k) ...
-                        + conv2(x(:, :, j, k), obj.weight(:, :, j, i), obj.convShape);
-                end
-                y(:, :, i, k) = y(:, :, i, k) + obj.bias(i);
-            end
-            end
+            y = MathLib.nnconv(x, obj.weight, obj.bias, obj.shape);
+            % dataSize = size(x);
+            % if numel(dataSize) < 3
+            %     dataSize = [dataSize, ones(1, 3 - numel(dataSize))];
+            % end   
+            % y = zeros([obj.sizeIn2Out(dataSize(1:3)), size(x, 4)], 'like', x);
+            % % calculation
+            % for k = 1 : size(x, 4)
+            % for i = 1 : obj.nfilter
+            %     for j = 1 : obj.nchannel
+            %         y(:, :, i, k) = y(:, :, i, k) ...
+            %             + conv2(x(:, :, j, k), obj.weight(:, :, j, i), obj.shape);
+            %     end
+            %     y(:, :, i, k) = y(:, :, i, k) + obj.bias(i);
+            % end
+            % end
         end
         
-        function d = errprop(obj, d, ~)
-            obj.B.addgrad(MathLib.margin(d, 3));
-            % initialization
-            dI = zeros(size(obj.I), 'like', obj.I);
-            dW = zeros(size(obj.weight), 'like', obj.weight);
-            % coordinate information
-            [irow, icol, ~] = size(obj.I);
-            fcenter = ceil((obj.filterSize + 1) / 2);
-            % horizontal and vertical flip version of related data
-            FI = matflip(obj.I);
-            FW = matflip(obj.weight);
-            % mimic corelation with convolution specified in different convShape
-            switch obj.convShape
-              case 'valid'
-                for i = 1 : obj.nfilter
-                    for j = 1 : obj.nchannel
-                        for k = 1 : size(d, 4)
-                            dW(:, :, j, i) = dW(:, :, j, i) + ...
-                                conv2(FI(:, :, j. k), d(:, :, i, k), 'valid');
-                            dI(:, :, j, k) = dI(:, :, j, k) + ...
-                                conv2(FW(:, :, j, i), d(:, :, i, k), 'full');
-                        end
-                    end
-                end
-                
-              case 'same'
-                for i = 1 : obj.nfilter
-                    for j = 1 : obj.nchannel
-                        for k = 1 : size(d, 4)
-                            % derivative of filters
-                            res = conv2(d(:, :, i, k), FI(:, :, j, k), 'full');
-                            tleft  = [irow, icol] - fcenter + 1; % top-left coordinate
-                            bright = tleft + obj.filterSize - 1; % bottom-right coordinate
-                            dW(:, :, j, i) = dW(:, :, j, i) + ...
-                                res(tleft(1) : bright(1), tleft(2) : bright(2));
-                            % derivative of input
-                            if all(mod(obj.filterSize, 2)) % size of filter is odd in both direction
-                                dI(:, :, j, k) = dI(:, :, j, k) ...
-                                    + conv2(d(:, :, i, k), FW(:, :, j, i), 'same');
-                            else
-                                res = conv2(d(:, :, i,  k), FW(:, :, j, i), 'full');
-                                tleft  = fcenter - 1;              % top-left coordinate
-                                bright = tleft + [irow, icol] - 1; % bottom-right coordinate
-                                dI(:, :, j, k) = dI(:, :, j, k) ...
-                                    + res(tleft(1) : bright(1), tleft(2) : bright(2));
-                            end
-                        end
-                    end
-                end
-                
-              case 'full'
-                for i = 1 : obj.nfilter
-                    for j = 1 : obj.nchannel
-                        for k = 1 : size(d, 4)
-                            dW(:, :, j, i) = dW(:, :, j, i) + ...
-                                conv2(d(:, :, i, k), FI(:, :, j, k), 'valid');
-                            dI(:, :, j, k) = dI(:, :, j, k) + ...
-                                conv2(d(:, :, i, k), FW(:, :, j, i), 'valid');
-                        end
-                    end
-                end
+        function d = errprop(obj, d, isEvolving)
+            if exist('isEvolving', 'var') && not(isEvolving)
+                d = MathLib.nnconvDifferential(d, obj.I, obj.weight, obj.shape);
+            else
+                [d, dW, dB] = ...
+                    MathLib.nnconvDifferential(d, obj.I, obj.weight, obj.shape);
+                obj.W.addgrad(dW);
+                obj.B.addgrad(dB);
             end
-            obj.W.addgrad(dW);
-            d = dI;
+            % obj.B.addgrad(MathLib.margin(d, 3));
+            % % initialization
+            % dI = zeros(size(obj.I), 'like', obj.I);
+            % dW = zeros(size(obj.weight), 'like', obj.weight);
+            % % coordinate information
+            % [irow, icol, ~] = size(obj.I);
+            % fcenter = ceil((obj.filterSize + 1) / 2);
+            % % horizontal and vertical flip version of related data
+            % FI = matflip(obj.I);
+            % FW = matflip(obj.weight);
+            % % mimic corelation with convolution specified in different shape
+            % switch obj.shape
+            %   case 'valid'
+            %     for i = 1 : obj.nfilter
+            %         for j = 1 : obj.nchannel
+            %             for k = 1 : size(d, 4)
+            %                 dW(:, :, j, i) = dW(:, :, j, i) + ...
+            %                     conv2(FI(:, :, j. k), d(:, :, i, k), 'valid');
+            %                 dI(:, :, j, k) = dI(:, :, j, k) + ...
+            %                     conv2(FW(:, :, j, i), d(:, :, i, k), 'full');
+            %             end
+            %         end
+            %     end
+            %     
+            %   case 'same'
+            %     for i = 1 : obj.nfilter
+            %         for j = 1 : obj.nchannel
+            %             for k = 1 : size(d, 4)
+            %                 % derivative of filters
+            %                 res = conv2(d(:, :, i, k), FI(:, :, j, k), 'full');
+            %                 tleft  = [irow, icol] - fcenter + 1; % top-left coordinate
+            %                 bright = tleft + obj.filterSize - 1; % bottom-right coordinate
+            %                 dW(:, :, j, i) = dW(:, :, j, i) + ...
+            %                     res(tleft(1) : bright(1), tleft(2) : bright(2));
+            %                 % derivative of input
+            %                 if all(mod(obj.filterSize, 2)) % size of filter is odd in both direction
+            %                     dI(:, :, j, k) = dI(:, :, j, k) ...
+            %                         + conv2(d(:, :, i, k), FW(:, :, j, i), 'same');
+            %                 else
+            %                     res = conv2(d(:, :, i,  k), FW(:, :, j, i), 'full');
+            %                     tleft  = fcenter - 1;              % top-left coordinate
+            %                     bright = tleft + [irow, icol] - 1; % bottom-right coordinate
+            %                     dI(:, :, j, k) = dI(:, :, j, k) ...
+            %                         + res(tleft(1) : bright(1), tleft(2) : bright(2));
+            %                 end
+            %             end
+            %         end
+            %     end
+            %     
+            %   case 'full'
+            %     for i = 1 : obj.nfilter
+            %         for j = 1 : obj.nchannel
+            %             for k = 1 : size(d, 4)
+            %                 dW(:, :, j, i) = dW(:, :, j, i) + ...
+            %                     conv2(d(:, :, i, k), FI(:, :, j, k), 'valid');
+            %                 dI(:, :, j, k) = dI(:, :, j, k) + ...
+            %                     conv2(d(:, :, i, k), FW(:, :, j, i), 'valid');
+            %             end
+            %         end
+            %     end
+            % end
+            % obj.W.addgrad(dW);
+            % d = dI;
         end
         
         function update(obj, stepsize)
@@ -95,7 +104,7 @@ classdef ConvTransform < MappingUnit
         end
         
         function unit = inverseUnit(obj)
-            unit = obj; % TEMPORAL
+            unit = ConvTransform(obj.filterSize, obj.nchannel, obj.nfilter);
         end
     end
     
@@ -104,24 +113,26 @@ classdef ConvTransform < MappingUnit
     end
     methods
         function value = get.inputSizeRequirement(obj)
-            value = SizeDescription.format([nan, nan, obj.nchannel]);
+            value = SizeDescription.format([nan, nan, obj.nchannel, inf]);
         end
         
         function descriptionOut = sizeIn2Out(obj, descriptionIn)
-            switch obj.convShape
-              case {'same'}
-                descriptionOut = [descriptionIn(1 : 2), obj.nfilter];
-              case {'valid'}
-                descriptionOut = [ ...
-                    descriptionIn(1) - size(obj.W, 1) + 1, ...
-                    descriptionIn(2) - size(obj.W, 2) + 1, ...
-                    obj.nfilter];
-              case {'full'}
-                descriptionOut = [ ...
-                    descriptionIn(1) + size(obj.W, 1) - 1, ...
-                    descriptionIn(2) + size(obj.W, 2) - 1, ...
-                    obj.nfilter];
-            end
+            descriptionOut = MathLib.nnconvsize( ...
+                descriptionIn, size(obj.W), obj.shape);
+            % switch obj.shape
+            %   case {'same'}
+            %     descriptionOut = [descriptionIn(1 : 2), obj.nfilter];
+            %   case {'valid'}
+            %     descriptionOut = [ ...
+            %         descriptionIn(1) - size(obj.W, 1) + 1, ...
+            %         descriptionIn(2) - size(obj.W, 2) + 1, ...
+            %         obj.nfilter];
+            %   case {'full'}
+            %     descriptionOut = [ ...
+            %         descriptionIn(1) + size(obj.W, 1) - 1, ...
+            %         descriptionIn(2) + size(obj.W, 2) - 1, ...
+            %         obj.nfilter];
+            % end
         end
     end
     
@@ -137,7 +148,13 @@ classdef ConvTransform < MappingUnit
     end
     
     properties
-        convShape = 'same';
+        shape = 'same';
+    end
+    methods
+        function set.shape(obj, value)
+            assert(any(strcmpi(value, {'valid', 'same', 'full'})));
+            obj.shape = lower(value);
+        end
     end
     
     properties (Access = private)

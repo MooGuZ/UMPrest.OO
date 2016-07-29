@@ -133,6 +133,147 @@ classdef MathLib < handle
         end
     end
     
+    % ======================= Calculation Operator =======================
+    methods (Static)
+        function y = nnconv(x, filter, bias, shape)
+            y = zeros(MathLib.nnconvsize(size(x), size(filter), shape), 'like', x);
+            for k = 1 : size(x, 4)
+                for i = 1 : size(filter, 4)
+                    for j = 1 : size(x, 3)
+                        y(:, :, i, k) = y(:, :, i, k) ...
+                            + conv2(x(:, :, j, k), filter(:, :, j, i), shape);
+                    end
+                    y(:, :, i, k) = y(:, :, i, k) + bias(i);
+                end
+            end
+        end
+        
+        function [dI, dF, dB] = nnconvDifferential(d, input, filter, shape)
+            fsize    = [size(filter, 1), size(filter, 2)];
+            nchannel = size(filter, 3);
+            nfilter  = size(filter, 4);
+            nsample  = size(d, 4);
+            % flip version of INPUT and FILTER (on dimension 1 and 2)
+            flipI = matflip(input);
+            flipF = matflip(filter);
+            % pre-calculate coordinates
+            if strcmpi(shape, 'same')
+                [nRow, nCol, ~] = size(input); % number of row and column
+                posFC = ceil((fsize + 1) / 2); % position of filter center
+            end
+            % derivatives of INPUT
+            dI = zeros(size(input), 'like', input);
+            switch shape
+              case {'valid'}
+                for k = 1 : nsample
+                    for j = 1 : nchannel
+                        for i = 1 : nfilter
+                            dI(:, :, j, k) = dI(:, :, j, k) + ...
+                                conv2(flipF(:, :, j, i), d(:, :, i, k), 'full');
+                        end
+                    end
+                end
+                
+              case {'same'}
+                % derivative of input
+                if all(mod(fsize, 2)) % size of filter is odd in both direction
+                    for k = 1 : nsample
+                        for j = 1 : nchannel
+                            for i = 1 : nfilter
+                                dI(:, :, j, k) = dI(:, :, j, k) ...
+                                    + conv2(d(:, :, i, k), flipF(:, :, j, i), 'same');
+                            end
+                        end
+                    end
+                else
+                    posTL = posFC - 1;                % top-left coordinate
+                    posBR = posTL + [nRow, nCol] - 1; % bottom-right coordinate
+                    for k = 1 : nsample
+                        for j = 1 : nchannel
+                            for i = 1 : nfilter
+                                res = conv2(d(:, :, i,  k), flipF(:, :, j, i), 'full');
+                                dI(:, :, j, k) = dI(:, :, j, k) ...
+                                    + res(posTL(1) : posBR(1), posTL(2) : posBR(2));
+                            end
+                        end
+                    end
+                end
+            
+              case 'full'
+                for k = 1 : nsample
+                    for j = 1 : nchannel
+                        for i = 1 : nfilter
+                            dI(:, :, j, k) = dI(:, :, j, k) + ...
+                                    conv2(d(:, :, i, k), flipF(:, :, j, i), 'valid');
+                        end
+                    end
+                end
+            end
+            % derivatives of FILTER
+            if nargout > 1
+                dF = zeros(size(filter), 'like', filter);
+                switch lower(shape)
+                  case {'valid'}
+                    for i = 1 : nfilter
+                        for j = 1 : nchannel
+                            for k = 1 : nsample
+                                dF(:, :, j, i) = dF(:, :, j, i) + ...
+                                    conv2(flipI(:, :, j. k), d(:, :, i, k), 'valid');
+                            end
+                        end
+                    end
+                    
+                  case {'same'}
+                    posTL = [nRow, nCol] - posFC + 1; % top-left coordinate
+                    posBR = posTL + fsize - 1;        % bottom-right coordinate
+                    for i = 1 : nfilter
+                        for j = 1 : nchannel
+                            for k = 1 : nsample
+                                res = conv2(d(:, :, i, k), flipI(:, :, j, k), 'full');
+                                dF(:, :, j, i) = dF(:, :, j, i) + ...
+                                    res(posTL(1) : posBR(1), posTL(2) : posBR(2));
+                            end
+                        end
+                    end
+                    
+                  case {'full'}
+                    for i = 1 : nfilter
+                        for j = 1 : nchannel
+                            for k = 1 : nsample
+                                dF(:, :, j, i) = dF(:, :, j, i) + ...
+                                    conv2(d(:, :, i, k), flipI(:, :, j, k), 'valid');
+                            end
+                        end
+                    end
+                end
+            end
+            % derivatives of BIAS
+            if nargout > 2
+                dB = MathLib.margin(d, 3);
+            end
+        end
+        
+        function dsize = nnconvsize(dsize, fsize, shape)
+            if numel(dsize) < 3
+                dsize = [dsize, ones(1, 3 - numel(dsize))];
+            end
+            
+            % type conversion in case of symbolic
+            assert(logical(dsize(3) == fsize(3)));
+            
+            switch lower(shape)
+              case {'same'}
+                dsize = [dsize(1 : 2), fsize(4), dsize(4 : end)];
+                
+              case {'valid'}
+                dsize = [dsize(1 : 2) - fsize(1 : 2) + 1, fsize(4), dsize(4 : end)];
+                
+              case {'full'}
+                dsize = [dsize(1 : 2) + fsize(1 : 2) - 1, fsize(4), dsize(4 : end)];
+            end
+        end
+    end
+    
     methods (Static)
         function tof = isinteger(x)
             tof = not(iscell(x)) && all(x == round(x)) && all(not(isinf(x)));
@@ -220,7 +361,7 @@ classdef MathLib < handle
         
         function x = bound(x, range)
             assert(numel(range) == 2, 'MathLib:WrongParameter', ...
-                'RANGE should be in form of [MIN, MAX]');
+                   'RANGE should be in form of [MIN, MAX]');
             
             lowerBound = range(1);
             upperBound = range(2);
@@ -247,8 +388,8 @@ classdef MathLib < handle
             shape = size(in);
             
             assert(numel(shape) >= dim, ...
-                'UMPrest:ArgumentError', ...
-                'Operation on dimension %d is not practical', dim);
+                   'UMPrest:ArgumentError', ...
+                   'Operation on dimension %d is not practical', dim);
             
             r = mod(shape(dim), groupSize);
             if r ~= 0
@@ -297,7 +438,7 @@ classdef MathLib < handle
                 end
             else
                 assert(numel(a) >= numel(b), ...
-                    'Do not allow modification that changes size of original array');
+                       'Do not allow modification that changes size of original array');
                 if exist('validfunc', 'var')
                     assert(all(arrayfun(validfunc, b, a(1 : numel(b)))));
                 end
@@ -342,9 +483,9 @@ classdef MathLib < handle
                 elsize = size(C{1});
                 for i = 2 : numel(C)
                     assert(numel(size(C{i})) == numel(elsize), 'MathLib:RuntimeError', ...
-                        'Size of matrix in the cell mismatch!');
+                           'Size of matrix in the cell mismatch!');
                     assert(all(size(C{i}) == elsize), 'MathLib:RuntimeError', ...
-                        'Size of matrix in the cell mismatch!');
+                           'Size of matrix in the cell mismatch!');
                 end
                 elsize = MathLib.trimtail(elsize, 1);
                 if isempty(elsize)
