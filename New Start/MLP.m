@@ -34,8 +34,7 @@ classdef MLP < SequentialModel
             % main work flow
             model = MLP(inputSize, psizeList, ...
                 'HiddenLayerActType', hactType, ...
-                'OutputLayerActType', oactType, ...
-                'tasktype', 'classify');
+                'OutputLayerActType', oactType);
             % x = randn(inputSize, 1);
             % y = model.transform(x);
             % model.errprop(y);
@@ -46,6 +45,7 @@ classdef MLP < SequentialModel
                 StatisticCollector(), 'label', ...
                 MathLib.pack2cell(MathLib.ind2tf(datasource.y, 1, 10))));
             model.likelihood = Likelihood('logistic');
+            model.task = Task('classify');
             Trainer.minibatch(model, ds)
         end
     end

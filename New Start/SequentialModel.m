@@ -97,15 +97,6 @@ classdef SequentialModel < Model & MappingUnit
     % ======================= DATA STRUCTURE =======================
     properties
         nodes
-        logger
-        tasktype
-    end
-    methods
-        function set.tasktype(obj, value)
-            assert(isempty(value) || ...
-                (ischar(value) && any(strcmpi(value, Task.typelist()))));
-            obj.tasktype = value;
-        end
     end
     
     % ======================= DEVELOPER TOOL =======================

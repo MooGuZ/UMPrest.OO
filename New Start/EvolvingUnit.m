@@ -20,12 +20,18 @@ classdef EvolvingUnit < Unit
     
     properties
         age = 0;
-        likelihood
+        logger
+        likelihood, task
     end
     methods
         function set.likelihood(obj, value)
             assert(isempty(value) || isa(value, 'Likelihood'));
             obj.likelihood = value;
+        end
+        
+        function set.task(obj, value)
+            assert(isempty(value) || isa(value, 'Task'));
+            obj.task = value;
         end
     end
 end

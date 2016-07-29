@@ -33,8 +33,8 @@ classdef Logger < handle
                     case {'shell'}
                         fprintf('%13s >> objective value after [%04d] updates [%.2f]\n', ...
                             upper(id), timestamp, obj.rec.(id).objective(counter));
-                        if not(isempty(obj.model.tasktype))
-                            Task.(obj.model.tasktype)(result.data, result.label);
+                        if not(isempty(obj.model.task))
+                            disp(obj.model.task.run(result.data, result.label));
                         end
                 end
             end
