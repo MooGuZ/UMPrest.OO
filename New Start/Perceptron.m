@@ -48,12 +48,12 @@ classdef Perceptron < MappingUnit
     % ======================= CONSTRUCTOR =======================
     methods
         function obj = Perceptron(inputSize, outputSize, varargin)
-            conf = Config.parse(varargin{:});
+            conf = Config(varargin);
             obj.linproc = LinearTransform(inputSize, outputSize);
-            if not(Config.popItem(conf, 'noactivation', false))
-                obj.act = Activation(Config.getValue(conf, 'actType', 'ReLU'));
+            if not(conf.pop('noactivation', false))
+                obj.act = Activation(conf.get('actType', 'ReLU'));
             end
-            Config.apply(obj, conf);
+            conf.apply(obj);
         end
     end
     

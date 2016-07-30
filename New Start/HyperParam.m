@@ -41,12 +41,12 @@ classdef HyperParam < Tensor
         function obj = HyperParam(data, varargin)
             obj = obj@Tensor(data);
             % parsing configuration from varying input arguments
-            conf = Config.parse(varargin);
+            conf = Config(varargin);
             obj.stepconf = StepsizeCalculator.getConfig( ...
-                Config.getValue(conf, 'stepMethod', 'decline'));
+                conf.pop('stepMethod', 'decline'));
             obj.gradient = GradientCalculator( ...
-                Config.getValue(conf, 'gradientMethod', 'basic'));
-            Config.apply(obj, conf);
+                conf.pop('gradientMethod', 'basic'));
+            conf.apply(obj);
         end
     end
     

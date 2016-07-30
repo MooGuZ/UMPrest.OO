@@ -53,19 +53,16 @@ classdef GAN < EvolvingUnit
         function obj = GAN(gmodel, dmodel, varargin)
             obj.gmodel = gmodel;
             obj.dmodel = dmodel;
-            conf = Config.parse(varargin);
+            conf = Config(varargin);
             obj.noisegen = DataGenerator( ...
-                Config.getValue(conf, 'noiseType', 'gaussian'), ...
+                conf.get('noiseType', 'gaussian'), ...
                 size(gmodel, 'in'));
-            obj.objective = Objective(Config.getValue(conf, 'objective', 'logistic'));
+            obj.likelihood = Objective(conf.get('likelihood', 'logistic'));
         end
     end
     
     properties
-        gmodel, dmodel, noisegen, objective
+        gmodel, dmodel, noisegen
         dUpdateFrequence = 7;
-        updateCounter = 0;
-        logger
-        tasktype
     end
 end

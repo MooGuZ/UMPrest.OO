@@ -3,12 +3,12 @@ classdef ConvNet < SequentialModel
     methods
         function obj = ConvNet(dataSize, labelSize, nfilter, varargin)
             % nunit = numel(nfilters);
-            config = Config.parse(varargin);
+            conf = Config(varargin);
             
-            filterSize = Config.popItem(config, 'filterSize', [5, 5]);
-            poolSize   = Config.popItem(config, 'poolSize', [3, 3]);
-            hactType   = Config.popItem(config, 'HiddenLayerActType', 'ReLU');
-            oactType   = Config.popItem(config, 'OutputLayerActType', 'Sigmoid');
+            filterSize = conf.pop('filterSize', [5, 5]);
+            poolSize   = conf.pop('poolSize', [3, 3]);
+            hactType   = conf.pop('HiddenLayerActType', 'ReLU');
+            oactType   = conf.pop('OutputLayerActType', 'Sigmoid');
             
             nunit = numel(nfilter);
             
@@ -43,7 +43,7 @@ classdef ConvNet < SequentialModel
                                labelSize, 'actType', oactType));
             end
             
-            Config.apply(obj, config);
+            conf.apply(obj);
             % % set default value
             % if ~exist('actType', 'var'),  actType  = 'sigmoid'; end
             % if ~exist('poolType', 'var'), poolType = 'max';     end

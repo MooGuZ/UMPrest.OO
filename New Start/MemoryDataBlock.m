@@ -131,13 +131,13 @@ classdef MemoryDataBlock < DataBlock
     
     methods
         function obj = MemoryDataBlock(data, stat, varargin)
-            conf = Config.parse(varargin);
+            conf = Config(varargin);
             if not(iscell(data))
                 obj.datadim = numel(size(data)) - 1;
                 data = MathLib.pack2cell(data);
             end
-            if Config.keyExist(conf, 'label')
-                label = Config.getValue(conf, 'label', {});
+            if conf.exist('label')
+                label = conf.get('label', {});
                 if not(iscell(label))
                     obj.labeldim = numel(size(label)) - 1;
                     label = MathLib.pack2cell(label);
@@ -159,8 +159,8 @@ classdef MemoryDataBlock < DataBlock
             else
                 obj.stat = StatisticCollector();
             end
-            obj.datadim = Config.getValue(conf, 'datadim', obj.datadim);
-            obj.labeldim = Config.getValue(conf, 'labeldim', obj.labeldim);
+            obj.datadim  = conf.get('datadim', obj.datadim);
+            obj.labeldim = conf.get('labeldim', obj.labeldim);
         end
     end
     

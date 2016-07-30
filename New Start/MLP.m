@@ -6,9 +6,9 @@ classdef MLP < SequentialModel
             
             obj = obj@SequentialModel();
             
-            conf     = Config.parse(varargin);
-            hactType = Config.popItem(conf, 'HiddenLayerActType', 'ReLU');
-            oactType = Config.popItem(conf, 'OutputLayerActType', 'Logistic');
+            conf     = Config(varargin);
+            hactType = conf.pop('HiddenLayerActType', 'ReLU');
+            oactType = conf.pop('OutputLayerActType', 'Logistic');
             
             sizeList = [inputSize, perceptronQuantityList];
             for i = 2 : numel(sizeList)
@@ -20,7 +20,7 @@ classdef MLP < SequentialModel
                 obj.units(i).actType = hactType;
             end
             
-            Config.apply(obj, conf);
+            conf.apply(obj);
         end
     end
     

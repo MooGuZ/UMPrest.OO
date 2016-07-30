@@ -23,17 +23,17 @@ classdef DataPackage < handle
         %           that return non-handle objects. So, this may not be a
         %           problem in practical.
         function newpkg = derive(obj, varargin)
-            conf = Config.parse(varargin);
+            conf = Config(varargin);
             if obj.numel() == 1
                 newpkg = DataPackage( ...
-                    Config.getValue(conf, 'data', {obj.data}), ...
-                    'label', Config.getValue(conf, 'label', {obj.label}), ...
-                    'info',  Config.getValue(conf, 'info', obj.info));
+                    conf.get('data', {obj.data}), ...
+                    'label', conf.get('label', {obj.label}), ...
+                    'info',  conf.get('info', obj.info));
             else
                 newpkg = DataPackage( ...
-                    Config.getValue(conf, 'data', obj.data), ...
-                    'label', Config.getValue(conf, 'label', obj.label), ...
-                    'info',  Config.getValue(conf, 'info', obj.info));
+                    conf.get('data', obj.data), ...
+                    'label', conf.get('label', obj.label), ...
+                    'info',  conf.get('info', obj.info));
             end
         end
         
@@ -223,10 +223,10 @@ classdef DataPackage < handle
     
     methods
         function obj = DataPackage(data, varargin)
-            conf = Config.parse(varargin);
+            conf = Config(varargin);
             obj.data  = data;
-            obj.label = Config.getValue(conf, 'label', []);
-            obj.info  = Config.getValue(conf, 'info', struct());
+            obj.label = conf.get('label', []);
+            obj.info  = conf.get('info', struct());
         end
     end
     

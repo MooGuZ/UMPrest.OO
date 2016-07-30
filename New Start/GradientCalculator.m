@@ -46,6 +46,8 @@ classdef GradientCalculator < handle
             obj.data = 0;
             obj.n    = 0;
             
+            param = Config(varargin);
+            
             switch lower(type)
                 case {'basic'}
                     
@@ -55,13 +57,13 @@ classdef GradientCalculator < handle
                 case {'rmsprop'}
                     obj.mem  = struct('r', 0);
                     obj.conf = struct('decaySndOrd', ...
-                        Config.getValue(varargin, 'decaySndOrd', 0.999));
+                                      param.get('decaySndOrd', 0.999));
                     
                 case {'adam'}
                     obj.mem  = struct('s', 0, 'r', 0);
                     obj.conf = struct( ...
-                        'decayFstOrd', Config.getValue(varargin, 'decayFstOrd', 0.9), ...
-                        'decaySndOrd', Config.getValue(varargin, 'decaySndOrd', 0.999));
+                        'decayFstOrd', param.get('decayFstOrd', 0.9), ...
+                        'decaySndOrd', param.get('decaySndOrd', 0.999));
                     
                 otherwise
                     error('UMPrest:ArgumentError', ...

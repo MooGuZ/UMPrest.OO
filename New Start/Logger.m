@@ -4,7 +4,7 @@ classdef Logger < handle
         function initRecord(obj, id, datapkg, varargin)
             assert(ischar(id));
             
-            conf = Config.parse(varargin);
+            conf = Config(varargin);
             if not(isfield(obj.rec, id))
                 obj.rec.(id) = struct( ...
                     'counter',   0,  ...
@@ -12,7 +12,7 @@ classdef Logger < handle
                     'objective', zeros(1, 1e3), ...
                     'interval',  1);
             end
-            obj.rec.(id) = Config.apply(obj.rec.(id), conf);
+            obj.rec.(id) = conf.apply(obj.rec.(id));
             
             obj.record(id, datapkg);
         end

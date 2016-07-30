@@ -26,49 +26,25 @@ classdef Config < handle
                 end
             end
         end
-        
-        function [value, key] = getValue(map, key, default, mode)
+    end
+       
+    methods
+        function [value, key] = get(obj, key, default, mode)
             if ~exist('mode', 'var')
                 mode = 'default';
             end
             
-            if not(isa(map, 'containers.Map'))
-                map = Config.parse(map);
-            end
-            
-            assert(ischar(key));
-            
             done = false;
             switch lower(mode)
-                case {'default', 'charwise'}
-                    key = lower(key);
-                    if map.isKey(key)
-                        value = map(key);
-                        done  = true;
-                    end
+              case {'default', 'charwise'}
+                key = lower(key);
+                if obj.map.isKey(key)
+                    value = obj.map(key);
+                    done  = true;
+                end
                 
-%                 case {'exact'}
-%                     if map.isKey(key)
-%                         value = map(key);
-%                         done  = true;
-%                     end
-% 
-%                 case {'caseinsensitive', 'insensitive', 'unicase'}
-%                     klist = map.keys();
-%                     index = strcmpi(key, klist);
-%                     if any(index)
-%                         % PROBLEM : current program would choose last match
-%                         % in the key list of map, which is in alpha-beta
-%                         % order. Therefore, it has nothing to do with the
-%                         % argument input order. Both the earlier and latter
-%                         % input configuration can be choose in this way.
-%                         key   = klist{find(index, 1, 'last')};
-%                         value = map(key);
-%                         done  = true;
-%                     end
-                                        
-                otherwise
-                    error('UMPrest:ArgumentError', 'Unrecognized mode : %s', upper(mode));
+              otherwise
+                error('UMPrest:ArgumentError', 'Unrecognized mode : %s', upper(mode));
             end
             
             if not(done)
@@ -82,62 +58,125 @@ classdef Config < handle
             end
         end
         
-        function value = popItem(map, key, default, mode)
-            if exist('mode', 'var')
-                [value, key] = Config.getValue(map, key, default, mode);
-            else
-                [value, key] = Config.getValue(map, key, default);
+        function set(obj, key, value)
+            obj.map(key) = value;
+        end
+        
+        function value = pop(obj, key, default, mode)
+            if not(exist('mode', 'var'))
+                mode = 'default';
             end
+            [value, key] = obj.get(key, default, mode);
             if not(isempty(key))
-                map.remove(key);
+                obj.map.remove(key);
             end
         end
         
-        function tof = keyExist(map, key)
-            if not(isa(map, 'containers.Map'))
-                map = Config.parse(map);
-            end
-            
-            assert(ischar(key));
-            
-            tof = any(strcmpi(key, map.keys()));
+        function tof = exist(obj, key)
+            tof = obj.map.isKey(lower(key));
         end
         
-        function buffer = merge(base, mod)
-            assert(isa(base, 'containers.Map') && isa(mod, 'containers.Map'));
-            
-            modkeys  = mod.keys();
-            basekeys = base.keys();
-            
-            [~, imod, ibase] = union(lower(modkeys), lower(basekeys), 'stable');
-            
-            buffer = containers.Map();
-            for i = 1 : numel(imod)
-                key = modkeys{imod(i)};
-                buffer(key) = mod(key);
-            end
-            for i = 1 : numel(ibase)
-                key = basekeys{ibase(i)};
-                buffer(key) = base(key);
+        function update(self, varargin)
+            other = Config(varargin{:});
+            keylist = other.keys();
+            for i = 1 : numel(keylist)
+                key = keylist{i};
+                self.set(key, other.get(key));
             end
         end
         
-        function clsobj = apply(clsobj, map, def)
-            if not(isa(map, 'containers.Map'))
-                map = Config.parse(map);
+        function instance = apply(obj, instance)
+            keylist = fieldnames(instance);
+            for i = 1 : numel(keylist)
+                key = keylist{i};
+                if obj.exist(key)
+                    instance.(key) = obj.map(lower(key));
+                end
+            end
+            % if not(isa(map, 'containers.Map'))
+            %     map = Config.parse(map);
+            % end
+            % 
+            % if exist('def', 'var')
+            %     map = Config.merge(def, map);
+            % end                
+            % 
+            % klist = map.keys();
+            % % plist = properties(class(clsobj));
+            % plist = fieldnames(clsobj);
+            % [~, ikey, iprop] = intersect(lower(klist), lower(plist), 'stable');
+            % for i = 1 : numel(ikey)
+            %     clsobj.(plist{iprop(i)}) = map(klist{ikey(i)});
+            % end
+        end
+    end
+    
+    % ======================= CONSTRUCTOR =======================
+    methods
+        function obj = Config(varargin)
+            if nargin == 1
+                if isa(varargin{1}, 'Config')
+                    obj = varargin{1};
+                    return
+                elseif iscell(varargin{1})
+                    kvpairs = varargin{1};
+                else
+                    kvpairs = varargin;
+                end
+            else
+                kvpairs = varargin;
             end
             
-            if exist('def', 'var')
-                map = Config.merge(def, map);
-            end                
+            obj.map = containers.Map();
             
-            klist = map.keys();
-            % plist = properties(class(clsobj));
-            plist = fieldnames(clsobj);
-            [~, ikey, iprop] = intersect(lower(klist), lower(plist), 'stable');
-            for i = 1 : numel(ikey)
-                clsobj.(plist{iprop(i)}) = map(klist{ikey(i)});
+            index = 1;
+            while index <= numel(kvpairs)
+                key = kvpairs{index};
+                assert(ischar(key), 'UMPrest:ArgumentError', ...
+                    'Unrecognized property at index %d', index);
+                key = lower(key); % make configuration map case-insensitive
+                if key(1) == '-'  % unary (switcher) property
+                    obj.map(key(2:end)) = true;
+                    index = index + 1;
+                else              % binary (key-value pair) property
+                    assert(numel(kvpairs) >= index + 1, ...
+                        sprintf('value of binary property [%s] is missing.', key));
+                    obj.map(key) = kvpairs{index + 1};
+                    index = index + 2;
+                end
             end
+        end
+    end
+    
+    % ======================= DATA STRUCTURE =======================
+    properties (Access = private)
+        map
+    end
+    properties (Dependent)
+        keys
+    end
+    methods
+        function value = get.keys(obj)
+            value = obj.map.keys();
+        end
+    end
+    
+    % ======================= DEVELOPER TOOL =======================
+    methods (Static)
+        function debug()
+            conf = Config( ...
+                'a', rand(), ...
+                'b', randn(1, randi(10, 1)), ...
+                'c', randn(randi(10, 1), randi(10, 1)), ...
+                '-on', ...
+                'd', 'test message');
+            disp(conf.get('A'));
+            disp(conf.get('b'));
+            disp(conf.get('oN'));
+            conf.update('c', 'replace by string', 'on', false, 'something new', nan);
+            instance = struct('a', 1, 'B', 2, 'd', 3, 'on', true);
+            instance = conf.apply(instance);
+            disp(instance);
         end
     end
 end

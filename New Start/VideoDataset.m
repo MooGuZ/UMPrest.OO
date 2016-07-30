@@ -125,17 +125,17 @@ classdef VideoDataset < handle
     
     methods
         function obj = VideoDataset(dbsource, varargin)
-            conf = Config.parse(varargin);
+            conf = Config(varargin);
             if iscell(dbsource) || ischar(dbsource)
-                obj.stat = Config.getValue(conf, 'stat', StatisticCollector(2));
+                obj.stat = conf.get('stat', StatisticCollector(2));
                 obj.db = FileDataBlock(dbsource, @videoread, {'.gif'}, obj.stat);
             elseif isa(dbsource, 'DataBlock')
                 obj.db = dbsource;
                 obj.stat = obj.db.stat;
             end
-            obj.coder = StatisticTransform(obj.stat, Config.getValue(conf, 'coder', 'off'));
+            obj.coder = StatisticTransform(obj.stat, conf.get('coder', 'off'));
             % setup patch mode
-            psize = Config.getValue(conf, 'patchSize', []);
+            psize = conf.get('patchSize', []);
             if isempty(psize)
                 obj.disablePatch();
             else
@@ -208,7 +208,7 @@ classdef VideoDataset < handle
         
         function enablePatch(obj, patchSize, varargin)
             obj.patchSize      = patchSize;
-            obj.patchPerSample = Config.getValue(varargin, 'patchPerSample', 1);
+            obj.patchPerSample = Config(varargin).get('patchPerSample', 1);
             obj.patchCounter   = 0;
         end
     end

@@ -37,17 +37,17 @@ classdef ConvPerceptron < MappingUnit
     
     methods
         function obj = ConvPerceptron(filterSize, nfilter, nchannel, varargin)
-            conf = Config.parse(varargin{:});
+            conf = Config(varargin);
             
             obj.conv = ConvTransform(filterSize, nfilter, nchannel);
-            if not(Config.popItem(conf, 'noPooling', false))
-                obj.pool = MaxPool(Config.popItem(conf, 'poolSize', 2));
+            if not(conf.pop('noPooling', false))
+                obj.pool = MaxPool(conf.pop('poolSize', 2));
             end
-            if not(Config.popItem(conf, 'noActivation', false))
-                obj.act = Activation(Config.popItem(conf, 'actType', 'ReLU'));
+            if not(conf.pop('noActivation', false))
+                obj.act = Activation(conf.pop('actType', 'ReLU'));
             end
             
-            Config.apply(obj, conf);
+            conf.apply(obj);
         end
     end
     
