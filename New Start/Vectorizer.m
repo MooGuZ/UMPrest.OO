@@ -35,8 +35,7 @@ classdef Vectorizer < Unit
     end
     methods
         function value = get.inputSizeRequirement(obj)
-            vargen = VarGenerator('vectemp_');
-            value  = vargen.next(obj.dim);
+            value  = SizeDescription.format(nan(1, obj.dim));
         end
         
         function descriptionOut = sizeIn2Out(~, descriptionIn)

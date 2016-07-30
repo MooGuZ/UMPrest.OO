@@ -26,7 +26,7 @@ classdef Node < handle
     % ======================= TOPOLOGY LOGIC =======================
     methods
         % RESOLVEDIMENSION only handle uninitialized units
-        function [tof, solution] = resolveDimension(obj, datadim, vargen)
+        function [tof, solution] = resolveDimension(obj, datadim)
             if SizeDescription.isexpendable(obj.inputSizeRequirement)
                 var = symvar(datadim);
                 if not(isempty(var))
@@ -40,7 +40,7 @@ classdef Node < handle
                         tof = false;
                         solution = [];
                     else
-                        obj.dimExpend = vargen.next();
+                        obj.dimExpend = symgen();
                         solution = [var; obj.dimExpend + m - n];
                         tof = true;
                     end
@@ -60,26 +60,26 @@ classdef Node < handle
             end
         end
         
-        function initSizeDescription(obj, vargen)
+        function initSizeDescription(obj)
             if isempty(obj.dimExpend) % not expendable
                 concretepart = obj.inputSizeRequirement;
                 expendpart   = [];
             else % expendable
                 dimvar = symvar(obj.dimExpend);
                 if isempty(dimvar)
-                    expendpart = vargen.next(double(obj.dimExpend));
+                    expendpart = symgen(double(obj.dimExpend));
                 else
                     n = double(subs(obj.dimExpend, dimvar, sym(0)));
-                    expendpart = [vargen.next(n), sym.inf];
+                    expendpart = [symgen(n), sym.inf];
                 end
                 concretepart = obj.inputSizeRequirement(1 : end - 1);
             end
             
-            varlist = SizeDescription.symvar(concretepart);
-            if not(isempty(varlist))
-                concretepart = SizeDescription.subs( ...
-                    concretepart, [varlist; vargen.next(numel(varlist))]);
-            end
+            % varlist = SizeDescription.symvar(concretepart);
+            % if not(isempty(varlist))
+            %     concretepart = SizeDescription.subs( ...
+            %         concretepart, [varlist; symgen(numel(varlist))]);
+            % end
             
             obj.inputSizeDescription = [concretepart, expendpart];
         end

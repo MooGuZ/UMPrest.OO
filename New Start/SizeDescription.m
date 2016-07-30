@@ -22,8 +22,7 @@ classdef SizeDescription < handle
                 description = sym(value);
                 ind_nan = isnan(value);
                 if any(ind_nan)
-                    vargen = VarGenerator('sdtemp_');
-                    description(ind_nan) = vargen.next(sum(ind_nan));
+                    description(ind_nan) = symgen(sum(ind_nan));
                 end
             else
                 description = value;
@@ -191,8 +190,7 @@ classdef SizeDescription < handle
                 outvars = SizeDescription.symvar(descriptionOut);
                 assert(all(ismember(outvars, invars)), 'UMPrest:RuntimeError', ...
                        'Output description contains unknown variable.');
-                vargen = VarGenerator('p');
-                patvars =  vargen.next(numel(descriptionIn));
+                patvars = symgen(numel(descriptionIn));
                 [status, solution] = SizeDescription.match(descriptionIn, patvars);
                 assert(status, 'UMPrest:ProgramError', 'Should be able to match!');
                 pattern = struct( ...
@@ -240,7 +238,7 @@ classdef SizeDescription < handle
             assert(not(SizeDescription.islegal([sym(1), sym.inf(), sym(2)])));
             
             % check pattern extraction and application
-            x = sym('x', 'clear'); y = sym('y', 'clear');
+            x = symgen(); y = symgen();
             p = SizeDescription.getPattern([10-x, x+y], [3*x, 2*y]);
             assert(all(SizeDescription.applyPattern([7, 8], p) == [9, 10]));
             p = SizeDescription.getPattern( ...

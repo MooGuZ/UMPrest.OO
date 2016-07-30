@@ -3,15 +3,15 @@ classdef Model < handle
     methods
         function root(obj, node)
             if SizeDescription.isexpendable(node.inputSizeRequirement)
-                node.dimExpend = obj.vargen.next();
+                node.dimExpend = symgen();
             else
                 node.dimExpend = [];
             end
         end
         
         function connect(obj, nodeA, nodeB)
-            [status, solution] = nodeB.resolveDimension( ...
-                nodeA.outputDimDescription, obj.vargen);
+            [status, solution] = ...
+                nodeB.resolveDimension(nodeA.outputDimDescription);
             if status
                 if not(isempty(solution))
                     for i = 1 : numel(obj.nodes)
@@ -24,7 +24,7 @@ classdef Model < handle
                       'Connection failed : data dimension mismatch');
             end
             
-            nodeB.initSizeDescription(obj.vargen);
+            nodeB.initSizeDescription();
             
             [status, solution] = ...
                 nodeB.updateSizeDescription(nodeA.outputSizeDescription);
@@ -46,11 +46,9 @@ classdef Model < handle
     % ======================= SIZE DESCRIPTION =======================
     methods
         function refreshSizeDescription(obj)
-            obj.vargen.refresh();
-            
             description = obj.termin.inputSizeRequirement;
             if SizeDescription.isexpendable(description)
-                datadim = obj.vargen.next() + numel(description) - 1;
+                datadim = symgen() + numel(description) - 1;
             else
                 datadim = sym(numel(description));
             end
@@ -58,7 +56,7 @@ classdef Model < handle
             solution = [];
             for i = 1 : numel(obj.nodes)
                 node = obj.iterator(i);
-                [tof, sol] = node.resolveDimension(datadim, obj.vargen);
+                [tof, sol] = node.resolveDimension(datadim);
                 if tof
                     datadim  = node.outputDimDescription;
                     solution = SizeDescription.updateSolution(solution, sol);
@@ -73,7 +71,7 @@ classdef Model < handle
                 if SizeDescriptor.isexpression(node.dimExpend)
                     node.dimExpend = subs(node.dimExpend, solution);
                 end
-                node.initSizeDescription(obj.vargen);
+                node.initSizeDescription();
             end
             
             solution = [];
@@ -102,9 +100,9 @@ classdef Model < handle
         nodes
     end
     
-    properties
-        vargen % generator of local variables
-    end
+    % properties
+    %     vargen % generator of local variables
+    % end
     
     methods (Abstract)
         node = iterator(obj, index)
@@ -120,10 +118,10 @@ classdef Model < handle
         end
     end
     
-    % ======================= CONSTRUCTOR =======================
-    methods
-        function obj = Model(varargin)
-            obj.vargen = VarGenerator('d');
-        end
-    end
+    % % ======================= CONSTRUCTOR =======================
+    % methods
+    %     function obj = Model(varargin)
+    %         obj.vargen = VarGenerator('d');
+    %     end
+    % end
 end

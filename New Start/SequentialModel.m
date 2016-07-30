@@ -41,6 +41,8 @@ classdef SequentialModel < Model & MappingUnit
             obj.outputSizePattern = SizeDescription.getPattern( ...
                 obj.nodes{1}.inputSizeDescription, ...
                 obj.nodes{end}.outputSizeDescription);
+            
+            obj.showNodeDescription(); % DEBUG
         end
         
         function node = iterator(obj, index)
