@@ -182,7 +182,7 @@ classdef SizeDescription < handle
                 assert(SizeDescription.isexpendable(descriptionOut));
                 pattern = SizeDescription.getPattern( ...
                     descriptionIn(1 : end-1), descriptionOut(1 : end-1));
-                pattern.in = [pattern.in, sym.inf];
+                pattern.isexpendable = true;
             else
                 assert(SizeDescription.iscompact(descriptionIn), 'UMPrest:RuntimeError', ...
                        'Input description has redundent variable.');
@@ -193,27 +193,34 @@ classdef SizeDescription < handle
                 patvars = symgen(numel(descriptionIn));
                 [status, solution] = SizeDescription.match(descriptionIn, patvars);
                 assert(status, 'UMPrest:ProgramError', 'Should be able to match!');
-                pattern = struct( ...
-                    'in', patvars, 'out', ...
-                    SizeDescription.subs(descriptionOut, solution));
+                % pattern = struct( ...
+                %     'in', patvars, 'out', ...
+                %     SizeDescription.subs(descriptionOut, solution));
+                mapfunc = matlabFunction( ...
+                    SizeDescription.subs(descriptionOut, solution), 'Vars', patvars);
+                pattern = struct('in', numel(patvars), 'out', mapfunc, ...
+                                 'isexpendable', false);                
             end
         end
         
         function descriptionOut = applyPattern(descriptionIn, pattern)
-            if SizeDescription.isexpendable(pattern.in)
-                nfixedpart = numel(pattern.in) - 1;
-                assert(numel(descriptionIn) >= nfixedpart);
-                pattern.in = pattern.in(1 : end-1);
-                descriptionOut = ...
-                    [SizeDescription.applyPattern( ...
-                        descriptionIn(1 : nfixedpart), pattern), ...
-                     descriptionIn(nfixedpart+1 : end)];
-            else
-                assert(numel(descriptionIn) == numel(pattern.in), 'UMPrest:RuntimeError', ...
-                       'Given description and pattern are mismatched!');
-                solution = [pattern.in; descriptionIn];
-                descriptionOut = SizeDescription.subs(pattern.out, solution);
-            end
+        % PROBLEM: so security check in this implementation
+            input = num2cell(descriptionIn(1 : pattern.in));
+            descriptionOut = [pattern.out(input{:}), descriptionIn(pattern.in + 1 : end)];
+            % if SizeDescription.isexpendable(pattern.in)
+            %     nfixedpart = numel(pattern.in) - 1;
+            %     assert(numel(descriptionIn) >= nfixedpart);
+            %     pattern.in = pattern.in(1 : end-1);
+            %     descriptionOut = ...
+            %         [SizeDescription.applyPattern( ...
+            %             descriptionIn(1 : nfixedpart), pattern), ...
+            %          descriptionIn(nfixedpart+1 : end)];
+            % else
+            %     assert(numel(descriptionIn) == numel(pattern.in), 'UMPrest:RuntimeError', ...
+            %            'Given description and pattern are mismatched!');
+            %     solution = [pattern.in; descriptionIn];
+            %     descriptionOut = SizeDescription.subs(pattern.out, solution);
+            % end
         end
 
         function debug()
