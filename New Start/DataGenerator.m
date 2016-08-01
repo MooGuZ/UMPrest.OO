@@ -1,12 +1,5 @@
 classdef DataGenerator < handle
     methods
-        function init(obj)
-            switch lower(obj.type)
-                case {'gauss', 'gaussian', 'normal'}
-                    obj.datagen = @randn;
-            end
-        end
-        
         function datapkg = next(obj, n)
             if not(exist('n', 'var'))
                 n = 1;
@@ -17,25 +10,34 @@ classdef DataGenerator < handle
     
     methods
         function obj = DataGenerator(type, unitsize, varargin)
-            obj.type = type;
+            switch lower(type)
+              case {'uniform'}
+                obj.datagen = @rand;
+                    
+              case {'gauss', 'gaussian', 'normal'}
+                obj.datagen = @randn;
+                    
+              case {'cauchy'}
+                obj.datagen = @MathLib.randcc;
+                
+              case {'laplace'}
+                obj.datagen = @MathLib.randll;
+                
+              otherwise
+                    error('UMPrest:ArgumentError', ...
+                        'Unrecognized distribution : %s', upper(type));
+            end
             obj.unitsize = unitsize;
-            obj.init();
         end
-    end
-    
-    properties (Constant, Hidden)
-        typeset = {'gauss', 'gaussian', 'normal'};
     end
     
     properties
-        type, unitsize
+        unitsize
+    end
+    properties (Access = private)
         datagen
     end
     methods
-        function set.type(obj, value)
-            assert(ischar(value) && any(strcmpi(value, obj.typeset)));
-            obj.type = value;
-        end
         function set.unitsize(obj, value)
             assert(all(MathLib.isinteger(value)));
             obj.unitsize = value(:)';
