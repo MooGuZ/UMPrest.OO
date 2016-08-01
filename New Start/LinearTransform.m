@@ -31,6 +31,12 @@ classdef LinearTransform < MappingUnit
         function unit = inverseUnit(obj)
             unit = LinearTransform(obj.weight', zeros(size(obj.weight, 2), 1), true);
         end
+        
+        function kernel = kernelDump(obj)
+            w = obj.W.getcpu();
+            b = obj.B.getcpu();
+            kernel = [w(:), b(:)];
+        end
     end
     
     % ======================= SIZE DESCRIPTION =======================

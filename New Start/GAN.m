@@ -23,6 +23,16 @@ classdef GAN < EvolvingUnit
             value = obj.objective.evaluate(obj.forward(datapkg));
         end
     end
+    
+    methods
+        function unit = inverseUnit(obj)
+            unit = obj.gmodel.inverseUnit();
+        end
+        
+        function kernel = kernelDump(obj)
+            kernel = obj.gmodel.kernelDump();
+        end
+    end
        
     methods
         function learn(obj, sdata)

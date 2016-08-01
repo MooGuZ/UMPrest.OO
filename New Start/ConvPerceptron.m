@@ -19,6 +19,10 @@ classdef ConvPerceptron < MappingUnit
         function unit = inverseUnit(obj)
             unit = obj; % TEMPORAL
         end
+        
+        function kernel = kernelDump(obj)
+            kernel = obj.conv.kernelDump();
+        end
     end
   
     properties (Dependent)

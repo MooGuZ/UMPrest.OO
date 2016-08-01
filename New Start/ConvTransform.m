@@ -106,6 +106,12 @@ classdef ConvTransform < MappingUnit
         function unit = inverseUnit(obj)
             unit = ConvTransform(obj.filterSize, obj.nchannel, obj.nfilter);
         end
+        
+        function kernel = kernelDump(obj)
+            w = obj.W.getcpu();
+            b = obj.B.getcpu();
+            kernel = [w(:); b(:)];
+        end
     end
     
     properties (Dependent)

@@ -11,70 +11,66 @@
 % Nov 20, 2015
 
 classdef MathLib < handle
-    methods
+    methods (Static)
         % Gaussian Distribution
-        function p = gauss(~, x, mu, sigma)
+        function p = gauss(x, mu, sigma)
             p = exp(-((x - mu) / sigma).^2 / 2) / (sqrt(2 * pi) * sigma);
         end
-        function d = gaussGradient(~, x, mu, sigma)
+        function d = gaussGradient(x, mu, sigma)
             d = (mu - x) * exp(-((x - mu) / sigma).^2 / 2) / (sqrt(2 * pi) * sigma^3);
         end
-        function p = negLogGauss(~, x, mu, sigma)
+        function p = negLogGauss(x, mu, sigma)
             p = (x - mu).^2 / (2 * sigma^2);
         end
-        function d = negLogGaussGradient(~, x, mu, sigma)
+        function d = negLogGaussGradient(x, mu, sigma)
             d = (x - mu) / sigma^2;
         end
         % Cauchy Distribution
-        function p = cauchy(~, x, mu, sigma)
+        function p = cauchy(x, mu, sigma)
             p = (1 / (pi * sigma)) ./ (1 + ((x - mu) / sigma).^2);
         end
-        function d = cauchyGradient(~, x, mu, sigma)
+        function d = cauchyGradient(x, mu, sigma)
             x = (x - mu) /sigma;
             d = - (2 / pi / sigma) * x ./ (1 + (x - mu).^2).^2;
         end
-        function p = negLogCauchy(~, x, mu, sigma)
+        function p = negLogCauchy(x, mu, sigma)
             p = log(1 + ((x - mu) / sigma).^2);
         end
-        function d = negLogCauchyGradient(~, x, mu, sigma)
+        function d = negLogCauchyGradient(x, mu, sigma)
             x = (x - mu) / sigma;
             d = (2 / sigma) * x ./ (1 + x.^2);
         end
-        function rdv = randcc(~, sz, mu, sigma)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('sigma', 'var'), sigma = 1; end
-            rdv = sigma * tan(pi * (rand(sz) - 0.5)) + mu;
+        function rdv = randcc(varargin)
+            rdv = tan(pi * (rand(varargin{:}) - 0.5));
         end
         % Laplace Distribution
-        function p = laplace(~, x, mu, sigma)
+        function p = laplace(x, mu, sigma)
             p = exp(-abs(x - mu) / sigma) / (2 * sigma);
         end
-        function d = laplaceGradient(~, x, mu, sigma)
+        function d = laplaceGradient(x, mu, sigma)
             x = abs(x - mu) / sigma;
             d = - sign(x) * exp(-x) / (2 * sigma^2);
         end
-        function p = negLogLaplace(~, x, mu, sigma)
+        function p = negLogLaplace(x, mu, sigma)
             p = abs(x - mu) / sigma;
         end
-        function d = negLogLaplaceGradient(~, x, mu, sigma)
+        function d = negLogLaplaceGradient(x, mu, sigma)
             d = sign(x - mu) / sigma;
         end
-        function rdv = randll(~, sz, mu, sigma)
-            if ~exist('mu', 'var'), mu = 0; end
-            if ~exist('sigma', 'var'), sigma = 1; end
-            rdv = rand(sz);
+        function rdv = randll(varargin)
+            rdv = rand(varargin{:});
             % case : less than or equal to 0.5
-            index = rdv <= 0.5;
-            rdv(index) = sigma * log(2 * rdv(index)) + mu;
+            index = (rdv <= 0.5);
+            rdv(index) = log(2 * rdv(index));
             % case : greater than 0.5
             index = ~index;
-            rdv(index) = - sigma * log(2 * (1 - rdv(index))) + mu;
+            rdv(index) = - log(2 * (1 - rdv(index)));
         end
         % von Mise Distribution (Circular Normal Distribution)
-        function p = negLogVonMise(~, x, mu, sigma)
+        function p = negLogVonMise(x, mu, sigma)
             p = - sigma * cos(x - mu);
         end
-        function d = negLogVonMiseGradient(~, x, mu, sigma)
+        function d = negLogVonMiseGradient(x, mu, sigma)
             d = sigma * sin(x - mu);
         end
     end

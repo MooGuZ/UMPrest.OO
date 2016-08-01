@@ -57,6 +57,18 @@ classdef SequentialModel < Model & MappingUnit
                 unit.appendUnit(obj.nodes{i}.inverseUnit());
             end
         end
+        
+        function kernel = kernelDump(obj)
+            buffer = cellfun(@(node) node.unit.kernelDump(), obj.nodes, ...
+                             'UniformOutput', false);
+            ksize  = cellfun(@numel, buffer);
+            kernel = zeros(sum(ksize), 1);
+            index = 0;
+            for i = 1 : numel(buffer)
+                kernel(index + (1 : ksize(i))) = MathLib.vec(buffer{i});
+                index = index + ksize(i);
+            end
+        end
     end
     
     % ======================= SIZE DESCRIPTION =======================

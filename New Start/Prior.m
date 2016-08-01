@@ -1,17 +1,16 @@
 classdef Prior < Objective
     methods
         function value = evaluate(obj, data)
-            value = obj.evalFunction(data);
+            value = sum(obj.evalFunction(data(:), obj.mu, obj.sigma)) / numel(data);
         end
         
         function d = delta(obj, data)
-            d = obj.deltaFunction(data);
+            d = obj.deltaFunction(data, obj.mu, obj.sigma) / numel(data);
         end
     end
     
     methods
-        function obj = Prior(type, varargin)
-            % TBC : make parameters of function configurable by VARARGIN
+        function obj = Prior(type, mu, sigma)
             switch lower(type)
                 case {'gaussian'}
                     obj.evalFunction  = @MathLib.negLogGauss;
@@ -28,12 +27,21 @@ classdef Prior < Objective
                 case {'vonmise'}
                     obj.evalFunction  = @MathLib.negLogVonMise;
                     obj.deltaFunction = @MathLib.negLogVonMiseGradient;
+                    
+                otherwise
+                    error('UMPrest:ArgumentError', 'Unrecognized prior : %s', upper(type));
+            end
+            if exist('mu', 'var')
+                obj.mu = mu;
+            end
+            if exist('sigma', 'var')
+                obj.sigma = sigma;
             end
         end
     end
     
     properties
-        mu, sigma
+        mu = 0, sigma = 1
     end
     methods
         function set.mu(obj, value)

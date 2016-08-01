@@ -28,6 +28,10 @@ classdef Perceptron < MappingUnit
                 double(obj.inputSizeDescription), ...
                 'actType', obj.act.actType);
         end
+        
+        function kernel = kernelDump(obj)
+            kernel = obj.linproc.kernelDump();
+        end
     end
     
     % ======================= SIZE DESCRIPTION =======================

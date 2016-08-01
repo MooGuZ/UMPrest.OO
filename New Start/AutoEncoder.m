@@ -33,6 +33,13 @@ classdef AutoEncoder < EvolvingUnit
         function unit = inverseUnit(obj)
             unit = obj.genunit; % TEMPORAL : need make a copy
         end
+        
+        function [mapkernel, genkernel] = kernelDump(obj)
+            mapkernel = obj.mapunit.kernelDump();
+            if nargout > 1
+                genkernel = obj.genunit.kernelDump();
+            end
+        end
     end
     
     % ======================= EVOLVING =======================
