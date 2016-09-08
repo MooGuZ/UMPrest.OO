@@ -127,6 +127,20 @@ classdef MathLib < handle
         function d = mseGradient(x, ref)
             d = 2 * (x - ref) / numel(x);
         end
+        
+        function v = kldiv(x, ref)
+            % x = MathLib.bound(x, [eps, inf]);
+            % ref = MathLib.bound(ref, [eps, inf]);
+            v = sum(x(:) .* log(x(:) ./ ref(:)));
+            if isinf(v)
+                disp('Check here');
+            end
+        end
+        function d = kldivGradient(x, ref)
+            % x = MathLib.bound(x, [eps, inf]);
+            % ref = MathLib.bound(ref, [eps, inf]);
+            d = (log(x ./ ref) + 1);
+        end
     end
     
     % ======================= Calculation Operator =======================

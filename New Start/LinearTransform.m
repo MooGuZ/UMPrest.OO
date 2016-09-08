@@ -29,13 +29,13 @@ classdef LinearTransform < MappingUnit
     
     methods
         function unit = inverseUnit(obj)
-            unit = LinearTransform(obj.weight', zeros(size(obj.weight, 2), 1), true);
+            unit = LinearTransform(obj.weight', zeros(size(obj.W, 2), 1), true);
         end
         
         function kernel = kernelDump(obj)
             w = obj.W.getcpu();
             b = obj.B.getcpu();
-            kernel = [w(:), b(:)];
+            kernel = [w(:); b(:)];
         end
     end
     
@@ -74,16 +74,6 @@ classdef LinearTransform < MappingUnit
     end
     
     methods (Static)
-        function inferDebug()
-            sizeIn  = 32;
-            sizeOut = 16;
-            groudTruth = LinearTransform(sizeIn, sizeOut);
-            simulation = GenerativeModel(LinearTransform(sizeIn, sizeOut));
-            datasource = DataGenerator('gauss', sizeIn);
-            ds = VirtualDataset(datasource, groudTruth);
-            simulation.train(ds, Likelihood('mse'));
-        end
-        
         function debug()
             sizein = 64; sizeout = 128;
             ltrans = randn(sizeout, sizein); bias = randn(sizeout, 1);
@@ -95,7 +85,7 @@ classdef LinearTransform < MappingUnit
             % start to learn the linear transformation
             fprintf('Initial objective value : %.2f\n', ...
                     model.likelihood.evaluate(model.forward(validset)));
-            for i = 1 : 3e2
+            for i = 1 : UMPrest.parameter.get('iteration')
                 data = randn(sizein, 8);
                 dpkg = DataPackage(data, 'label', bsxfun(@plus, ltrans * data, bias));
                 model.learn(dpkg);

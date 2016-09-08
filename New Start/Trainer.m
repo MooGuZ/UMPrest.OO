@@ -1,20 +1,21 @@
 classdef Trainer < handle
     methods (Static)
-        function conf = defaultConfig(trainMethod)
+        function conf = getConfig(trainMethod)
+            param = UMPrest.parameter();
             switch lower(trainMethod)
                 case {'minibatch'}
                   conf = Config( ...
                       'divisionRatio',    [0.6, 0.1, 0.3], ...
-                      'epoch',            10, ...
-                      'batchsize',        32, ...
-                      'validateInterval', 1000);
+                      'epoch',            param.get('epoch', 10), ...
+                      'batchsize',        param.get('batchsize', 32), ...
+                      'validateInterval', param.get('validateInterval', 1000));
             end
         end
     end
     
     methods (Static)
         function varargout = minibatch(model, dataset, varargin)
-            conf = Trainer.defaultConfig('minibatch');
+            conf = Trainer.getConfig('minibatch');
             conf.update(varargin{:});
             % PROBLEM: cannot deal with unlimited data source
             [trainset, validset, testset] = dataset.subsets(conf.get('divisionRatio'));

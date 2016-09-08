@@ -12,11 +12,22 @@ classdef UMPrest < handle
                     p = proot;
                     
                 case {'data'}
-                    p = fullfile(proot, target);
+                    p = fullfile(proot, 'data');
+                    
+                case {'conf', 'config', 'configuration'}
+                    p = fullfile(proot, 'conf');
             end
             if exist('fname', 'var')
                 p = fullfile(p, fname);
             end
+        end
+        
+        function p = parameter()
+            persistent param;
+            if isempty(param)
+                param = Config.loadfile(UMPrest.path('conf', 'default'));
+            end
+            p = param;
         end
     end
 end

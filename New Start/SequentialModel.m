@@ -89,8 +89,7 @@ classdef SequentialModel < Model & MappingUnit
         
         function set.outputSizePattern(obj, value)
             assert(isstruct(value) && all(isfield(value, {'in', 'out'})));
-            assert(SizeDescription.islegal(value.in) && ...
-                   SizeDescription.isconcrete(value.out));
+            assert(MathLib.isinteger(value.in) && isa(value.out, 'function_handle'));
             obj.outputSizePattern = value;
             obj.outputSizeDescriptionCache = [];
         end

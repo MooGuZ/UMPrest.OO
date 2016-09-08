@@ -4,15 +4,13 @@ classdef HyperParam < Tensor
             obj.gradient.push(grad);
         end
         
-        function update(obj, ss)
-            if not(exist('ss', 'var'))
-                ss = obj.stepsize();
-            end
-            
+        function update(obj)
             if isempty(obj.prior)
-                grad = ss * obj.gradient.pop();
+                grad = obj.gradient.pop();
+                grad = obj.stepsize(grad) * grad;
             else
-                grad = ss * (obj.gradient.pop() + obj.prior.errprop(obj.data));
+                grad = obj.gradient.pop() + obj.prior.errprop(obj.data);
+                grad = obj.stepsize(grad) * grad;
             end
             
             if obj.useMomentum
@@ -24,15 +22,21 @@ classdef HyperParam < Tensor
     end
     
     methods
-        function step = stepsize(obj)
+        function step = stepsize(obj, grad)
             switch lower(obj.stepconf.method)
-                case {'decline'}
-                    step = StepsizeCalculator.decline(obj.gradient.n, obj.stepconf);
-                    
-                otherwise
-                    error('HyperParam:UnknownArgument', ...
-                        'Unrecognized method to calculate step size : %s', ...
-                        upper(obj.stepsizeCalculateMethod));
+              case {'assign'}
+                step = StepsizeCalculator.assign();
+                
+              case {'decline'}
+                step = StepsizeCalculator.decline(obj.gradient.n, obj.stepconf);
+                
+              case {'adapt'}
+                [step, obj.stepconf] = StepsizeCalculator.adapt(grad, obj.stepconf);
+                
+              otherwise
+                error('HyperParam:UnknownArgument', ...
+                      'Unrecognized method to calculate step size : %s', ...
+                      upper(obj.stepsizeCalculateMethod));
             end
         end
     end
@@ -43,9 +47,9 @@ classdef HyperParam < Tensor
             % parsing configuration from varying input arguments
             conf = Config(varargin);
             obj.stepconf = StepsizeCalculator.getConfig( ...
-                conf.pop('stepMethod', 'decline'));
+                conf.pop('stepMethod', UMPrest.parameter.get('stepMethod')));
             obj.gradient = GradientCalculator( ...
-                conf.pop('gradientMethod', 'basic'));
+                conf.pop('gradientMethod', UMPrest.parameter.get('gradMethod')));
             conf.apply(obj);
         end
     end

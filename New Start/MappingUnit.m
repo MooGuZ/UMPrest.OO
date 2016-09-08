@@ -22,14 +22,15 @@ classdef MappingUnit < EvolvingUnit
     
     methods
         function data = infer(obj, rep)
-            sizeIn = [obj.size('in'), numel(rep) / prod(obj.size('out'))];
+        % TBC : eliminate 'obj.size'
+            sizeIn = [obj.size('in'), numel(rep) / prod(obj.size('out'))]; 
             data = reshape(OptimLib.minimize(@obj.objfunc, randn(prod(sizeIn), 1), ...
                 OptimLib.config('default'), rep, sizeIn), sizeIn);
         end
         
         function [value, grad] = objfunc(obj, dataIn, dataOut, sizeIn)
             dataIn  = reshape(dataIn, sizeIn);
-            dataGet = obj.process(dataIn);
+            dataGet = obj.transform(dataIn);
             value = obj.likelihood.evaluate(dataGet, dataOut);
             if nargout > 1
                 grad = obj.errprop(obj.likelihood.delta(dataGet, dataOut), false);

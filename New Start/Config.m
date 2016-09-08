@@ -1,33 +1,4 @@
-classdef Config < handle
-    methods (Static)
-        function cfg = parse(varargin)
-            if nargin == 1 && iscell(varargin{1})
-                kvpairs = varargin{1};
-            else
-                kvpairs = varargin;
-            end
-            
-            cfg = containers.Map();
-            
-            index = 1;
-            while index <= numel(kvpairs)
-                key = kvpairs{index};
-                assert(ischar(key), 'UMPrest:ArgumentError', ...
-                    'Unrecognized property at index %d', index);
-                key = lower(key); % make configuration map case-insensitive
-                if key(1) == '-' % unary (switcher) property
-                    cfg(key(2:end)) = true;
-                    index           = index + 1;
-                else % binary (key-value pair) property
-                    assert(numel(kvpairs) >= index + 1, ...
-                        sprintf('value of binary property [%s] is missing.', key));
-                    cfg(key) = kvpairs{index + 1};
-                    index    = index + 2;
-                end
-            end
-        end
-    end
-       
+classdef Config < handle & matlab.mixin.CustomDisplay
     methods
         function [value, key] = get(obj, key, default, mode)
             if ~exist('mode', 'var')
@@ -59,7 +30,7 @@ classdef Config < handle
         end
         
         function set(obj, key, value)
-            obj.map(key) = value;
+            obj.map(lower(key)) = value;
         end
         
         function value = pop(obj, key, default, mode)
@@ -93,21 +64,6 @@ classdef Config < handle
                     instance.(key) = obj.map(lower(key));
                 end
             end
-            % if not(isa(map, 'containers.Map'))
-            %     map = Config.parse(map);
-            % end
-            % 
-            % if exist('def', 'var')
-            %     map = Config.merge(def, map);
-            % end                
-            % 
-            % klist = map.keys();
-            % % plist = properties(class(clsobj));
-            % plist = fieldnames(clsobj);
-            % [~, ikey, iprop] = intersect(lower(klist), lower(plist), 'stable');
-            % for i = 1 : numel(ikey)
-            %     clsobj.(plist{iprop(i)}) = map(klist{ikey(i)});
-            % end
         end
     end
     
@@ -148,6 +104,24 @@ classdef Config < handle
         end
     end
     
+    methods (Static)
+        function conf = loadfile(filenameWhichShouldNotBeUsedInConfigurationFile)
+            run(filenameWhichShouldNotBeUsedInConfigurationFile);
+            varlist = whos();
+            argument = cell(1, 2 * (numel(varlist) - 1));
+            
+            j = 0;
+            for i = 1 : numel(varlist)
+                if not(strcmpi(varlist(i).name, 'filenameWhichShouldNotBeUsedInConfigurationFile'))
+                    argument{j + 1} = varlist(i).name;
+                    argument{j + 2} = eval(varlist(i).name);
+                    j = j + 2;
+                end
+            end
+            conf = Config(argument);
+        end
+    end
+    
     % ======================= DATA STRUCTURE =======================
     properties (Access = private)
         map
@@ -177,6 +151,22 @@ classdef Config < handle
             instance = struct('a', 1, 'B', 2, 'd', 3, 'on', true);
             instance = conf.apply(instance);
             disp(instance);
+        end
+    end
+    
+    % ======================= CUSTOM DISPLAY =======================
+    methods (Access = protected)
+        function propgrp = getPropertyGroups(obj)
+            if ~isscalar(obj)
+                propgrp = getPropertyGroups@matlab.mixin.CustomDisplay(obj);
+            else
+                keylist  = obj.map.keys();
+                propList = struct();
+                for i = 1 : numel(keylist)
+                    propList.(keylist{i}) = obj.map(keylist{i});
+                end
+                propgrp = matlab.mixin.util.PropertyGroup(propList);
+            end
         end
     end
 end

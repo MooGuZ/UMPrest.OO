@@ -1,3 +1,4 @@
+% TBC : add properties containing the type of likelihood
 classdef Likelihood < Objective
     methods
         function value = evaluate(obj, argA, argB)
@@ -48,19 +49,33 @@ classdef Likelihood < Objective
     
     methods
         function obj = Likelihood(type, varargin)
-            % TBC : make parameters of function configurable by VARARGIN
+        % TBC : make parameters of function configurable by VARARGIN
             switch lower(type)
-                case {'mse'}
-                    obj.evalFunction  = @MathLib.mse;
-                    obj.deltaFunction = @MathLib.mseGradient;
-                    
-                case {'logistic'}
-                    obj.evalFunction  = @MathLib.logistic;
-                    obj.deltaFunction = @MathLib.logisticGradient;
+              case {'mse', 'gaussian'}
+                obj.type          = 'MSE';
+                obj.evalFunction  = @MathLib.mse;
+                obj.deltaFunction = @MathLib.mseGradient;
+                
+              case {'logistic'}
+                obj.type          = 'Logistic';
+                obj.evalFunction  = @MathLib.logistic;
+                obj.deltaFunction = @MathLib.logisticGradient;
+                
+              case {'kld', 'kldiv', 'kldivergence'}
+                obj.type          = 'KL-Divergence';
+                obj.evalFunction  = @MathLib.kldiv;
+                obj.deltaFunction = @MathLib.kldivGradient;
+                
+              otherwise
+                error('UMPrest:ArgumentError', 'Unrecognized likelihood : %s', ...
+                      upper(type));
             end
         end
     end
     
+    properties (SetAccess = private)
+        type
+    end
     properties (Access = private)
         evalFunction
         deltaFunction

@@ -28,8 +28,11 @@ classdef GenerativeUnit < EvolvingUnit
             if obj.genunit.likelihood.evaluate(recon, data) > obj.errorTolerance
                 rep = reshape(OptimLib.minimize(@obj.objfunc, trail(:), ...
                     obj.optconf, data, size(trail)), size(trail));
-                obj.mapunit.errprop(obj.mapunit.likelihood.delta(trail, rep));
-                obj.mapunit.update();
+                for i = 1 : 3
+                    obj.mapunit.errprop(obj.mapunit.likelihood.delta(trail, rep));
+                    obj.mapunit.update();
+                    trail = obj.mapunit.transform(data);
+                end
 %                 nupdate = 0;
 %                 while obj.mapunit.likelihood.evaluate(rep, optrep) > obj.errorTolerance
 %                     obj.mapunit.errprop(obj.mapunit.likelihood.delta(rep, optrep), true);
@@ -37,6 +40,14 @@ classdef GenerativeUnit < EvolvingUnit
 %                     nupdate = nupdate + 1;
 %                     rep = obj.mapunit.transform(data);
 %                 end
+                fprintf('Reconstruction MSE with current MapUnit            : %.2f\n', ...
+                    obj.genunit.likelihood.evaluate(recon, data));
+                fprintf('Reconstruction MSE with optimal hyper parameter    : %.2f\n', ...
+                    obj.genunit.likelihood.evaluate(obj.genunit.transform(rep), data));
+                fprintf('MSE between MapUnit and Optimization before update : %.2f\n', ...
+                    obj.mapunit.likelihood.evaluate(trail, rep));
+                fprintf('MSE between MapUnit and Optimization after update  : %.2f\n', ...
+                    obj.mapunit.likelihood.evaluate(obj.mapunit.transform(data), rep));
             else
                 rep = trail;
 %                 fprintf('  [INFO] MapUnit has been update [%04d] times\n', nupdate);
@@ -171,7 +182,7 @@ classdef GenerativeUnit < EvolvingUnit
 %             batchsize = 16;
 %             refer = ConvTransform(filterSize, nfilter, nchannel);
 %             refer.bias = randn(size(refer.bias));
-%             model = GenerativeUnit(refer);
+%             model = GenerativeUnit(ConvTransform(filterSize, nfilter, nchannel));
             datasrc = DataGenerator('Gaussian', insize);
             % set likelihood of model
             model.likelihood = Likelihood('mse');
@@ -219,7 +230,7 @@ classdef GenerativeUnit < EvolvingUnit
             batchsize = 16;
             refer = ConvTransform(filterSize, nfilter, nchannel);
             refer.bias = randn(size(refer.bias));
-            model = GenerativeUnit(refer);
+            model = GenerativeUnit(ConvTransform(filterSize, nfilter, nchannel));
             datasrc = DataGenerator('Gaussian', insize);
             % set likelihood of model
             model.likelihood = Likelihood('mse');
@@ -229,7 +240,7 @@ classdef GenerativeUnit < EvolvingUnit
             % start to learn the linear transformation
             fprintf('Initial objective value : %.2f\n', ...
                     model.likelihood.evaluate(model.forward(validset)));
-            for i = 1 : 3e2
+            for i = 1 : UMPrest.parameter.get('iteration')
                 label = datasrc.next(batchsize).data;
                 dpkg = DataPackage(refer.transform(label), 'label', label);
                 model.learn(dpkg);

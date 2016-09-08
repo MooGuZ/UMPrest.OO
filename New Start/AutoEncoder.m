@@ -160,5 +160,57 @@ classdef AutoEncoder < EvolvingUnit
             fprintf('Estimate Bias Error   > MEAN:%-8.2e\tVAR:%-8.2e\tMAX:%-8.2e\n', ...
                 mean(berr(:)), var(berr(:)), max(abs(berr(:))));
         end
+        
+        function debug_test(refer)
+%             % AutoEncoder  of Linear Transformation
+%             insize  = 4;
+%             outsize = 2;
+%             batchsize = 3;
+%             refer = LinearTransform(randn(insize, outsize), randn(insize, 1), true);
+%             model = AutoEncoder(LinearTransform(insize, outsize));
+            % AutoEncoder of Convolutional Transformation
+            filterSize = [5, 5];
+            nfilter = 3;
+            nchannel = 2;
+            insize = [32, 32, nchannel];
+            outsize = [insize(1 : 2), nfilter];
+            batchsize = 16;
+            refer = ConvTransform(filterSize, nchannel, nfilter);
+            refer.bias = randn(size(refer.bias));
+            model = AutoEncoder(ConvTransform(filterSize, nfilter, nchannel));
+            
+            
+            
+            datasrc = DataGenerator('Gaussian', outsize);
+            % set likelihood of model
+            model.likelihood = Likelihood('mse');
+            % create validate set
+            label = datasrc.next(batchsize * 10).data;
+            validset = DataPackage(refer.transform(label), 'label', label);
+            % start to learn the linear transformation
+            fprintf('Initial objective value : %.2f\n', ...
+                    model.likelihood.evaluate(model.forward(validset)));
+            for i = 1 : 3e2
+                label = datasrc.next(batchsize).data;
+                dpkg = DataPackage(refer.transform(label), 'label', label);
+                % disp([refer.weight, refer.bias, nan(insize,1), model.genunit.weight, ...
+                %       model.genunit.bias]);
+                % disp([model.mapunit.weight, model.mapunit.bias]);
+                model.learn(dpkg);
+                objvalue = model.likelihood.evaluate(model.forward(validset));
+                if isnan(objvalue) || isinf(objvalue)
+                    warning('UMPrest:Debug', 'Objective value is invalid');
+                end
+                fprintf('Objective Value after [%04d] turns: %.2f\n', i, objvalue);
+                % pause();
+            end
+            % show result
+            werr = refer.weight - model.genunit.weight;
+            berr = refer.bias - model.genunit.bias;
+            fprintf('Estimate Weight Error > MEAN:%-8.2e\tVAR:%-8.2e\tMAX:%-8.2e\n', ...
+                mean(werr(:)), var(werr(:)), max(abs(werr(:))));
+            fprintf('Estimate Bias Error   > MEAN:%-8.2e\tVAR:%-8.2e\tMAX:%-8.2e\n', ...
+                mean(berr(:)), var(berr(:)), max(abs(berr(:))));
+        end
     end
 end

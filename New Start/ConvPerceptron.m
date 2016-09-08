@@ -78,7 +78,7 @@ classdef ConvPerceptron < MappingUnit
             % start to learn the linear transformation
             fprintf('Initial objective value : %.2f\n', ...
                     model.likelihood.evaluate(model.forward(validset)));
-            for i = 1 : 1e2
+            for i = 1 : UMPrest.parameter.get('iteration')
                 data  = randn([sizein, batchsize]);
                 label = refunit.transform(data);
                 dpkg  = DataPackage(data, 'label', label);
