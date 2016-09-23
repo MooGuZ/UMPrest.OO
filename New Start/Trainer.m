@@ -52,7 +52,7 @@ classdef Trainer < handle
                         fprintf('.');
                     end
                 end
-                % unit.save(fullfile(savepath, ['GUnit-', num2str(unit.age), '.mat']));
+                unit.save(fullfile(savepath, ['GUnit-', num2str(unit.age), '.mat']));
                 fprintf(' Iteration %d DONE @ %s\n', unit.age, datestr(now()));
             end
         end

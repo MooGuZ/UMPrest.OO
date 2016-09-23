@@ -126,5 +126,15 @@ classdef COUnit < MappingUnit
             obj.imagW.set(value);
         end
     end
+    
+    methods (Static)
+        function debug(datapath, savepath)
+            ds = VideoDataset(datapath, 'coder', 'whiten');
+            kernel = ds.coder.getKernel(ds.stat.unitsize);
+            m = COUnit.randinit(1024, kernel.sizeout);
+            g = GenerativeUnit(m, 'Likelihood', Likelihood('mse', kernel.pixelweight));
+            Trainer.trainGUnit(g, ds, 8, 5, 2, savepath);
+        end
+    end
 end
 
