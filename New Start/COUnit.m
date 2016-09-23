@@ -132,6 +132,7 @@ classdef COUnit < MappingUnit
             ds = VideoDataset(datapath, 'coder', 'whiten');
             kernel = ds.coder.getKernel(ds.stat.unitsize);
             m = COUnit.randinit(1024, kernel.sizeout);
+            m.amp.prior = [Prior('cauchy', 10, 0, 0.4), Prior('slow', 0.25)];
             g = GenerativeUnit(m, 'Likelihood', Likelihood('mse', kernel.pixelweight));
             Trainer.trainGUnit(g, ds, batchsize, niter, nepoch, savepath);
         end
