@@ -54,6 +54,10 @@ classdef MappingUnit < EvolvingUnit
                     value = value + obj.I(i).prior(j).evaluate(data{i});
                 end
             end
+            % deal with gpuArray
+            if isa(value, 'gpuArray')
+                value = gather(value);
+            end
             % calculate gradient
             if nargout > 1
                 grad = cell(1, numel(obj.I));
