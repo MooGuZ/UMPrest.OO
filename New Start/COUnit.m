@@ -128,12 +128,12 @@ classdef COUnit < MappingUnit
     end
     
     methods (Static)
-        function debug(datapath, savepath)
+        function debug(datapath, batchsize, niter, nepoch, savepath)
             ds = VideoDataset(datapath, 'coder', 'whiten');
             kernel = ds.coder.getKernel(ds.stat.unitsize);
             m = COUnit.randinit(1024, kernel.sizeout);
             g = GenerativeUnit(m, 'Likelihood', Likelihood('mse', kernel.pixelweight));
-            Trainer.trainGUnit(g, ds, 8, 5, 2, savepath);
+            Trainer.trainGUnit(g, ds, batchsize, niter, nepoch, savepath);
         end
     end
 end
