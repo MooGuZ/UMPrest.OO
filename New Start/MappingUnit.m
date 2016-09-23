@@ -56,7 +56,7 @@ classdef MappingUnit < EvolvingUnit
             end
             % calculate gradient
             if nargout > 1
-                grad = cell(numel(obj.I), 1);
+                grad = cell(1, numel(obj.I));
                 [grad{:}] = ...
                     obj.delta(obj.likelihood.delta(dataGet{:}, dataOut{:}), false);
                 for i = 1 : numel(obj.I)
@@ -67,7 +67,8 @@ classdef MappingUnit < EvolvingUnit
                 if isscalar(grad)
                     grad = MathLib.vec(grad{:});
                 else
-                    grad = cell2mat(cellfun(@MathLib.vec, grad, 'UniformOutput', false));
+                    grad = cellfun(@(x) MathLib.vec(x)', grad, 'UniformOutput', false);
+                    grad = [grad{:}]';
                 end
             end
         end
