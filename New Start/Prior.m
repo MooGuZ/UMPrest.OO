@@ -1,35 +1,44 @@
 classdef Prior < Objective
     methods
         function value = evaluate(obj, data)
-            value = sum(obj.evalFunction(data(:), obj.mu, obj.sigma)) / numel(data);
+        % value = sum(obj.evalFunction(data(:), obj.mu, obj.sigma)) / numel(data);
+            value = obj.scale * sum(MathLib.vec(obj.evalFunction(data, obj.mu, obj.sigma)));
         end
         
         function d = delta(obj, data)
-            d = obj.deltaFunction(data, obj.mu, obj.sigma) / numel(data);
+        % d = obj.deltaFunction(data, obj.mu, obj.sigma) / numel(data);
+            d = obj.scale * obj.deltaFunction(data, obj.mu, obj.sigma);
         end
     end
     
     methods
-        function obj = Prior(type, mu, sigma)
+        function obj = Prior(type, scale, mu, sigma)
             switch lower(type)
-                case {'gaussian'}
-                    obj.evalFunction  = @MathLib.negLogGauss;
-                    obj.deltaFunction = @MathLib.negLogGaussGradient;
-                    
-                case {'laplace'}
-                    obj.evalFunction  = @MathLib.negLogLaplace;
-                    obj.deltaFunction = @MathLib.negLogLaplaceGradient;
-                    
-                case {'cauchy'}
-                    obj.evalFunction  = @MathLib.negLogCauchy;
-                    obj.deltaFunction = @MathLib.negLogCauchyGradient;
-                    
-                case {'vonmise'}
-                    obj.evalFunction  = @MathLib.negLogVonMise;
-                    obj.deltaFunction = @MathLib.negLogVonMiseGradient;
-                    
-                otherwise
-                    error('UMPrest:ArgumentError', 'Unrecognized prior : %s', upper(type));
+              case {'gaussian'}
+                obj.evalFunction  = @MathLib.negLogGauss;
+                obj.deltaFunction = @MathLib.negLogGaussGradient;
+                
+              case {'laplace'}
+                obj.evalFunction  = @MathLib.negLogLaplace;
+                obj.deltaFunction = @MathLib.negLogLaplaceGradient;
+                
+              case {'cauchy'}
+                obj.evalFunction  = @MathLib.negLogCauchy;
+                obj.deltaFunction = @MathLib.negLogCauchyGradient;
+                
+              case {'vonmise'}
+                obj.evalFunction  = @MathLib.negLogVonMise;
+                obj.deltaFunction = @MathLib.negLogVonMiseGradient;
+                
+              case {'slow'}
+                obj.evalFunction  = @MathLib.slow;
+                obj.deltaFunction = @MathLib.slowGradient;
+                
+              otherwise
+                error('UMPrest:ArgumentError', 'Unrecognized prior : %s', upper(type));
+            end
+            if exist('scale', 'var')
+                obj.scale = scale;
             end
             if exist('mu', 'var')
                 obj.mu = mu;
@@ -41,7 +50,7 @@ classdef Prior < Objective
     end
     
     properties
-        mu = 0, sigma = 1
+        scale = 1, mu = 0, sigma = 1
     end
     methods
         function set.mu(obj, value)

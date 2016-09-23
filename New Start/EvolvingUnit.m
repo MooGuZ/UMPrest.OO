@@ -1,7 +1,7 @@
 classdef EvolvingUnit < Unit
     % ======================= EVOLVING MODULE =======================
     methods
-        function trainproc(obj, datapkg)
+        function trainproc(obj, datapkg) % REWRITE
             if datapkg.isunified
                 obj.learn(datapkg);
             else

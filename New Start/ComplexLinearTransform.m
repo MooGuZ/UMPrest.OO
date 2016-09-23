@@ -43,7 +43,7 @@ classdef ComplexLinearTransform < MappingUnit
     methods
         function unit = inverseUnit(obj)
             unit = ComplexLinearTransform( ...
-                obj.weight', zeros(size(obj.realW, 2), 1), true)
+                obj.weight', zeros(size(obj.realW, 2), 1), true);
         end
         
         function kernel = kernelDump(obj)

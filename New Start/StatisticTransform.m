@@ -1,10 +1,10 @@
 classdef StatisticTransform < handle
     methods
-        function datapkg = forward(obj, datapkg)
-            datapkg = forward@Unit(obj, datapkg);
-            datapkg.info.statrans = struct( ...
+        function opackage = forward(obj, ipackage)
+            opackage = DataPackage(obj.transform(ipackage.data), 1, ipackage.taxis);
+            opackage.info.statrans = struct( ...
                 'timestamp', obj.cache('timestamp'), ...
-                'inputSize', size(datapkg.data));
+                'inputSize', ipackage.szsample);
         end
         
         function datapkg = backward(obj, datapkg)
@@ -19,7 +19,7 @@ classdef StatisticTransform < handle
         function data = transform(obj, data)
             kernel = obj.getKernel(size(data));
             if obj.status
-                switch lower(obj.effectiveMode)
+                switch lower(obj.mode)
                     case {'debias'}
                         data = bsxfun(@minus, data, kernel.offset);
                         
@@ -41,7 +41,7 @@ classdef StatisticTransform < handle
         
         function data = compose(obj, data, kernel)
             if obj.status
-                switch lower(obj.effectiveMode)
+                switch lower(obj.mode)
                     case {'debias'}
                         data = bsxfun(@plus, data, kernel.offset);
                         
@@ -138,7 +138,7 @@ classdef StatisticTransform < handle
             kernel.sizeout = sum((cumval / cumval(end)) < obj.whitenCutoffRatio);
             dim = kernel.sizeout;
             rodim = sum(val > pixelvar * obj.whitenRolloffFactor);
-            obj.statCoder.pixelweight = ...
+            kernel.pixelweight = ...
                 MathLib.rolloff(dim, rodim) / obj.whitenNoiseRatio;
             val = val(1 : dim);
             vec = vec(:, 1 : dim);
@@ -159,7 +159,7 @@ classdef StatisticTransform < handle
     end
     
     properties
-        whitenCutoffRatio   = 0.95;
+        whitenCutoffRatio   = 0.99;
         whitenRolloffFactor = 8;
         whitenNoiseRatio    = 0.01;
     end

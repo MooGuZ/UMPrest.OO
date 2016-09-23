@@ -265,7 +265,7 @@ classdef FileDataBlock < DataBlock
     end
     
     properties
-        capacity = 5e4;
+        capacity = UMPrest.parameter.get('datasetCapacity');
     end
     
     properties (Access = private)

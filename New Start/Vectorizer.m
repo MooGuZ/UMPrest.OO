@@ -1,63 +1,84 @@
 classdef Vectorizer < Unit
     methods
-        function data = transform(obj, data)
-            data = MathLib.vec(data, obj.dim, 'front');
-        end
-        
-        function data = compose(obj, data)
-            if obj.matured
-                dataSize   = size(data);
-                sampleSize = dataSize(2 : end);
-                data = reshape(data, ...
-                               [double(obj.inputSizeDescription), sampleSize]);
+        function opackage = transform(obj, ipackage)
+            if not(exist('ipackage', 'var'))
+                ipackage = obj.I.pop();
+            end
+            
+            if ipackage.taxis
+                opackage = DataPackage( ...
+                    reshape(ipackage.data, prod(ipackage.szsample), ipackage.nframe, ...
+                            ipackage.nsequence), ...
+                    1, true);
             else
-                error('Operation is forbidden before Vectorizer matured');
+                opackage = DataPackage( ...
+                    reshape(ipackage.data, prod(ipackage.szsample), ipackage.nsample), ...
+                    1, false);
+            end
+            
+            obj.I.szsample = ipackage.szsample;
+            
+            if nargout == 0
+                obj.O.send(opackage);
             end
         end
         
-        function delta = errprop(obj, delta, ~)
-            delta = obj.compose(delta);
-        end
-        
-        function unit = inverseUnit(obj)
-            if obj.matured
-                unit = DataShaper( ...
-                    double(obj.outputSizeDescription), ...
-                    double(obj.inputSizeDescription));
+        function ipackage = compose(obj, opackage)
+            if not(exist('opackage', 'var'))
+                opackage = obj.O.pop();
+            end
+            
+            assert(not(isempty(obj.I.szsample)));
+            if opackage.taxis
+                ipackage = DataPackage(reshape(opackage.data, [obj.I.szsample, ...
+                                               opackage.nframe, opackage.nsequence]), ...
+                                       numel(obj.I.szsample), true);
             else
-                error('Inverse unit is unavailable before Vectorizer matured');
+                ipackage = DataPackage(reshape(opackage.data, [obj.I.szsample, ...
+                                               opackage.nsample]), ...
+                                       numel(obj.I.szsample), false);
+            end
+            
+            if nargout == 0
+                obj.I.send(ipackage);
             end
         end
-    end
-    
-    properties (Dependent)
-        inputSizeRequirement
-    end
-    methods
-        function value = get.inputSizeRequirement(obj)
-            value  = SizeDescription.format(nan(1, obj.dim));
+        
+        function ipackage = errprop(obj, opackage)
+            ipackage = obj.compose(opackage);
         end
         
-        function descriptionOut = sizeIn2Out(~, descriptionIn)
-            descriptionOut = prod(descriptionIn);
+        function x = process(obj, x)
+        end
+        
+        function x = invproc(obj, x)
+        end
+        
+        function d = delta(obj, d)
         end
     end
     
     methods
-        function obj = Vectorizer(dim)
-            obj.dim = dim; 
+        function outsize = sizeIn2Out(obj, insize)
+            outsize = prod(insize);
+        end
+        
+        function insize = sizeOut2In(obj, outsize)
+            assert(not(isempty(obj.I.szsample)));
+            insize = obj.I.szsample;
+            assert(prod(insize) == outsize);
         end
     end
     
-    properties
-        dim
-    end
-    properties (Dependent)
-        matured
-    end
     methods
-        function value = get.matured(obj)
-            value = SizeDescription.isnumeric(obj.inputSizeDescription);
+        function obj = Vectorizer()
+            obj.I = AccessPoint(obj, []);
+            obj.O = AccessPoint(obj, nan);
         end
+    end
+    
+    properties (SetAccess = private)
+        taxis = []
+        expandable = false;
     end
 end

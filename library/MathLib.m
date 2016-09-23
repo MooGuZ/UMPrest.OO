@@ -73,6 +73,15 @@ classdef MathLib < handle
         function d = negLogVonMiseGradient(x, mu, sigma)
             d = sigma * sin(x - mu);
         end
+        % prior of slowness
+        function p = slow(x, ~, ~)
+        % PROBLEM: hardcode 2nd dim as time-axis currently
+            p = diff(x, 1, 2) .^ 2;
+        end
+        function d = slowGradient(x, ~, ~)
+            D = diff(x, 1, 2);
+            d = [-D(:, 1, :), -diff(D, 1, 2), D(:, end, :)];
+        end
     end
     
     % ============= ACTIVATION FUNTION =============
@@ -109,7 +118,7 @@ classdef MathLib < handle
         end
     end
     
-    % ============= EVALUATION FUNTION =============
+    % ============= LIKELIHOOD =============
     methods (Static)
         function v = logistic(x, ref)
             x = MathLib.bound(x, [eps, 1 - eps]);
@@ -121,11 +130,22 @@ classdef MathLib < handle
             d = - (ref ./ x - (1 - ref) ./ (1 - x)) / numel(x);
         end
         
-        function v = mse(x, ref)
-            v = sum((x(:) - ref(:)).^2) / numel(x);
+        function v = mse(x, ref, weight)
+            % v = sum((x(:) - ref(:)).^2) / numel(x);
+            if exist('weight', 'var')
+                d = bsxfun(@times, x - ref, weight);
+            else
+                d = x - ref;
+            end
+            v = sum(d(:).^2);
         end
-        function d = mseGradient(x, ref)
-            d = 2 * (x - ref) / numel(x);
+        function d = mseGradient(x, ref, weight)
+            % d = 2 * (x - ref) / numel(x);
+            if exist('weight', 'var')
+                d = 2 * bsxfun(@times, x - ref, weight);
+            else
+                d = 2 * (x - ref);
+            end
         end
         
         function v = kldiv(x, ref)
@@ -286,7 +306,7 @@ classdef MathLib < handle
     
     methods (Static)
         function tof = isinteger(x)
-            tof = not(iscell(x)) && all(x == round(x)) && all(not(isinf(x)));
+            tof = not(iscell(x)) && all(x(:) == round(x(:))) && not(any(isinf(x(:))));
         end
         
         function v = rolloff(n, m)
@@ -342,6 +362,10 @@ classdef MathLib < handle
             x(~ind) = 0;
         end
         
+        function C = objarr2cell(A)
+            C = arrayfun(@(el) el, A, 'UniformOutput', false);
+        end
+        
         function c = pack2cell(x, dim)
             orgsz = size(x);
             if not(exist('dim', 'var'))
@@ -392,6 +416,25 @@ classdef MathLib < handle
         
         function x = mapToDim(x, dim)
             x = reshape(x, MathLib.smpvec(max(dim, 2), 1, dim, numel(x)));
+        end
+        
+        function x = splitDim(x, dim, szarr)
+            if dim >= 1 && dim <= MathLib.ndims(x)
+                sz = size(x);
+                if isscalar(szarr) || prod(szarr) ~= sz(dim)
+                    szarr = [szarr, sz(dim) / prod(szarr)];
+                end
+                sz = [sz(1 : dim-1), szarr, sz(dim+1 : end)];
+                x  = reshape(x, sz);
+            end
+        end
+        
+        function x = expandDim(x, dim)
+            if dim >= 1 && dim < MathLib.ndims(x)
+                sz = size(x);
+                sz = [sz(1 : dim-1), sz(dim) * sz(dim+1), sz(dim+2 : end)];
+                x  = reshape(x, sz);
+            end
         end
         
         function [out, index] = groupmax(in, groupSize, dim)
@@ -484,35 +527,58 @@ classdef MathLib < handle
             end
         end
         
-        function M = concatecell(C)
-            if isempty(C)
-                M = [];
-            elseif numel(C) == 1
-                M = C{1};
+        function [M, flag] = concatecell(C, unitdim)
+            if iscell(C)
+                switch numel(C)
+                  case {0}
+                    M    = [];
+                    flag = true;
+                
+                  case {1}
+                    M    = C{1};
+                    flag = true;
+                
+                  otherwise
+                    diminfo = cellfun(@ndims, C);
+                    if isscalar(unique(diminfo))
+                        sizeinfo = cellfun(@size, C(:), 'UniformOutput', false);
+                        if all(MathLib.vec(diff(cell2mat(sizeinfo), 1, 1)) == 0)
+                            if not(exist('unitdim', 'var'))
+                                unitdim = MathLib.ndims(C{1});
+                            end
+                            M    = cell2mat(reshape(C, [ones(1, unitdim), numel(C)]));
+                            flag = true;
+                            return
+                        end
+                    end
+                    M    = C;
+                    flag = false;
+                    % elsize = size(C{1});
+                    % for i = 2 : numel(C)
+                    %     assert(numel(size(C{i})) == numel(elsize), 'MathLib:RuntimeError', ...
+                    %            'Size of matrix in the cell mismatch!');
+                    %     assert(all(size(C{i}) == elsize), 'MathLib:RuntimeError', ...
+                    %            'Size of matrix in the cell mismatch!');
+                    % end
+                    % elsize = MathLib.trimtail(elsize, 1);
+                    % if isempty(elsize)
+                    %     elsize = 1;
+                    % end
+                    % if numel(elsize) == 1
+                    %     M = repmat(C{1}, 1, numel(C));
+                    % else
+                    %     M = repmat(C{1}, [ones(1, numel(elsize)), numel(C)]);
+                    %     M = reshape(M, [prod(elsize), numel(C)]);
+                    % end
+                    % for i = 2 : numel(C)
+                    %     M(:, i) = C{i}(:);
+                    % end
+                    % if numel(elsize) > 1
+                    %     M = reshape(M, [MathLib.trimtail(elsize, 1), numel(C)]);
+                    % end
+                end
             else
-                elsize = size(C{1});
-                for i = 2 : numel(C)
-                    assert(numel(size(C{i})) == numel(elsize), 'MathLib:RuntimeError', ...
-                           'Size of matrix in the cell mismatch!');
-                    assert(all(size(C{i}) == elsize), 'MathLib:RuntimeError', ...
-                           'Size of matrix in the cell mismatch!');
-                end
-                elsize = MathLib.trimtail(elsize, 1);
-                if isempty(elsize)
-                    elsize = 1;
-                end
-                if numel(elsize) == 1
-                    M = repmat(C{1}, 1, numel(C));
-                else
-                    M = repmat(C{1}, [ones(1, numel(elsize)), numel(C)]);
-                    M = reshape(M, [prod(elsize), numel(C)]);
-                end
-                for i = 2 : numel(C)
-                    M(:, i) = C{i}(:);
-                end
-                if numel(elsize) > 1
-                    M = reshape(M, [MathLib.trimtail(elsize, 1), numel(C)]);
-                end
+                M = C;
             end
         end
         

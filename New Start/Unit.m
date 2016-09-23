@@ -1,108 +1,206 @@
 classdef Unit < handle
-% UNIT class is the abstraction of fundamental element of AI program. It provides
-% interfaces to process data package or pure data. Besides, UNIT also maintain size
-% description of itself to inform others the input and output size requirements.
-    
     % ======================= DATA PROCESSING  =======================
     methods
-        function package = forward(obj, package)
-            % TODO: support command package
-%             assert(SizeDescription.check(obj.inputSizeRequirement, package.dataSize()), ...
-%                 'UMPrest:RuntimeError', ...
-%                 'Size of data package mismatch the requirement of unit');
-            
-            dataIn = package.data;
-            if iscell(dataIn)
-                dataOut = cell(1, numel(dataIn));
-                for i = 1 : numel(dataIn)
-                    dataOut{i} = obj.transform(dataIn{i});
-                end
-                package = package.derive('data', dataOut);
+        function varargout = transform(obj, varargin)
+            varargout      = cell(1, nargout);
+            [varargout{:}] = obj.propagate('forward',  @obj.process, 'DataPackage', varargin{:});
+        end
+        
+        function varargout = compose(obj, varargin)
+            varargout      = cell(1, nargout);
+            [varargout{:}] = obj.propagate('backward', @obj.invproc, 'DataPackage', varargin{:});
+        end
+        
+        function varargout = errprop(obj, varargin)
+            varargout      = cell(1, nargout);
+            [varargout{:}] = obj.propagate('backward', @obj.delta, 'ErrorPackage', varargin{:});
+        end
+        
+        function varargout = checkSampleSizeSuitability(obj, varargin)
+            varargout      = cell(1, nargout);
+            [varargout{:}] = obj.propagate('forward', @obj.sizeIn2Out, 'SizePackage', varargin{:});
+        end
+        
+        % function [tf, varargout] = checkSampleSizeSuitability(obj, varargin)
+        % % PROPOSAL: implement a version based on PROPAGATE and multiple PACKAGE type
+        %     if numel(varargin)
+        %         insize = varargin;
+        %         % ASSERT: insize is cell with same number of elements as obj.I 
+        %         try
+        %             for i = 1 : numel(obj.I)
+        %                 obj.I(i).szsample = varargin{i};
+        %             end
+        %         catch mexcption
+        %             warning(mexception.identifier, mexception.message);
+        %             tf = false;
+        %             return
+        %         end
+        %     else
+        %         insize = {obj.I(:).szsample};
+        %     end
+        %     % calculate output size info
+        %     outsize      = cell(1, numel(obj.O));
+        %     [outsize{:}] = obj.sizeIn2Out(insize{:});
+        %     % assign output size info to corresponding access points
+        %     for i = 1 : numel(obj.O)
+        %         obj.O(i).szsample = sizeout{i};
+        %     end
+        %     % send or return sizeinfo
+        %     if argout > 1
+        %         varargout = outsize;
+        %     else
+        %         try
+        %             for i = 1 : numel(obj.O)
+        %                 obj.O.link.szsample = outsize{i};
+        %             end
+        %         catch mexcption
+        %             warning(mexception.identifier, mexception.message);
+        %             tf = false;
+        %             return
+        %         end
+        %     end
+        %     tf = true;
+        % end
+    end
+    
+    methods
+        function varargout = propagate(obj, direction, proc, pkgtype, varargin)
+            switch lower(direction)
+              case {'forward'}
+                apin  = obj.I;
+                apout = obj.O;
+                
+              case {'backward'}
+                apin  = obj.O;
+                apout = obj.I;
+                
+              otherwise
+                error('UMPrest:ArguementError', 'Unrecognized direction : %s', ...
+                      upper(direction));
+            end
+            % clear CDINFO of parent unit
+            if exist('pkgtype', 'var')
+                obj.cdinfo = struct('pkgtype', pkgtype);
             else
-                package = package.derive('data', obj.transform(dataIn));
+                obj.cdinfo = struct();
+            end
+            % Single-In-Single-Out version
+            if isscalar(apin) && isscalar(apout)
+                % NOTE: arguments in the VARARGIN is ignored from 2nd term
+                % get input package
+                if isempty(varargin)
+                    ipackage = obj.I.pop();
+                else
+                    ipackage = varargin{1};
+                end
+                % unpack input data from package
+                idata = apin.unpack(ipackage);
+                % process the data
+                odata = proc(idata);
+                % get output package
+                opackage = apout.packup(odata);
+                % send or return output package
+                if nargout
+                    varargout{1} = opackage;
+                else
+                    apout.send(opackage);
+                end
+            % General MIMO version
+            else
+                % get input package
+                if isempty(varargin)
+                    ipackage = arrayfun(@pop, apin, 'UniformOutput', false);
+                else
+                    ipackage = varargin;
+                end
+                % unpack data from package
+                idata = cell(1, numel(apin));
+                for i = 1 : numel(apin)
+                    idata{i} = apin(i).unpack(ipackage{i});
+                end
+                % process the data
+                odata = cell(1, numel(apout));
+                [odata{:}] = proc(idata{:});
+                % send or return output package
+                if nargout
+                    for i = 1 : min(nargout, numel(apout))
+                        varargout{i} = apout(i).packup(odata{i});
+                    end
+                else
+                    for i = 1 : numel(apout)
+                        apout(i).send(apout(i).packup(odata{i}));
+                    end
+                end
+            end
+        end
+    end
+    
+    methods
+        function forward(obj)
+            obj.propagate('forward', @obj.procByType);
+        end
+        
+        function backward(obj)
+            obj.propagate('backward', @obj.invpByType);
+        end
+        
+        function varargout = procByType(obj, varargin)
+            varargout = cell(1, nargout);
+            switch obj.cdinfo.pkgtype
+              case {'DataPackage'}
+                [varargout{:}] = obj.process(varargin{:});
+                
+              case {'SizePackage'}
+                [varargout{:}] = obj.sizeIn2Out(varargin{:});
+                
+              case {'ErrorPackage'}
+                error('UMPrest:RuntimeError', 'This operation is not supported!');
+                
+              otherwise
+                error('Other Package types are not supported at current time.');
             end
         end
         
-        function package = backward(obj, package)
-%             assert(SizeDescription.check(obj.outputSizeRequirement, package.dataSize()), ...
-%                 'UMPrest:RuntimeError', ...
-%                 'Size of data package mismatch the requirement of unit');
-            
-            dataOut = package.data;
-            if iscell(dataOut)
-                dataIn = cell(1, numel(dataOut));
-                for i = 1 : numel(dataOut)
-                    dataIn{i} = obj.compose(dataOut{i});
-                end
-                package = package.derive('data', dataIn);
-            else
-                package = package.derive('data', obj.compose(dataOut));
+        function varargout = invpByType(obj, varargin)
+            varargout = cell(1, nargout);
+            switch obj.cdinfo.pkgtype
+              case {'DataPackage'}
+                [varargout{:}] = obj.invproc(varargin{:});
+                
+              case {'SizePackage'}
+                [varargout{:}] = obj.sizeOut2In(varargin{:});
+                
+              case {'ErrorPackage'}
+                [varargout{:}] = obj.delta(varargin{:});
+                
+              otherwise
+                error('Other Package types are not supported at current time.');
             end
         end
     end
     
     methods (Abstract)
-        y = transform(obj, x)
-        x = compose(obj, y)
-        d = errprop(obj, d, isEnvolving)
+        data = process(obj, data)
+        data = invproc(obj, data)
+        d    = delta(obj, d)
+        outsize = sizeIn2Out(obj, insize)
+        insize  = sizeOut2In(obj, outsize)
     end
     
     properties (Hidden)
-        I, O
-    end                  
-    
-    % ======================= TOPOLOGY LOGIC =======================
-    methods (Abstract)
-        unit = inverseUnit(obj)
+        I      % list of, access points for input interface
+        O      % list of access points for output interface
+        cdinfo % share field of current data information
     end
     
-    % ======================= SIZE DESCRIPTION =======================
-    properties (Dependent, Hidden, Abstract)
-        inputSizeRequirement
+    properties (Abstract, SetAccess = private)
+        taxis, expandable
     end
-    properties (Dependent, Hidden)
-        inputSizeDescription, outputSizeDescription
-    end
-    properties (Access = protected)
-        inputSizeDescriptionCache, outputSizeDescriptionCache
-    end
-    methods (Abstract)
-        description = sizeIn2Out(obj, description)
-    end
-    methods
-        function value = get.inputSizeDescription(obj)
-            if isempty(obj.inputSizeDescriptionCache)
-                obj.inputSizeDescription = obj.inputSizeRequirement;
-            end
-            value = obj.inputSizeDescriptionCache;
-        end
-        function set.inputSizeDescription(obj, value)
-            if isnumeric(value)
-                obj.inputSizeDescriptionCache = SizeDescription.format(value);
-            elseif isempty(value) || SizeDescription.islegal(value);
-                obj.inputSizeDescriptionCache = value;
-            else
-                error('Unable to set size description with given value');
-            end
-            obj.outputSizeDescriptionCache = [];
-        end
-        
-        function value = get.outputSizeDescription(obj)
-            if isempty(obj.outputSizeDescriptionCache)
-                obj.outputSizeDescriptionCache = obj.sizeIn2Out(obj.inputSizeDescription);
-            end
-            value = obj.outputSizeDescriptionCache;
-        end
-        function set.outputSizeDescription(obj, value)
-            if isnumeric(value)
-                obj.outputSizeDescriptionCache = SizeDescription.format(value);
-            elseif isempty(value) || SizeDescription.islegal(value);
-                obj.outputSizeDescriptionCache = value;
-            else
-                error('Unable to set size description with given value');
-            end
-        end
-    end
+    
+    % % ======================= TOPOLOGY LOGIC =======================
+    % methods (Abstract)
+    %     unit = inverseUnit(obj)
+    % end
     
     % ======================= DEVELOPMENT TOOL =======================
     methods (Static)

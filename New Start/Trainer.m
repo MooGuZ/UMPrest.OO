@@ -40,5 +40,21 @@ classdef Trainer < handle
                 varargout{1} = log;
             end
         end
+        
+        function trainGUnit(unit, dataset, batchsize, niter, nepoch, savepath)
+            v = Vectorizer();
+            for ep = 1 : nepoch
+                fprintf('Learning '); infotag = 0.1;
+                for iter = 1 : niter
+                    unit.learn(v.transform(dataset.next(batchsize)));
+                    if iter / niter >= infotag
+                        infotag = infotag + 0.1;
+                        fprintf('.');
+                    end
+                end
+                % unit.save(fullfile(savepath, ['GUnit-', num2str(unit.age), '.mat']));
+                fprintf(' Iteration %d DONE @ %s\n', unit.age, datestr(now()));
+            end
+        end
     end
 end

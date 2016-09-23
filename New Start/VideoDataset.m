@@ -38,7 +38,7 @@ classdef VideoDataset < handle
             end
         end
         
-        function datapkg = next(obj, n)
+        function [datapkg, labelpkg] = next(obj, n)
             if not(exist('n', 'var'))
                 n = 1;
             end
@@ -85,19 +85,30 @@ classdef VideoDataset < handle
                 end
             end
             
-            % forming data package
-            if obj.islabelled
-                datapkg = DataPackage(dcell, 'label', lcell, 'info', obj.dpkginfo);
-            else
-                datapkg = DataPackage(dcell, 'info', obj.dpkginfo);
-            end
+            % % forming data package
+            % if obj.islabelled
+            %     datapkg = DataPackage(dcell, 'label', lcell, 'info', obj.dpkginfo);
+            % else
+            %     datapkg = DataPackage(dcell, 'info', obj.dpkginfo);
+            % end
+            % 
+            % % adjust data package
+            % if not(isempty(obj.db.datadim))
+            %     datapkg.setdatadim(obj.db.datadim);
+            % end
+            % if not(isempty(obj.db.labeldim))
+            %     datapkg.setlabeldim(obj.db.labeldim);
+            % end
             
-            % adjust data package
-            if not(isempty(obj.db.datadim))
-                datapkg.setdatadim(obj.db.datadim);
-            end
-            if not(isempty(obj.db.labeldim))
-                datapkg.setlabeldim(obj.db.labeldim);
+            % TODO:
+            % 1. add TAXIS field into DATABLOCK class
+            % 2. make STATISTICCOLLECTOR a standard UNIT
+            
+            % forming DATAPACKAGE of data and label
+            datapkg  = DataPackage.create(dcell, 2, true);
+            if obj.islabelled
+                % PROBLEM: label dimension is undefined
+                labelpkg = DataPackage.create(lcell, obj.db.labeldim, obj.db.taxis);
             end
             
             % apply statistic coder

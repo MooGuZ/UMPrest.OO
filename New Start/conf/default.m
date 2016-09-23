@@ -14,3 +14,4 @@ iteration  = 3e2;
 epoch      = 13;
 batchsize  = 32;
 validateInterval = 1e3;
+datasetCapacity  = 3e4;

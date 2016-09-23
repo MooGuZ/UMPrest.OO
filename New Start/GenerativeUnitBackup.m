@@ -1,27 +1,99 @@
 classdef GenerativeUnit < EvolvingUnit
     % ======================= DATA PROCESSING MODULE =======================
     methods
-        function varargout = transform(obj, varargin)
-            varargout = cell(1, nargout);
-            [varargout{:}] = obj.genunit.compose(varargin{:});
+        function y = transform(obj, x)
+            y = obj.infer(x);
+            obj.I = x;
+            obj.O = y;
         end 
         
-        function varargout = compose(obj, varargin)
-            varargout = cell(1, nargout);
-            [varargout{:}] = obj.genunit.transform(varargin{:});
+        function x = compose(obj, y)
+            x = obj.genunit.transform(y);
+            obj.I = x;
+            obj.O = y;
         end
         
         function d = errprop(obj, d, isEvolving)
-            error('UMPrest:ProgramError', 'This function is not supported!');
+            d = obj.mapunit.errprop(d, false);
+            if not(exist('isEvolving', 'var')) || isEvolving
+                obj.genunit.errprop(d, true);
+            end
+        end
+    end
+    
+    methods
+        function rep = infer(obj, data)
+            trail = obj.mapunit.transform(data);
+            recon = obj.genunit.transform(trail);
+            if obj.genunit.likelihood.evaluate(recon, data) > obj.errorTolerance
+                rep = reshape(OptimLib.minimize(@obj.objfunc, trail(:), ...
+                    obj.optconf, data, size(trail)), size(trail));
+                for i = 1 : 3
+                    obj.mapunit.errprop(obj.mapunit.likelihood.delta(trail, rep));
+                    obj.mapunit.update();
+                    trail = obj.mapunit.transform(data);
+                end
+%                 nupdate = 0;
+%                 while obj.mapunit.likelihood.evaluate(rep, optrep) > obj.errorTolerance
+%                     obj.mapunit.errprop(obj.mapunit.likelihood.delta(rep, optrep), true);
+%                     obj.mapunit.update();
+%                     nupdate = nupdate + 1;
+%                     rep = obj.mapunit.transform(data);
+%                 end
+                fprintf('Reconstruction MSE with current MapUnit            : %.2f\n', ...
+                    obj.genunit.likelihood.evaluate(recon, data));
+                fprintf('Reconstruction MSE with optimal hyper parameter    : %.2f\n', ...
+                    obj.genunit.likelihood.evaluate(obj.genunit.transform(rep), data));
+                fprintf('MSE between MapUnit and Optimization before update : %.2f\n', ...
+                    obj.mapunit.likelihood.evaluate(trail, rep));
+                fprintf('MSE between MapUnit and Optimization after update  : %.2f\n', ...
+                    obj.mapunit.likelihood.evaluate(obj.mapunit.transform(data), rep));
+            else
+                rep = trail;
+%                 fprintf('  [INFO] MapUnit has been update [%04d] times\n', nupdate);
+%                 if nupdate == 0 && obj.gmratio < 10
+%                     obj.gmratio  = obj.gmratio + 1;
+% %                     fprintf('  [INFO] Gen-Map tolerance ration change to %.2f\n', ...
+% %                         obj.gmratio);
+%                 end
+%                 rep = optrep;
+            end
+        end
+
+%         function rep = infer(obj, data)
+%             repinit = obj.mapunit.transform(data);
+%             rep = reshape(OptimLib.minimize(@obj.objfunc, repinit(:), ...
+%                 obj.optconf, data, size(repinit)), size(repinit));
+%             obj.genunit.transform(rep);
+%         end
+        
+        function [value, grad] = objfunc(obj, dataIn, dataOut, sizeIn)
+            if nargout > 1
+                [value, grad] = obj.genunit.objfunc(dataIn, dataOut, sizeIn);
+                if not(isempty(obj.prior))
+                    value = value + obj.prior.evaluate(dataIn);
+                    grad  = grad + MathLib.vec(obj.prior.delta(dataIn));
+                end
+            else
+                value = obj.genunit.objfunc(dataIn, dataOut, sizeIn);
+                if not(isempty(obj.prior))
+                    value = value + obj.prior.evaluate(dataIn);
+                end
+            end
+        end
+    end
+    
+    % ======================= TOPOLOGY LOGIC =======================
+    methods
+        function unit = inverseUnit(obj)
+            unit = obj.genunit; % TEMPORAL : need make a copy
         end
         
-        function d = delta(obj, d)
-        end
-        
-        function x = process(obj, x)
-        end
-        
-        function x = invproc(obj, x)
+        function [genkernel, mapkernel] = kernelDump(obj)
+            genkernel = obj.genunit.kernelDump();
+            if nargout > 1
+                mapkernel = obj.mapkernel.kernelDump();
+            end
         end
     end
     
@@ -31,53 +103,66 @@ classdef GenerativeUnit < EvolvingUnit
             obj.genunit.update();
         end
         
-        function learn(obj, varargin)
-            ipackage = varargin;
-            opackage = cell(1, numel(obj.O));
-            [opackage{:}] = obj.transform(ipackage{:});
-            rpackage = cell(1, numel(obj.I));
-            [rpackage{:}] = obj.compose(opackage{:});
-            obj.genunit.errprop(obj.likelihood.delta(rpackage{:}, ipackage{:}));
+        function learn(obj, datapkg)
+            if isempty(datapkg.label)
+                obj.mapunit.errprop(obj.genunit.errprop(obj.genunit.likelihood.delta( ...
+                    obj.compose(obj.transform(datapkg.data)), ...
+                    datapkg.data)));
+                obj.mapunit.update();
+            else
+                obj.genunit.errprop(obj.likelihood.delta( ...
+                    obj.genunit.transform(datapkg.label), ...
+                    datapkg.data));
+            end
             obj.genunit.update();
-            obj.age = obj.age + 1;
         end
     end
 
     % ======================= SIZE DESCRIPTION MODULE =======================
+    properties (Dependent, Hidden)
+        inputSizeRequirement
+    end
     methods
-        function varargout = sizeIn2Out(obj, varargin)
-            varargout = cell(1, nargout);
-            [varargout{:}] = obj.genunit.sizeOut2In(varargin{:});
+        function value = get.inputSizeRequirement(obj)
+            value = obj.mapunit.inputSizeDescription;
         end
         
-        function varargout = sizeOut2In(obj, varargin)
-            varargout = cell(1, nargout);
-            [varargout{:}] = obj.genunit.sizeIn2Out(varargin{:});
+        function descriptionOut = sizeIn2Out(obj, descriptionIn)
+            descriptionOut = obj.mapunit.sizeIn2Out(descriptionIn);
         end
     end
     
     % ======================= CONSTRUCTOR =======================
     methods
         function obj = GenerativeUnit(unit, varargin)
-            conf = Config(varargin);
             obj.genunit = unit;
-            obj.likelihood = conf.get('Likelihood', Likelihood('mse'));
-            obj.optconf = conf.get('OptimizeConfig', OptimLib.config('default'));
-            obj.I = obj.genunit.O;
-            obj.O = obj.genunit.I;
-            obj.taxis = obj.genunit.taxis;
-            obj.expandable = obj.genunit.expandable;
-            obj.genunit.likelihood = obj.likelihood;
+            obj.mapunit = obj.genunit.inverseUnit();
+            obj.genunit.likelihood = Likelihood('mse');
+            obj.mapunit.likelihood = Likelihood('mse');
+            obj.optconf = OptimLib.config('default');
         end
     end
     
     % ======================= DATA STRUCTURE =======================
     properties
-        genunit, optconf
+        genunit, mapunit, prior
+        optconf, errorTolerance = 1e-2
     end
-    
-    properties (SetAccess = private)
-        taxis, expandable
+    methods
+        function set.genunit(obj, value)
+            assert(isa(value, 'EvolvingUnit'));
+            obj.genunit = value;
+        end
+        
+        function set.mapunit(obj, value)
+            assert(isa(value, 'EvolvingUnit'));
+            obj.mapunit = value;
+        end
+        
+        function set.prior(obj, value)
+            assert(isempty(value) || isa(value, 'Prior'));
+            obj.prior = value;
+        end
     end
     
     % ======================= DEVELOPER TOOL =======================

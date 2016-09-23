@@ -1,21 +1,39 @@
 % TBC : add properties containing the type of likelihood
 classdef Likelihood < Objective
     methods
-        function value = evaluate(obj, argA, argB)
-            if isa(argA, 'DataPackage')
-                value = obj.evalFunction(argA.data, argA.label);
+        function value = evaluate(obj, x, ref)
+            if isa(x, 'DataPackage')
+                if isempty(obj.weight)
+                    value = obj.evalFunction(x.data, ref.data);
+                else
+                    value = obj.evalFunction(x.data, ref.data, obj.weight);
+                end
+                    
             else
-                value = obj.evalFunction(argA, argB);
+                if isempty(obj.weight)
+                    value = obj.evalFunction(x, ref);
+                else
+                    value = obj.evalFunction(x, ref, obj.weight);
+                end
             end
         end
         
-        function d = delta(obj, argA, argB)
-            if isa(argA, 'DataPackage')
-                assert(argA.isunified);
-                d = obj.deltaFunction(argA.data, argA.label);
+        function d = delta(obj, x, ref)
+            if isa(x, 'DataPackage')
+                if isempty(obj.weight)
+                    d = obj.deltaFunction(x.data, ref.data);
+                else
+                    d = obj.deltaFunction(x.data, ref.data, obj.weight);
+                end
+                d = ErrorPackage(d, x.dsample, x.taxis);
             else
-                d = obj.deltaFunction(argA, argB);
+                if isempty(obj.weight)
+                    d = obj.deltaFunction(x, ref);
+                else
+                    d = obj.deltaFunction(x, ref, obj.weight);
+                end
             end
+            
         end
         
 %         function value = evaluate(obj, varargin)
@@ -48,7 +66,7 @@ classdef Likelihood < Objective
     end
     
     methods
-        function obj = Likelihood(type, varargin)
+        function obj = Likelihood(type, weight)
         % TBC : make parameters of function configurable by VARARGIN
             switch lower(type)
               case {'mse', 'gaussian'}
@@ -70,9 +88,16 @@ classdef Likelihood < Objective
                 error('UMPrest:ArgumentError', 'Unrecognized likelihood : %s', ...
                       upper(type));
             end
+            
+            if exist('weight', 'var')
+                obj.weight = weight;
+            end
         end
     end
     
+    properties
+        weight
+    end
     properties (SetAccess = private)
         type
     end
