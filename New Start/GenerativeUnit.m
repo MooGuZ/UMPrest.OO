@@ -56,6 +56,12 @@ classdef GenerativeUnit < EvolvingUnit
         end
     end
     
+    methods
+        function sobj = save(obj, filename)
+            sobj = obj.genunit.save(filename);
+        end
+    end
+    
     % ======================= CONSTRUCTOR =======================
     methods
         function obj = GenerativeUnit(unit, varargin)

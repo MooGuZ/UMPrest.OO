@@ -42,6 +42,14 @@ classdef COUnit < MappingUnit
     end
     
     methods
+        function sobj = save(obj, filename)
+            sobj.realWeight = obj.realW.getcpu();
+            sobj.imagWeight = obj.imagW.getcpu();
+            save(filename, 'sobj');
+        end
+    end
+    
+    methods
         function obj = COUnit(varargin)
             if nargin == 1
                 obj.realW = HyperParam(real(varargin{1}));

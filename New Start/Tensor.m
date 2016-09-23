@@ -41,6 +41,22 @@ classdef Tensor < handle
         end
     end
     
+%     % SAVE and LOAD
+%     methods
+%         function sobj = saveobj(obj)
+%             sobj.data = obj.getcpu();
+%         end
+%     end
+%     methods (Static)
+%         function obj = loadobj(sobj)
+%             if isstruct()
+%                 obj = Tensor(sobj.data);
+%             else
+%                 obj = sobj;
+%             end
+%         end
+%     end
+    
     properties
         data % collection of data samples in matrix form (may located in CPU/GPU memory)
     end
