@@ -20,7 +20,7 @@ classdef DataShaper < Unit
         function obj = DataShaper(insize, outsize)
             assert(prod(insize) == prod(outsize), 'UMPrest:ArgumentError', ...
                    'DataShaper cannot change number of elements');
-            obj.insize  = insize
+            obj.insize  = insize;
             obj.outsize = outsize;
         end
     end
@@ -38,7 +38,7 @@ classdef DataShaper < Unit
             end
         end
         
-        function set.insize(obj, value)
+        function set.outsize(obj, value)
             assert(MathLib.isinteger(value) && all(value > 0));
             if numel(value) == 1
                 obj.outsize = [value, 1];

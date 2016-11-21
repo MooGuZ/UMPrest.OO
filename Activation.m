@@ -1,83 +1,77 @@
-% PROPOSAL: specialize each activation function as a class
-% TODO: [ ] implement 'inverseUnit'
 classdef Activation < Unit
     % ======================= DATA PROCESSING =======================
     methods
-        function y = transform(obj, x)
-            y = obj.process(x);
-            obj.I = x; obj.O = y;
+        function d = delta(obj, d)
+            d = d .* obj.differential(obj.O.state.data);
         end
         
-        function x = compose(obj, y)
-            x = obj.invproc(y);
-            obj.I = x; obj.O = y;
+        function d = invdelta(obj, d)
+            d = d ./ obj.differential(obj.O.state.data);
         end
         
-        function d = errprop(obj, d, ~)
-            if obj.isinversed
-                d = d ./ obj.differential(obj.I);
-            else
-                d = d .* obj.differential(obj.O);
-            end
+        function sizeout = sizeIn2Out(~, sizein)
+            sizeout = sizein;
+        end
+        
+        function sizein = sizeOut2In(~, sizeout)
+            sizein = sizeout;
         end
     end
     
-    % ======================= TOPOLOGY LOGIC =======================
     methods
-        function unit = inverseUnit(obj)
-            switch obj.type
-              case {'sigmoid', 'logistic'}
-                unit = Activation('invsigmoid');
+        function output = forwardOperation(obj, input)
+            switch obj.apshare.class
+              case {'DataPackage'}
+                output = obj.process(input);
                 
-              case {'invsigmoid', 'invlogistic'}
-                unit = Activation('sigmoid');
+              case {'SizePackage'}
+                output = obj.sizeIn2Out(input);
                 
-              case {'hypertgt', 'tanh'}
-                unit = Activation('invtanh');
+              case {'ErrorPackage'}
+                output = obj.invdelta(input);
                 
-              case {'invhypertgt', 'invtanh'}
-                unit = Activation('tanh');
-                
-              case {'relu'}
-                unit = Activation('relu');
+              otherwise
+                error('Other Package types are not supported at current time.');
             end
         end
-    end
-    
-    % ======================= SIZE DESCRIPTION =======================
-    properties (Dependent)
-        inputSizeRequirement
-    end
-    methods
-        function value = get.inputSizeRequirement(~)
-            value = sym.inf();
-        end
         
-        function descriptionOut = sizeIn2Out(~, descriptionIn)
-            descriptionOut = descriptionIn;
+        function input = backwardOperation(obj, output)
+            switch obj.apshare.class
+              case {'DataPackage'}
+                input = obj.invproc(output);
+                
+              case {'SizePackage'}
+                input = obj.sizeOut2In(output);
+                
+              case {'ErrorPackage'}
+                input = obj.delta(output);
+                
+              otherwise
+                error('Other Package types are not supported at current time.');
+            end
         end
     end
     
     % ======================= CONSTRUCTOR =======================
     methods
         function obj = Activation(type)
-            obj.actType = type;
+            obj.type = type;
+            obj.I = AccessPoint(obj, 1);
+            obj.O = AccessPoint(obj, 1);
+            obj.id = UMPrest.unit(obj);
         end
     end
     
     % ======================= DATA STRUCTURE =======================
-    properties (Access = private)
-        type, process, invproc, differential, isinversed
+    properties (Constant)
+        taxis = false;
+        expandable = true;
     end
-    
-    properties (Dependent)
-        actType
+    properties (Access = private)
+        type, process, invproc, differential
     end
     methods
-        function value = get.actType(obj)
-            value = obj.type;
-        end
-        function set.actType(obj, type)
+        function set.type(obj, type)
             assert(ischar(type), 'Actiation type should be a string');
             obj.type = lower(type);
             switch obj.type
@@ -85,31 +79,16 @@ classdef Activation < Unit
                 obj.process = @MathLib.sigmoid;
                 obj.invproc = @MathLib.sigmoidInverse;
                 obj.differential = @MathLib.sigmoidDifferential;
-                obj.isinversed = false;
-                
-              case {'invsigmoid', 'invlogistic'}
-                obj.process = @MathLib.sigmoidInverse;
-                obj.invproc = @MathLib.sigmoid;
-                obj.differential = @MathLib.sigmoidDifferential;
-                obj.isinversed = true;
                 
               case {'hypertgt', 'tanh'}
                 obj.process = @tanh;
                 obj.invproc = @MathLib.tanhInverse;
                 obj.differential = @MathLib.tanhDifferential;
-                obj.isinversed = false;
-                
-              case {'invhypertgt', 'invtanh'}
-                obj.process = @tanhInverse;
-                obj.invproc = @MathLib.tanh;
-                obj.differential = @MathLib.tanhDifferential;
-                obj.isinversed = true;
                     
               case {'relu'}
                 obj.process = @MathLib.relu;
                 obj.invproc = @MathLib.reluInverse;
                 obj.differential = @MathLib.reluDifferential;
-                obj.isinversed = false;
                 
               otherwise
                 error('UMPrest:ArgumentError', ...

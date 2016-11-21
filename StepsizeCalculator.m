@@ -47,10 +47,10 @@ classdef StepsizeCalculator < handle
                 conf.step = conf.step / 2;
             elseif factor >= 1
                 conf.step = conf.step * conf.downFactor;
-%                 fprintf('Step update to %.2e\n', conf.step);
+                % fprintf('Step update to %.2e\n', conf.step);
             else
                 conf.step = conf.step * conf.upFactor;
-%                 fprintf('Step update to %.2e\n', conf.step);
+                % fprintf('Step update to %.2e\n', conf.step);
             end                
         end
         

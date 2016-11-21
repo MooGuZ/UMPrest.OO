@@ -42,14 +42,6 @@ classdef COUnit < MappingUnit
     end
     
     methods
-        function sobj = save(obj, filename)
-            sobj.realWeight = obj.realW.getcpu();
-            sobj.imagWeight = obj.imagW.getcpu();
-            save(filename, 'sobj');
-        end
-    end
-    
-    methods
         function obj = COUnit(varargin)
             if nargin == 1
                 obj.realW = HyperParam(real(varargin{1}));
@@ -61,9 +53,11 @@ classdef COUnit < MappingUnit
                 error('UMPrest:ArgumentError', 'Input arugment quantity : 1 - 2');
             end
             % setup access points
-            obj.I = [AccessPoint(obj, size(obj.realW, 2)), ...
-                AccessPoint(obj, size(obj.imagW, 2))];
-            obj.O = AccessPoint(obj, size(obj.realW, 1));
+            obj.frame = AccessPoint(obj, 1);
+            obj.amp   = AccessPoint(obj, 1);
+            obj.phase = AccessPoint(obj, 1);
+            obj.I = [obj.amp, obj.phase];
+            obj.O = obj.frame;
         end
     end
     
@@ -80,21 +74,8 @@ classdef COUnit < MappingUnit
         expandable = false;
     end
     
-    properties (Dependent)
+    properties
         frame, amp, phase
-    end
-    methods
-        function value = get.frame(obj)
-            value = obj.O;
-        end
-        
-        function value = get.amp(obj)
-            value = obj.I(1);
-        end
-        
-        function value = get.phase(obj)
-            value = obj.I(2);
-        end
     end
     
     properties (Access = private)

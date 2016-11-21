@@ -2,8 +2,9 @@ classdef DataPackage < Package
     % ======================= CONSTRUCTOR =======================
     methods
         function obj = DataPackage(data, dsample, taxis)
-            assert(MathLib.ndims(data) <= dsample + double(taxis) + 1, ...
-                   'UMPrest:ArgumentError', 'Dimensionality of data is illegal.');
+            if MathLib.ndims(data) > dsample + double(taxis) + 1
+                data = MathLib.vec(data, dsample + double(taxis) + 1, 'back');
+            end
             obj.X       = Tensor(data);
             obj.dsample = dsample;
             obj.taxis   = taxis;
@@ -40,15 +41,12 @@ classdef DataPackage < Package
         nsample, nframe, nsequence
     end
     properties
-        info % TBC: reserve field for StatisticTransform
+        info % TBC: reserve field for future usage
     end
     methods
         function value = get.data(obj)
             value = obj.X.get();
         end
-        % function set.data(obj, value)
-        %     obj.X.set(value);
-        % end
         
         function value = get.nsample(obj)
             value = size(obj.X, obj.dsample + 1) * size(obj.X, obj.dsample + 2);

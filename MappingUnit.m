@@ -1,18 +1,40 @@
 classdef MappingUnit < EvolvingUnit
     % ======================= DATA PROCESSING =======================
-    % methods
-    %     function y = transform(obj, x)
-    %         y = obj.process(x);
-    %     end
-    %     
-    %     function x = compose(obj, y)
-    %         x = obj.infer(y);
-    %     end
-    % end
-    %     
-    % methods (Abstract)
-    %     y = process(obj, x)
-    % end
+    methods
+        function varargout = forwardOperation(obj, varargin)
+            varargout = cell(1, nargout);
+            switch obj.apshare.class
+              case {'DataPackage'}
+                [varargout{:}] = obj.process(varargin{:});
+                
+              case {'SizePackage'}
+                [varargout{:}] = obj.sizeIn2Out(varargin{:});
+                
+              case {'ErrorPackage'}
+                error('UMPrest:RuntimeError', 'This operation is not supported!');
+                
+              otherwise
+                error('Other Package types are not supported at current time.');
+            end
+        end
+        
+        function varargout = backwardOperation(obj, varargin)
+            varargout = cell(1, nargout);
+            switch obj.apshare.class
+              case {'DataPackage'}
+                [varargout{:}] = obj.invproc(varargin{:});
+                
+              case {'SizePackage'}
+                [varargout{:}] = obj.sizeOut2In(varargin{:});
+                
+              case {'ErrorPackage'}
+                [varargout{:}] = obj.delta(varargin{:});
+                
+              otherwise
+                error('Other Package types are not supported at current time.');
+            end
+        end
+    end
     
     methods
         function varargout = invproc(obj, varargin)
@@ -82,12 +104,19 @@ classdef MappingUnit < EvolvingUnit
     methods
         function learn(obj, ipackage, opackage)
             if not(isempty(obj.likelihood))
-                obj.errprop(obj.likelihood.delta(obj.transform(ipackage), opackage));
+                obj.backward(obj.likelihood.delta(obj.forward(ipackage), opackage));
                 obj.update();
             else
                 warning('UMPrest:RuntimeError', ...
                         'Learning process is aborded, likelihood is unset.');
             end
         end
+    end
+    
+    methods (Abstract)
+        data = process(obj, data)
+        d    = delta(obj, d)
+        outsize = sizeIn2Out(obj, insize)
+        insize  = sizeOut2In(obj, outsize)
     end
 end

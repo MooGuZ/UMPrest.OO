@@ -11,11 +11,13 @@ classdef VideoDataset < handle
                 [data, label] = obj.db.fetch(n);
                 datablock = MemoryDataBlock(data, obj.stat, 'label', label, ...
                     'datadim', obj.db.datadim, 'labeldim', obj.db.labeldim);
-                dataset = VideoDataset(datablock, 'coder', obj.coder.mode);
+                dataset = VideoDataset(datablock);
+                % dataset = VideoDataset(datablock, 'coder', obj.coder.mode);
             else
                 datablock = MemoryDataBlock(obj.db.fetch(n), obj.stat, ...
                     'datadim', obj.db.datadim, 'labeldim', obj.db.labeldim);
-                dataset = VideoDataset(datablock, 'coder', obj.coder.mode);
+                dataset = VideoDataset(datablock);
+                % dataset = VideoDataset(datablock, 'coder', obj.coder.mode);
             end
         end
         
@@ -104,26 +106,31 @@ classdef VideoDataset < handle
             % 1. add TAXIS field into DATABLOCK class
             % 2. make STATISTICCOLLECTOR a standard UNIT
             
-            % forming DATAPACKAGE of data and label
-            datapkg  = DataPackage.create(dcell, 2, true);
+            datapkg = obj.apdata.packup(dcell);
             if obj.islabelled
-                % PROBLEM: label dimension is undefined
-                labelpkg = DataPackage.create(lcell, obj.db.labeldim, obj.db.taxis);
+                labelpkg = obj.aplabel.packup(lcell);
             end
             
-            % apply statistic coder
-            if obj.coder.status
-                datapkg = obj.coder.forward(datapkg);
-            end
+%             % forming DATAPACKAGE of data and label
+%             datapkg  = DataPackage.create(dcell, 2, true);
+%             if obj.islabelled
+%                 % PROBLEM: label dimension is undefined
+%                 labelpkg = DataPackage.create(lcell, obj.db.labeldim, obj.db.taxis);
+%             end
+            
+%             % apply statistic coder
+%             if obj.coder.status
+%                 datapkg = obj.coder.forward(datapkg);
+%             end
         end
         
-        function data = recover(obj, datapkg)
-            if obj.coder.status
-                data = obj.coder.backward(datapkg).data;
-            else
-                data = datapkg.data;
-            end
-        end
+%         function data = recover(obj, datapkg)
+%             if obj.coder.status
+%                 data = obj.coder.backward(datapkg).data;
+%             else
+%                 data = datapkg.data;
+%             end
+%         end
         
         function info = dpkginfo(~)
             info = struct();
@@ -144,7 +151,7 @@ classdef VideoDataset < handle
                 obj.db = dbsource;
                 obj.stat = obj.db.stat;
             end
-            obj.coder = StatisticTransform(obj.stat, conf.get('coder', 'off'));
+%             obj.coder = StatisticTransform(obj.stat, conf.get('coder', 'off'));
             % setup patch mode
             psize = conf.get('patchSize', []);
             if isempty(psize)
@@ -152,11 +159,17 @@ classdef VideoDataset < handle
             else
                 obj.enablePatch(psize, varargin{:});
             end
+            % setup access point
+            obj.apdata = AccessPoint(obj, obj.db.datadim);
+            if obj.islabelled
+                obj.aplabel = AccessPoint(obj, obj.db.labeldim);
+            end
         end
     end
     
     properties
-        db, stat, coder
+        db, stat%, coder
+        apdata, aplabel
     end
     methods
         function set.db(obj, value)
@@ -169,10 +182,10 @@ classdef VideoDataset < handle
             obj.stat = value;
         end
         
-        function set.coder(obj, value)
-            assert(isa(value, 'StatisticTransform'));
-            obj.coder = value;
-        end
+%         function set.coder(obj, value)
+%             assert(isa(value, 'StatisticTransform'));
+%             obj.coder = value;
+%         end
     end
     
     properties

@@ -8,10 +8,11 @@
 %                     'batchsize',  32, ...
 %                     'validateInterval', 1000);
 gradMethod = 'basic';
-stepMethod = 'adapt';
+stepMethod = 'decline';
 initStep   = 1e0;
 iteration  = 3e2;
 epoch      = 13;
 batchsize  = 32;
 validateInterval = 1e3;
 datasetCapacity  = 3e4;
+accessPointCapacity = 1;

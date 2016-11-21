@@ -57,4 +57,110 @@ classdef Trainer < handle
             end
         end
     end
+    
+    methods
+        function log = suptrain(obj, model, datasets, objectives, varargin)
+            datasets   = typeAssert(datasets, 'cell');
+            objectives = typeAssert(objectives, 'cell');
+            Config(varargin).apply(obj);
+            % prepare training process
+            obj.trainPrepare(model, datasets, objectives);
+            % generate logger
+            log = Logger(model, datasets, objectives, obj, varargin{:});
+            % training process
+            iter   = 0;
+            nbatch = ceil(max(cellfun(@(ds) ds.volumn() / obj.batchsize), datasets));
+            for epoch = 1 : obj.nepoch
+                for batch = 1 : nbatch
+                    % generate data batches
+                    for i = 1 : numel(datasets)
+                        datasets{i}.next(obj.batchsize);
+                    end
+                    % forward data pass
+                    model.forward();
+                    % objective evaluation and generate gradient
+                    if rem(iter, obj.iterationPerRecord) == 0
+                        log.record( ...
+                            sum(cellfun(@evaluate, objectives)), ...
+                            model.prior(), now(), iter);
+                    end
+                    for i = 1 : numel(objectives)
+                        objectives{i}.delta();
+                    end
+                    % backward gradient pass
+                    model.backward();
+                    % update model
+                    model.update();
+                    % increase iteration indicator
+                    iter = iter + 1;
+                    % save model
+                    if rem(iter, obj.iterationPerSave) == 0
+                        model.save(iter);
+                    end
+                end
+            end
+            model.save(iter)
+            model.savelog(log);
+        end
+        
+        function log = unsuptrain(obj, model, datasets, objectives, varargin)
+            datasets   = typeAssert(datasets, 'cell');
+            objectives = typeAssert(objectives, 'cell');
+            Config(varargin).apply(obj);
+            % prepare training process
+            % PRB: may need post configuration if the preparing process
+            %      modified the model
+            obj.trainPrepare(model, datasets, objectives);
+            % generate logger
+            log = Logger(model, datasets, objectives, obj, varargin{:});
+            % training process
+            iter   = 0;
+            nbatch = ceil(max(cellfun(@(ds) ds.volumn() / obj.batchsize), datasets));
+            for epoch = 1 : obj.nepoch
+                for batch = 1 : nbatch
+                    % generate data batches
+                    for i = 1 : numel(datasets)
+                        datasets{i}.next(obj.batchsize);
+                    end
+                    % data pass
+                    model.forward();
+                    for i = 1 : numel(model.O)
+                        model.O(i).push(model.O(i).state.package);
+                    end
+                    model.backward();
+                    % objective evaluation and generate gradient
+                    if rem(iter, obj.iterationPerRecord) == 0
+                        log.record( ...
+                            sum(cellfun(@evaluate, objectives)), ...
+                            model.prior(), now(), iter);
+                    end
+                    for i = 1 : numel(objectives)
+                        objectives{i}.delta();
+                    end
+                    % gradient pass
+                    model.forward();
+                    % update model
+                    model.update();
+                    % increase iteration indicator
+                    iter = iter + 1;
+                    % save model
+                    if rem(iter, obj.iterationPerSave) == 0
+                        model.save(iter);
+                    end
+                end
+            end
+            model.save(iter)
+            model.savelog(log);
+        end
+    end
+    
+    methods
+        function trainPrepare(model, datasets, objectives)
+        end
+    end
+    
+    properties
+        nepoch, batchsize
+        iterationPerRecord, iterationPerSave
+    end
 end

@@ -19,12 +19,13 @@ classdef GradientCalculator < handle
                     grad = obj.data ./ sqrt(1e-6 + obj.mem.r);
                     
                 case {'adam'}
+                    t = obj.n + 1; % PRB: quick fix
                     obj.mem.s = obj.conf.decayFstOrd * obj.mem.s + ...
                         (1 - obj.conf.decayFstOrd) * obj.data;
                     obj.mem.r = obj.conf.decaySndOrd * obj.mem.r + ...
                         (1 - obj.conf.decaySndOrd) * (obj.data.^2);
-                    unbiasS = obj.mem.s / (1 - obj.conf.decayFstOrd^obj.n);
-                    unbiasR = obj.mem.r / (1 - obj.conf.decaySndOrd^obj.n);
+                    unbiasS = obj.mem.s / (1 - obj.conf.decayFstOrd^t);
+                    unbiasR = obj.mem.r / (1 - obj.conf.decaySndOrd^t);
                     grad = unbiasS ./ (1e-8 + sqrt(unbiasR));
                     
                 otherwise

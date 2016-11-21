@@ -1,8 +1,8 @@
 classdef StatisticCollector < handle
     methods
         function commit(obj, data)
-            assert(obj.status, 'ApplicationError:Statistics', ...
-                'Statistics module has not been initialized.');
+%             assert(obj.status, 'ApplicationError:Statistics', ...
+%                 'Statistics module has not been initialized.');
             
             % check size of input data
             datasize = size(data);
@@ -38,26 +38,33 @@ classdef StatisticCollector < handle
         end
         
         function s = fetch(obj, targetSize)
-            assert(obj.status, 'RuntimeError:Statistics', ...
-                'STATGET cannot applied when statistic module is off.');
+%             assert(obj.status, 'RuntimeError:Statistics', ...
+%                 'STATGET cannot applied when statistic module is off.');
             
             if obj.count < 1
-                warning('Statistic is not available at this time');
+                s = struct( ...
+                    'count',  0, ...
+                    'sum',    0, ...
+                    'sum2',   0, ...
+                    'mean',   0, ...
+                    'std',    1, ...
+                    'covmat', eye(prod(targetSize)));
                 return
             end
             
             if not(exist('targetSize', 'var'))
                 targetSize = obj.unitsize;
+            else
+                assert(numel(targetSize) == obj.unitdim, 'RuntimeError:Statistics', ...
+                    'Provided size information [%s] has wrong dimension.', ...
+                    mat2str(targetSize));
+                assert(all(targetSize <= obj.unitsize), 'RuntimeError:Statistics', ...
+                    'Provided size information [%s] exceed boundary of units.');
             end
-            
-            assert(numel(targetSize) == obj.unitdim, 'ArgumentError:Statistics', ...
-                'Provided size information has wrong dimension.');
-            
-            assert(all(targetSize <= obj.unitsize), 'RuntimeError:Statistics', ...
-                'Provided size information is unavailable for statistics');
 
-            if obj.cache.isKey(mat2str(targetSize))
-                s = obj.cache(mat2str(targetSize));
+            keyOfCache = mat2str(targetSize);
+            if obj.cache.isKey(keyOfCache)
+                s = obj.cache(keyOfCache);
             else
                 if all(targetSize == obj.unitsize)
                     sinfo = obj.statinfo;
@@ -90,47 +97,31 @@ classdef StatisticCollector < handle
                 s.std    = sqrt(sinfo.sum2 / sinfo.count - s.mean.^2);
                 s.covmat = sinfo.covmat / sinfo.count - s.mean(:) * s.mean(:)';
                 
-                obj.cache(mat2str(targetSize)) = s;
+                obj.cache(keyOfCache) = s;
             end
         end
 
         function init(obj)
-            if isempty(obj.unitdim)
-                warning('This object cannot be initialized without specified unit dimension');
-            else
-                obj.status = true;
-                obj.statinfo = struct( ...
-                    'sum',    0, ...
-                    'sum2',   0, ...
-                    'covmat', 0);
-                obj.count   = 0;
-                obj.ncommit = 0;
-                obj.cache   = containers.Map();
-            end
-        end
-        
-        function disable(obj)
-            obj.status   = false;
-            obj.statinfo = [];
-            obj.count    = [];
-            obj.ncommit  = [];
-            obj.cache    = [];
+            obj.frozen = false;
+            obj.statinfo = struct( ...
+                'sum',    0, ...
+                'sum2',   0, ...
+                'covmat', 0);
+            obj.count   = 0;
+            obj.ncommit = 0;
+            obj.cache   = containers.Map('KeyType', 'char', 'ValueType', 'any');
         end
     end
     
     methods
         function obj = StatisticCollector(n)
-            if exist('n', 'var')
-                obj.unitdim = n;
-                obj.init();
-            else
-                obj.disable();
-            end
+            obj.unitdim = n;
+            obj.init();
         end
     end
     
     properties (SetAccess = private)
-        status, unitdim
+        unitdim
     end
     methods
         function set.unitdim(obj, value)
@@ -140,7 +131,7 @@ classdef StatisticCollector < handle
     end
     
     properties
-        statinfo, cache, count, ncommit
+        statinfo, cache, count, ncommit, frozen
     end
     
     properties (Dependent)
@@ -148,7 +139,7 @@ classdef StatisticCollector < handle
     end
     methods
         function value = get.unitsize(obj)
-            assert(obj.status && obj.count > 0, 'UMPrest:UseBeforeInit', ...
+            assert(obj.count > 0, 'UMPrest:UseBeforeInit', ...
                 'This information is unavailable at this time');
             value = size(obj.statinfo.sum);
             value = value(1 : obj.unitdim);

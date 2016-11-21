@@ -188,7 +188,7 @@ classdef FileDataBlock < DataBlock
         
         function data = getdata(obj, id)
             data = obj.readfunc(id);
-            if obj.stat.status && obj.stat.ncommit < obj.volumn()
+            if obj.stat.ncommit < obj.volumn()
                 obj.stat.commit(data);
             end
         end

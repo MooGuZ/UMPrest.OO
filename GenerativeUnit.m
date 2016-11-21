@@ -23,6 +23,40 @@ classdef GenerativeUnit < EvolvingUnit
         
         function x = invproc(obj, x)
         end
+        
+        function varargout = procByType(obj, varargin)
+            varargout = cell(1, nargout);
+            switch obj.cdinfo.pkgtype
+              case {'DataPackage'}
+                [varargout{:}] = obj.genunit.invproc(varargin{:});
+                
+              case {'SizePackage'}
+                [varargout{:}] = obj.genunit.sizeOut2In(varargin{:});
+                
+              case {'ErrorPackage'}
+                [varargout{:}] = obj.genunit.delta(varargin{:});
+                
+              otherwise
+                error('UNSUPPORTED');
+            end
+        end
+        
+        function varargout = invpByType(obj, varargin)
+            varargout = cell(1, nargout);
+            switch obj.cdinfo.pkgtype
+              case {'DataPackage'}
+                [varargout{:}] = obj.genunit.process(varargin{:});
+                
+              case {'SizePackage'}
+                [varargout{:}] = obj.genunit.sizeIn2Out(varargin{:});
+                
+              case {'ErrorPackage'}
+                error('UNSUPPORTED');
+                
+              otherwise
+                error('UNSUPPORTED');
+            end
+        end
     end
     
     % ======================= EVOLVING MODULE =======================
@@ -53,12 +87,6 @@ classdef GenerativeUnit < EvolvingUnit
         function varargout = sizeOut2In(obj, varargin)
             varargout = cell(1, nargout);
             [varargout{:}] = obj.genunit.sizeIn2Out(varargin{:});
-        end
-    end
-    
-    methods
-        function sobj = save(obj, filename)
-            sobj = obj.genunit.save(filename);
         end
     end
     

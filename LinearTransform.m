@@ -1,9 +1,7 @@
 classdef LinearTransform < MappingUnit
     methods
         function y = process(obj, x)
-            obj.I.state = x;
             y = bsxfun(@plus, obj.weight * x, obj.bias);
-            obj.O.state = y;
         end
         
         function d = delta(obj, d, isEvolving)
@@ -66,8 +64,10 @@ classdef LinearTransform < MappingUnit
                 obj.B = HyperParam(zeros(outputSize, 1));
             end
             
-            obj.I = AccessPoint(obj, size(obj.W, 2));
-            obj.O = AccessPoint(obj, size(obj.W, 1));
+            obj.I = AccessPoint(obj, 1);
+            obj.O = AccessPoint(obj, 1);
+            
+            obj.id = UMPrest.unit(obj);
         end
     end
     
@@ -82,17 +82,21 @@ classdef LinearTransform < MappingUnit
             % data = randn(sizein, 1e2);
             % validset = DataPackage(data, 'label', bsxfun(@plus, ltrans * data, bias));
             validsetIn  = DataPackage(randn(sizein, 1e2), 1, false);
-            validsetOut = refer.transform(validsetIn);
+            validsetOut = refer.forward(validsetIn);
             % start to learn the linear transformation
             fprintf('Initial objective value : %.2f\n', ...
-                    model.likelihood.evaluate(model.transform(validsetIn), validsetOut));
+                    model.likelihood.evaluate( ...
+                    model.forward(validsetIn).data, ...
+                    validsetOut.data));
             for i = 1 : UMPrest.parameter.get('iteration')
                 data = randn(sizein, 8);
                 ipkg = DataPackage(data, 1, false);
-                opkg = refer.transform(ipkg);
+                opkg = refer.forward(ipkg);
                 model.learn(ipkg, opkg);
                 fprintf('Objective Value after [%04d] turns: %.2f\n', i, ...
-                    model.likelihood.evaluate(model.transform(validsetIn), validsetOut));
+                    model.likelihood.evaluate( ...
+                    model.forward(validsetIn).data, ...
+                    validsetOut.data));
             end
             % show result
             werr = ltrans - model.weight;

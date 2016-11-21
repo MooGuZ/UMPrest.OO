@@ -1,3 +1,6 @@
+% TODO :
+% 1. use DYNAMICPROPERTIES to enhence the access method
+% 2. redefine SUBSREF to access property as MAP
 classdef Config < handle & matlab.mixin.CustomDisplay
     methods
         function [value, key] = get(obj, key, default, mode)
@@ -112,7 +115,8 @@ classdef Config < handle & matlab.mixin.CustomDisplay
             
             j = 0;
             for i = 1 : numel(varlist)
-                if not(strcmpi(varlist(i).name, 'filenameWhichShouldNotBeUsedInConfigurationFile'))
+                if not(strcmpi(varlist(i).name, ...
+                        'filenameWhichShouldNotBeUsedInConfigurationFile'))
                     argument{j + 1} = varlist(i).name;
                     argument{j + 2} = eval(varlist(i).name);
                     j = j + 2;

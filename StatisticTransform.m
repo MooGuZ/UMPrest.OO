@@ -1,99 +1,143 @@
-classdef StatisticTransform < handle
-    methods
-        function opackage = forward(obj, ipackage)
-            opackage = DataPackage(obj.transform(ipackage.data), 1, ipackage.taxis);
-            opackage.info.statrans = struct( ...
-                'timestamp', obj.cache('timestamp'), ...
-                'inputSize', ipackage.szsample);
-        end
-        
-        function datapkg = backward(obj, datapkg)
-            if datapkg.info.statrans.timestamp == obj.cache('timestamp')
-                kernel = obj.getKernel(datapkg.info.statrans.inputSize);
-                datapkg.data = obj.compose(datapkg.data, kernel);
-            end
-        end
-    end
-    
+classdef StatisticTransform < SimpleUnit
     methods    
-        function data = transform(obj, data)
+        function data = process(obj, data)
+            if not(obj.outsourced)
+                obj.stat.commit(data);
+            end
+            
             kernel = obj.getKernel(size(data));
-            if obj.status
-                switch lower(obj.mode)
-                    case {'debias'}
-                        data = bsxfun(@minus, data, kernel.offset);
-                        
-                    case {'normalize'}
-                        data = bsxfun(@minus, data, kernel.offset);
-                        data = bsxfun(@rdivide, data, kernel.scale);
-                        
-                    case {'whiten'}
-                        data = bsxfun(@minus, data, kernel.offset);
-                        data = MathLib.vec(data, obj.unitdim, 'front');
-                        data = mtimesnd(kernel.encode, data);
-                        
-                    otherwise
-                        error('UMPrest:ArgumentError', 'Unrecognized coding mode : %s', ...
-                            upper(obj.mode));
-                end
+            switch obj.mode
+                case {'debias'}
+                    data = bsxfun(@minus, data, kernel.offset);
+                    
+                case {'normalize'}
+                    data = bsxfun(@minus, data, kernel.offset);
+                    data = bsxfun(@rdivide, data, kernel.scale);
+                    
+                case {'whiten'}
+                    data = bsxfun(@minus, data, kernel.offset);
+                    data = MathLib.vec(data, obj.unitdim, 'front');
+                    data = mtimesnd(kernel.encode, data);
+                    
+                otherwise
+                    error('UMPrest:ArgumentError', 'Unrecognized coding mode : %s', ...
+                        upper(obj.mode));
             end
         end
         
-        function data = compose(obj, data, kernel)
-            if obj.status
-                switch lower(obj.mode)
-                    case {'debias'}
-                        data = bsxfun(@plus, data, kernel.offset);
-                        
-                    case {'normalize'}
-                        data = bsxfun(@times, data, kernel.scale);
-                        data = bsxfun(@plus, data, kernel.offset);
-                        
-                    case {'whiten'}
-                        data = mtimesnd(kernel.decode, data);
-                        temp = size(data);
-                        data = reshape(data, [kernel.insize, temp(2:end)]);
-                        data = bsxfun(@plus, data, kernel.offset);
-                        
-                    otherwise
-                        error('UMPrest:ArgumentError', 'Unrecognized coding mode : %s', ...
-                            upper(obj.mode));
-                end
+        function data = invproc(obj, data)
+            kernel = obj.getKernel();
+            switch obj.mode
+                case {'debias'}
+                    data = bsxfun(@plus, data, kernel.offset);
+                    
+                case {'normalize'}
+                    data = bsxfun(@times, data, kernel.scale);
+                    data = bsxfun(@plus, data, kernel.offset);
+                    
+                case {'whiten'}
+                    data = mtimesnd(kernel.decode, data);
+                    temp = size(data);
+                    data = reshape(data, [kernel.insize, temp(2:end)]);
+                    data = bsxfun(@plus, data, kernel.offset);
+                    
+                otherwise
+                    error('UMPrest:ArgumentError', 'Unrecognized coding mode : %s', ...
+                        upper(obj.mode));
             end
         end
         
-%         function d = errprop(~, d)
-%             warning('ERRPROP should not be called in StatisticTransform');
-%         end
+        function error = delta(obj, error)
+            kernel = obj.getKernel();
+            switch obj.mode
+                case {'debias'}
+                    % DO NOTHING
+                    
+                case {'normalize'}
+                    error = bsxfun(@rdivide, error, kernel.scale);
+                    
+                case {'whiten'}
+                    error = mtimesnd(kernel.encode', error);
+                    temp  = size(error);
+                    error = reshape(data, [kernel.insize, temp(2:end)]);
+                    
+                otherwise
+                    error('UNSUPPORTED');
+            end
+        end
+        
+        function error = invdelta(obj, error)
+            kernel = obj.getKernel();
+            switch obj.mode
+                case {'debias'}
+                    % DO NOTHING
+                    
+                case {'normalize'}
+                    error = bsxfun(@times, error, kernel.scale);
+                    
+                case {'whiten'}
+                    error = mtimesnd(kernel.decode', MathLib.vec(error, obj.unitdim, 'front'));
+                    
+                otherwise
+                    error('UNSUPPORTED');
+            end
+        end
+        
+        function sizeout = sizeIn2Out(obj, sizein)
+            switch obj.mode
+                case {'debias', 'normalize'}
+                    sizeout = sizein;
+                    
+                case {'whiten'}
+                    numelSample = prod(sizein(1 : obj.unitdim));
+                    sizeout = [ceil(obj.whitenCompressRatio * numelSample), ...
+                        sizein(obj.unitdim + 1 : end)];
+                    
+                otherwise
+                    error('UNSUPPORTED');
+            end
+        end
+        
+        function sizein = sizeOut2In(obj, sizeout)
+            switch obj.mode
+                case {'debias', 'normalize'}
+                    sizein = sizeout;
+                    
+                case {'whiten'}
+                    kernel = obj.getKernel();
+                    numelSample = prod(kernel.sizein(1 : obj.unitdim));
+                    assert(sizeout(1) == ceil(obj.whitenCompressRatio * numelSample), ...
+                        'UNKNOWN');
+                    sizein = [kernel.sizein, sizeout(2 : end)];
+                    
+                otherwise
+                    error('UNSUPPORTED');
+            end
+        end
     end
     
     methods
         function tof = cacheOutdated(obj)
-            if obj.stat.status
-                if isempty(obj.cache)
-                    obj.refreshCache();
-                    tof = false;
-                else
-                    tof = (obj.cache('timestamp') ~= obj.stat.count);
-                end
-            else
-                tof = false;
+            if isempty(obj.cache)
+                obj.refreshCache();
             end
-        end
-        
-        function value = unitdim(obj)
-            if obj.stat.status
-                value = obj.stat.unitdim;
+            
+            if obj.frozen
+                tof = false;
             else
-                error('UMPrest:RuntimeError', ...
-                    'UNITDIM is unavailable when StatisticCollector is turned off');
+                tof = (obj.stat.count - obj.cache('timestamp') >= obj.updateInterval);
             end
         end
         
         function kernel = getKernel(obj, inputSize)
-            assert(numel(inputSize) >= obj.unitdim, 'UMPrest:RuntimeError', ...
-                'Input data does not match minimum dimension requirement');
-            inputSize = inputSize(1 : obj.unitdim);
+            if exist('inputSize', 'var')
+                assert(numel(inputSize) >= obj.unitdim, 'UMPrest:RuntimeError', ...
+                    'Input data does not match minimum dimension requirement');
+                inputSize = inputSize(1 : obj.unitdim);
+            else
+                assert(not(isempty(obj.lastSampleSize)), 'NOT INITIALIZED');
+                inputSize = obj.lastSampleSize;
+            end
             
             if obj.cacheOutdated()
                 obj.refreshCache();
@@ -104,15 +148,13 @@ classdef StatisticTransform < handle
             else
                 kernel = obj.updateCache(inputSize);
             end
+            
+            obj.lastSampleSize = inputSize;
         end
         
         function refreshCache(obj)
-            if obj.status
-                obj.cache = containers.Map('KeyType', 'char', 'ValueType', 'any');
-                obj.cache('timestamp') = obj.stat.count;
-            else
-                obj.cache = [];
-            end
+            obj.cache = containers.Map('KeyType', 'char', 'ValueType', 'any');
+            obj.cache('timestamp') = obj.stat.count;
         end
         
         function kernel = updateCache(obj, inputSize)
@@ -152,48 +194,63 @@ classdef StatisticTransform < handle
     end
     
     methods
-        function obj = StatisticTransform(stat, mode)
-            obj.stat = stat;
+        function obj = StatisticTransform(mode, arg, varargin)
             obj.mode = mode;
+            if isa(arg, 'StatisticCollector')
+                obj.stat = arg;
+                obj.outsourced = true;
+            else
+                assert(isscalar(arg) && MathLib.isinteger(arg) && arg > 0, ...
+                    'ArgumentError', ...
+                    'Illegal argument, unit dimension or statistic collector required');
+                obj.stat = StatisticCollector(arg);
+                obj.outsourced = false;
+            end
+            obj = Config(varargin).apply(obj);
         end
     end
     
     properties
         whitenCutoffRatio   = 0.99;
+        whitenCompressRatio = 0.5; % TBC in parameter setup
         whitenRolloffFactor = 8;
         whitenNoiseRatio    = 0.01;
+        updateInterval      = 1000;
+    end
+    methods
+        function set.updateInterval(obj, value)
+            assert(MathLib.isinteger(value) && value > 0, 'ArgumentError', ...
+                'Interval of update should be a positive integer.');
+            obj.updateInterval = value;            
+        end
     end
     
     properties
-        mode
+        mode, frozen, lastSampleSize
     end
     methods
         function set.mode(obj, value)
-            validatestring(value, {'off', 'debias', 'normalize', 'whiten'});
-            obj.mode = value;
+            validatestring(lower(value), {'debias', 'normalize', 'whiten'});
+            obj.mode = lower(value);
+        end
+    end
+    
+    properties (Dependent)
+        unitdim
+    end
+    methods
+        function value = get.unitdim(obj)
+            value = obj.stat.unitdim;
         end
     end
     
     properties (SetAccess = private, Hidden)
-        stat, cache
+        stat, cache, outsourced
     end
     methods
         function set.stat(obj, value)
             assert(isa(value, 'StatisticCollector'));
             obj.stat = value;
-        end
-    end
-    
-    properties (Dependent)
-        status
-    end
-    methods
-        function value = get.status(obj)
-            if obj.stat.status
-                value = not(strcmpi(obj.mode, 'off'));
-            else
-                value = false;
-            end                
         end
     end
 end
