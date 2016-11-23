@@ -38,7 +38,7 @@ classdef StatisticTransform < SimpleUnit
                 case {'whiten'}
                     data = mtimesnd(kernel.decode, data);
                     temp = size(data);
-                    data = reshape(data, [kernel.insize, temp(2:end)]);
+                    data = reshape(data, [kernel.sizein, temp(2:end)]);
                     data = bsxfun(@plus, data, kernel.offset);
                     
                 otherwise
@@ -59,7 +59,7 @@ classdef StatisticTransform < SimpleUnit
                 case {'whiten'}
                     error = mtimesnd(kernel.encode', error);
                     temp  = size(error);
-                    error = reshape(data, [kernel.insize, temp(2:end)]);
+                    error = reshape(data, [kernel.sizein, temp(2:end)]);
                     
                 otherwise
                     error('UNSUPPORTED');
@@ -206,6 +206,14 @@ classdef StatisticTransform < SimpleUnit
                 obj.stat = StatisticCollector(arg);
                 obj.outsourced = false;
             end
+            obj.I = UnitAP(obj, obj.unitdim);
+            switch obj.mode
+                case {'debias', 'normalize'}
+                    obj.O = UnitAP(obj, obj.unitdim);
+                    
+                case {'whiten'}
+                    obj.O = UnitAP(obj, 1);
+            end
             obj = Config(varargin).apply(obj);
         end
     end
@@ -223,6 +231,11 @@ classdef StatisticTransform < SimpleUnit
                 'Interval of update should be a positive integer.');
             obj.updateInterval = value;            
         end
+    end
+    
+    properties (Constant)
+        taxis      = false;
+        expandable = true;
     end
     
     properties

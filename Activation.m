@@ -56,8 +56,8 @@ classdef Activation < Unit
     methods
         function obj = Activation(type)
             obj.type = type;
-            obj.I = AccessPoint(obj, 1);
-            obj.O = AccessPoint(obj, 1);
+            obj.I = UnitAP(obj, 1);
+            obj.O = UnitAP(obj, 1);
             obj.id = UMPrest.unit(obj);
         end
     end

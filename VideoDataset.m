@@ -149,7 +149,7 @@ classdef VideoDataset < handle
                 obj.db = FileDataBlock(dbsource, @videoread, {'.gif'}, obj.stat);
             elseif isa(dbsource, 'DataBlock')
                 obj.db = dbsource;
-                obj.stat = obj.db.stat;
+                obj.stat = obj.db.stat.collector;
             end
 %             obj.coder = StatisticTransform(obj.stat, conf.get('coder', 'off'));
             % setup patch mode
@@ -160,16 +160,13 @@ classdef VideoDataset < handle
                 obj.enablePatch(psize, varargin{:});
             end
             % setup access point
-            obj.apdata = AccessPoint(obj, obj.db.datadim);
-            if obj.islabelled
-                obj.aplabel = AccessPoint(obj, obj.db.labeldim);
-            end
+            obj.apdata = UnitAP(obj, 2);
         end
     end
     
     properties
         db, stat%, coder
-        apdata, aplabel
+        apdata
     end
     methods
         function set.db(obj, value)
@@ -234,15 +231,6 @@ classdef VideoDataset < handle
             obj.patchSize      = patchSize;
             obj.patchPerSample = Config(varargin).get('patchPerSample', 1);
             obj.patchCounter   = 0;
-        end
-    end
-    
-    properties (Dependent)
-        islabelled
-    end
-    methods
-        function value = get.islabelled(obj)
-            value = obj.db.islabelled;
         end
     end
 end

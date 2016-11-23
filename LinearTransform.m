@@ -64,8 +64,8 @@ classdef LinearTransform < MappingUnit
                 obj.B = HyperParam(zeros(outputSize, 1));
             end
             
-            obj.I = AccessPoint(obj, 1);
-            obj.O = AccessPoint(obj, 1);
+            obj.I = UnitAP(obj, 1);
+            obj.O = UnitAP(obj, 1);
             
             obj.id = UMPrest.unit(obj);
         end

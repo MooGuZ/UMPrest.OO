@@ -1,35 +1,104 @@
 classdef FileDataBlock < DataBlock
     methods
-        function [dcell, lcell] = fetch(obj, n)
-            if obj.icache >= numel(obj.cache)
-                obj.refreshCache();
-            end
-
-            % case : need refresh cache
-            if n > numel(obj.cache) - obj.icache 
-                nbatch = ceil((n - (numel(obj.cache) - obj.icache)) / ...
-                              obj.capacity) + 1;
-
-                buffer = cell(1, nbatch);
-
-                buffer{1} = obj.cache(obj.icache + 1 : numel(obj.cache));
-                n = n - (numel(obj.cache) - obj.icache);
-                for i = 2 : nbatch - 1
-                    obj.refreshCache();
-                    buffer{i} = obj.cache(:);
-                    n = n - numel(obj.cache);
+        function data = fetch(obj, n)
+            % initialize output
+            data = {};
+            % fillup output from cache util done
+            while n > 0
+                % CASE: enough data in cache
+                if n <= numel(obj.cache) - obj.icache
+                    data = [data, obj.cache(obj.icache + (1 : n))];
+                    obj.icache = obj.icache + n;
+                    break
+                % CASE: cache is traversed
+                elseif obj.icache >= numel(obj.cache)
+                    obj.refresh();
+                % CASE: not enough data in cache
+                else
+                    n = n - (numel(obj.cache) - obj.icache);
+                    data = [data, obj.cache(obj.icache + 1 : end)];
+                    obj.refresh();
                 end
-                obj.refreshCache();
-                buffer{end} = obj.cache(1 : n);
-                obj.icache = n;
-
-                dcell = cellcomb(buffer);
-            else % case : normal
-                dcell = obj.cache(obj.icache + (1 : n));
-                obj.icache = obj.icache + n;
             end
-            
-            lcell = {};
+        end
+        
+        function refresh(obj)
+            if not(obj.autoload.status) || obj.autoload.iid >= obj.volumn
+                obj.shuffle();
+                return
+            end
+            % initialize variables
+            i = 1;
+            n = min(obj.volumn - obj.autoload.iid, obj.capacity);
+            obj.cache = cell(1, n);
+            % initialize output information
+            if usejava('desktop')
+                hwbar = waitbar(0);
+                set(get(get(hwbar, 'children'), 'title'), 'Interpreter', 'none');
+            else
+                disp('START LOADING FILES');
+            end
+            % fillup cache one by one
+            while i <= n
+                obj.autoload.iid = obj.autoload.iid + 1;
+                % CASE: files have been traversed
+                if obj.autoload.iid > obj.volumn
+                    obj.autoload.iid = obj.volumn;
+                    obj.cache = obj.cache(1:i-1);
+                    break
+                end
+                % read a file to cache
+                index = obj.order(obj.autoload.iid);
+                try
+                    obj.cache{i} = obj.getdata(index);
+                    % CASE: successfully read the file
+                    if usejava('desktop')
+                        waitbar(i / n, hwbar, sprintf('LOADING FILE : %d / %d', i, n));
+                    elseif mod(i, ceil(n / 10)) == 0
+                        fprintf('%5d%% FILES LOADED\n', round((i / n) * 100));
+                    end
+                    i = i + 1;
+                catch ME % CASE: file reading failed
+                    warning('NOT LOAD: %s\n [INFO] %s', obj.ftree.get(index), ME.message);
+                    obj.autoload.ifailed(end + 1) = index;
+                end
+            end
+            if usejava('desktop')
+                close(hwbar);
+            else
+                disp('FILE LOADIND COMPLETE');
+            end
+            % reset index of cache
+            obj.icache = 0;
+        end
+        
+        function shuffle(obj)
+            if obj.autoload.status
+                % remove bad files from file tree
+                if not(isempty(obj.autoload.ifailed))
+                    arrayfun(@obj.ftree.delete, ...
+                        sort(obj.autoload.ifailed, 'descent'));
+                    obj.autoload.ifailed = [];
+                end
+                % get new random order
+                obj.order = randperm(obj.volumn);
+                % reset file index
+                obj.autoload.iid = 0;
+                % initialize cache in new order
+                obj.refresh();
+                % CASE: cache capacity is sufficient for whole data
+                if obj.autoload.iid >= obj.volumn
+                    obj.disableAutoload();
+                end
+            else
+                % generate permutation map
+                index = randperm(obj.volumn);
+                % reorganize order and cache according to the map
+                obj.order = obj.order(index);
+                obj.cache = obj.cache(index);
+                % reset index of cache
+                obj.icache = 0;
+            end
         end
         
         function [data, label] = recent(obj)
@@ -40,41 +109,7 @@ classdef FileDataBlock < DataBlock
             end
             label = [];
         end
-        
-        function refreshCache(obj)
-            if not(obj.autoload.status) || obj.autoload.iid >= obj.volumn()
-                obj.shuffle();
-                return
-            end
-            
-            n = min(obj.volumn() - obj.autoload.iid, obj.capacity);
-            
-            i = 1;
-            hwbar = waitbar(0);
-            set(get(get(hwbar, 'children'), 'title'), 'Interpreter', 'none');
-            obj.cache = cell(1, n);
-            while i <= n
-                obj.autoload.iid = obj.autoload.iid + 1;
-                if obj.autoload.iid > obj.volumn()
-                    obj.autoload.iid = obj.volumn();
-                    obj.cache = obj.cache(1:i-1);
-                    break
-                end
-                try
-                    obj.cache{i} = obj.getdata(obj.getid(obj.order(obj.autoload.iid)));
-                    waitbar(i / n, hwbar, sprintf('Loading file in progress : %d / %d', i, n));
-                    i = i + 1;
-                catch ME
-                    obj.loadfail(obj.autoload.iid) = true;
-                    warning('File cannot load as data : %s\n  [INFO] %s', ...
-                        obj.getid(obj.order(obj.autoload.iid)), ME.message);
-                end
-            end
-            close(hwbar);
-            
-            obj.icache = 0;
-        end
-        
+
         function reset(obj)
             if obj.autoload.status
                 cacheStart = obj.autoload.iid - numel(obj.cache) + 1;
@@ -85,181 +120,70 @@ classdef FileDataBlock < DataBlock
             obj.icache = 0;
         end
         
-        function shuffle(obj)
-            if any(obj.loadfail)
-                obj.removeid(obj.order(obj.loadfail));
-                obj.loadfail = false(1, obj.volumn());
-            end
-            
-            index = randperm(obj.volumn());
-            obj.order = obj.order(index);
-            if obj.autoload.status
-                obj.autoload.iid = 0;
-                obj.refreshCache();
-                if obj.autoload.iid >= obj.volumn()
-                    obj.disableAutoload();
-                end
-            else
-                obj.cache = obj.cache(index);
-                obj.icache = 0;
+        function data = getdata(obj, index)
+            data = obj.readFcn(obj.ftree.get(index));
+            if obj.stat.status && not(obj.stat.tag(index))
+                obj.stat.collector.commit(data);
+                obj.stat.tag(index) = true;
             end
         end
         
-        function id = getid(obj, varargin)
-            narginchk(2, 3);
-            
-            if nargin == 2
-                index = varargin{1};
-                if numel(index) == 1
-                    assert(index <= obj.volumn());
-                    if isempty(obj.folderList)
-                        id = obj.fileList{index};
-                    else
-                        ifolder = 1;
-                        while numel(obj.fileList{ifolder}) < index
-                            index = index - numel(obj.fileList{ifolder});
-                            ifolder = ifolder + 1;
-                        end
-                        id = fullfile(obj.folderList{ifolder}, obj.fileList{ifolder}{index});
-                    end
-                else
-                    id = cell(1, numel(index));
-                    for i = 1 : numel(index)
-                        id{i} = obj.getid(index(i));
-                    end
-                end
-            elseif nargin == 3
-                head = varargin{1};
-                tail = varargin{2};
-                assert(head <= obj.volumn());
-                assert(tail <= obj.volumn());
-                if isempty(obj.folderList)
-                    id = obj.fileList(head : tail);
-                else
-                    id = cell(1, tail - head + 1);
-                    index = head;
-                    ifolder = 1;
-                    while numel(obj.fileList{ifolder}) < index
-                        index = index - numel(obj.fileList{ifolder});
-                        ifolder = ifolder + 1;
-                    end
-                    if tail - head + index <= numel(obj.fileList{ifolder})
-                        id(:) = cellfun(@(f) fullfile(obj.folderList{ifolder}, f), ...
-                            obj.fileList{ifolder}(index : tail - head + index), ...
-                            'UniformOutput', false);
-                    else
-                        count = (tail - head) - (numel(obj.fileList{ifolder}) - index);
-                        id(1 : end - count) = cellfun(@(f) fullfile(obj.folderList{ifolder}, f), ...
-                            obj.fileList{ifolder}(index : end), 'UniformOutput', false);
-                        ifolder = ifolder + 1;
-                        while count > numel(obj.fileList{ifolder})
-                            n = numel(obj.fileList{ifolder});
-                            id(count + (1 : n)) = cellfun(@(f) fullfile(obj.folderList{ifolder}, f), ...
-                                obj.fileList{ifolder}, 'UniformOutput', false);
-                            count = count - n;
-                            ifolder = ifolder + 1;
-                        end
-                        id(end - count + 1 : end) = cellfun(@(f) fullfile(obj.folderList{ifolder}, f), ...
-                            obj.fileList{ifolder}(1 : count), 'UniformOutput', false);
-                    end
-                end                
-            end
+        function enableStatistics(obj, sc)
+            obj.stat = struct( ...
+                'status',    true, ...
+                'collector', sc, ...
+                'tag',       false(1, obj.volumn));
         end
         
-        function removeid(obj, index)
-            index = sort(index, 'ascend');
-            if isempty(obj.folderList)
-                reserve = true(1, numel(obj.fileList));
-                reserve(index) = false;
-                obj.fileList = obj.fileList(reserve);
-            else
-                count = 0;
-                for i = 1 : numel(obj.folderList)
-                    n = numel(obj.fileList{i});
-                    inrange = index((index >= count + 1) && (index <= count + n));
-                    reserve = true(1, n);
-                    reserve(inrange) = false;
-                    obj.fileList{i} = obj.fileList{i}(reserve);
-                    count = count + n;
-                end
-            end
-            obj.nfile = cellcount(obj.fileList);
-        end
-        
-        function data = getdata(obj, id)
-            data = obj.readfunc(id);
-            if obj.stat.ncommit < obj.volumn()
-                obj.stat.commit(data);
-            end
+        function disableStatistics(obj)
+            obj.stat = struct('status', false);
         end
         
         function enableAutoload(obj)
-            obj.autoload = struct('status', true, 'iid', 0);
+            obj.autoload = struct('status', true, 'iid', 0, 'ifailed', []);
         end
         
         function disableAutoload(obj)
             obj.autoload = struct('status', false);
         end
-        
-        function value = volumn(obj)
-            value = obj.nfile;
-        end
     end
     
     methods
-        function obj = FileDataBlock(flist, readfunc, extList, stat)
-            if exist('stat', 'var')
-                obj.stat = stat;
-            else
-                obj.stat = StatisticCollector();
-            end
-            
-            if ischar(extList)
-                extList = {extList};
-            end
+        function obj = FileDataBlock(flist, readFcn, extList, stat)
+            obj.readFcn = readFcn;
+            % create file tree
             if iscell(flist)
-                if isdir(flist{1})
-                    for i = 2 : numel(flist)
-                        assert(isdir(flist{i}));
-                    end
-                    obj.folderList = flist;
-                    obj.extList = extList;
-                elseif exist(flist{1}, 'file') == 2
-                    for i = 2 : numel(flist)
-                        assert(exist(flist{i}, 'file') == 2);
-                    end
-                    obj.fileList = flist;
+                if isscalar(flist)
+                    obj.ftree = FileTree(flist{1}, 'pattern', extList);
                 else
-                    error('The 1st argument should be group of files or folders');
+                    obj.ftree = FileTree('/', 'pattern', extList, '-noexpand');
+                    for i = 1 : numel(flist)
+                        p = abspath(flist{i});
+                        if isdir(p)
+                            obj.ftree.subfolder = [obj.ftree.subfolder, ...
+                                FileTree(p, 'parent', obj.ftree, 'pattern', extList)];
+                        elseif exist(p, 'file')
+                            obj.ftree.subfile = [obj.ftree.subfile, p];
+                        else
+                            warning('NOT EXIST: %s', p);
+                        end
+                    end
+                    obj.ftree.refresh();
                 end
             elseif ischar(flist)
-                if isdir(flist)
-                    obj.folderList = {flist};
-                    obj.extList = extList;
-                elseif exist(flist, 'file') == 2;
-                    obj.fileList = {flist};
-                else
-                    error('The 1st argument should be file or folder');
-                end
+                obj.ftree = FileTree(flist, 'pattern', extList);
             else
                 error('The 1st argument should be string or cell array');
             end
-                
-            if not(isempty(obj.folderList))
-                obj.fileList = cell(1, numel(obj.folderList));
-                for i = 1 : numel(obj.folderList)
-                    obj.fileList{i} = listFileWithExt(obj.folderList{i}, obj.extList);
-                end
-                obj.nfile = cellcount(obj.fileList);
+            % setup statistic collecter
+            if exist('stat', 'var')
+                obj.enableStatistics(stat)
             else
-                obj.nfile = numel(obj.fileList);
+                obj.disableStatistics();
             end
-            
-            obj.readfunc = readfunc;
-
+            % setup autoload feature
             obj.enableAutoload();
-            obj.order = 1 : obj.volumn();
-            obj.loadfail = false(1, obj.volumn());
+            % initialize the library
             obj.shuffle();            
         end
     end
@@ -268,24 +192,19 @@ classdef FileDataBlock < DataBlock
         capacity = UMPrest.parameter.get('datasetCapacity');
     end
     
-    properties (Access = private)
-        nfile
-    end
-    
-    properties (SetAccess = private, Hidden)
-        folderList, fileList, extList
+    properties %(SetAccess = private, Hidden)
+        ftree, order
         cache, icache
-        autoload, order, loadfail
-        stat
-        readfunc
+        autoload, stat
+        readFcn
     end
     
     properties (Dependent)
-        islabelled
+        volumn
     end
     methods
-        function tof = get.islabelled(~)
-            tof = false;
+        function value = get.volumn(obj)
+            value = obj.ftree.volumn;
         end
     end
 end

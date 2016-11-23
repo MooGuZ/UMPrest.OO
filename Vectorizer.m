@@ -72,8 +72,8 @@ classdef Vectorizer < Unit
     
     methods
         function obj = Vectorizer()
-            obj.I = AccessPoint(obj, []);
-            obj.O = AccessPoint(obj, nan);
+            obj.I = UnitAP(obj, []);
+            obj.O = UnitAP(obj, nan);
         end
     end
     

@@ -40,7 +40,11 @@ classdef Config < handle & matlab.mixin.CustomDisplay
             if not(exist('mode', 'var'))
                 mode = 'default';
             end
-            [value, key] = obj.get(key, default, mode);
+            if exist('default', 'var')
+                [value, key] = obj.get(key, default, mode);
+            else
+                [value, key] = obj.get(key, mode);
+            end
             if not(isempty(key))
                 obj.map.remove(key);
             end

@@ -52,17 +52,21 @@ classdef FileTree < handle
             obj.subfolder = cellfun( ...
                 @(f) FileTree(f, 'parent', obj, 'pattern', obj.pattern), flist, ...
                 'UniformOutput', false);
+            % number of file in subfolders
+            nfile = cellfun(@(f) f.volumn, obj.subfolder);
             % remove empty subfolder
-            obj.subfolder(cellfun(@(f) f.volumn == 0, obj.subfolder)) = [];
+            obj.subfolder(nfile == 0) = [];
             % calculate volumn
-            obj.volumn = sum(cellfun(@(tree) tree.volumn, obj.subfolder)) ...
-                + numel(obj.subfile);
+            obj.volumn = sum(nfile) + numel(obj.subfile);
         end
         
         function refresh(obj)
+            % number of file in subfolders
+            nfile = cellfun(@(f) f.volumn, obj.subfolder);
+            % remove empty subfolder
+            obj.subfolder(nfile == 0) = [];
             % calculate volumn
-            obj.volumn = sum(cellfun(@(tree) tree.volumn, obj.subfolder)) ...
-                + numel(obj.subfile);
+            obj.volumn = sum(nfile) + numel(obj.subfile);
             % propagate information to upper level
             if not(isempty(obj.parent))
                 obj.parent.refresh();
@@ -74,11 +78,16 @@ classdef FileTree < handle
         function obj = FileTree(root, varargin)
             assert(isdir(root));
             obj.root = abspath(root);
-%             obj.root = root;
             conf = Config(varargin);
             obj.pattern = conf.pop('Pattern', '.gif');
             obj.parent  = conf.pop('Parent', []);
-            obj.explore();
+            if conf.pop('noexpand', false)
+                obj.subfolder = {};
+                obj.subfile   = {};
+                obj.volumn    = 0;
+            else
+                obj.explore();
+            end
         end
     end
     

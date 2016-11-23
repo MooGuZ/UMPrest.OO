@@ -53,9 +53,9 @@ classdef COUnit < MappingUnit
                 error('UMPrest:ArgumentError', 'Input arugment quantity : 1 - 2');
             end
             % setup access points
-            obj.frame = AccessPoint(obj, 1);
-            obj.amp   = AccessPoint(obj, 1);
-            obj.phase = AccessPoint(obj, 1);
+            obj.frame = UnitAP(obj, 1);
+            obj.amp   = UnitAP(obj, 1);
+            obj.phase = UnitAP(obj, 1);
             obj.I = [obj.amp, obj.phase];
             obj.O = obj.frame;
         end

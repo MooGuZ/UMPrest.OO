@@ -3,6 +3,5 @@ classdef DataBlock < handle
         [dcell, lcell] = fetch(obj, n)
         [data, label]  = recent(obj)
         reset(obj)
-        volumn(obj)
     end
 end
