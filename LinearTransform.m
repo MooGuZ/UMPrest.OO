@@ -1,10 +1,10 @@
-classdef LinearTransform < MappingUnit
+classdef LinearTransform < SISOUnit & FeedforwardOperation
     methods
-        function y = process(obj, x)
+        function y = dataproc(obj, x)
             y = bsxfun(@plus, obj.weight * x, obj.bias);
         end
         
-        function d = delta(obj, d, isEvolving)
+        function d = deltaproc(obj, d, isEvolving)
             if not(exist('isEvolving', 'var')) || isEvolving
                 obj.B.addgrad(sum(d, 2));
                 obj.W.addgrad(d * obj.I.state');
@@ -20,18 +20,6 @@ classdef LinearTransform < MappingUnit
                 obj.W.update();
                 obj.B.update();
             end
-        end
-    end
-    
-    methods
-        function unit = inverseUnit(obj)
-            unit = LinearTransform(obj.weight', zeros(size(obj.W, 2), 1), true);
-        end
-        
-        function kernel = kernelDump(obj)
-            w = obj.W.getcpu();
-            b = obj.B.getcpu();
-            kernel = [w(:); b(:)];
         end
     end
     
@@ -66,8 +54,6 @@ classdef LinearTransform < MappingUnit
             
             obj.I = UnitAP(obj, 1);
             obj.O = UnitAP(obj, 1);
-            
-            obj.id = UMPrest.unit(obj);
         end
     end
     
@@ -108,8 +94,8 @@ classdef LinearTransform < MappingUnit
         end
     end
     
-    properties (Constant)
-        taxis = false;
+    properties (Constant, Hidden)
+        taxis      = false;
         expandable = false;
     end
     

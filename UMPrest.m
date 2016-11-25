@@ -1,3 +1,5 @@
+% PRP: 1. implement static SAVE and LOAD function (ConstructOnLoad)
+%      2. create class for ID register
 classdef UMPrest < handle
     methods (Static)
         function envsetup()

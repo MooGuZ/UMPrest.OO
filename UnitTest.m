@@ -10,18 +10,15 @@ classdef UnitTest
             model = MLP(inputSize, psizeList, ...
                 'HiddenLayerActType', hactType, ...
                 'OutputLayerActType', oactType);
-            % x = randn(inputSize, 1);
-            % y = model.transform(x);
-            % model.errprop(y);
-            % model.update();
             datasource = load(UMPrest.path('data', 'tinytest'));
-            ds = VideoDataset(MemoryDataBlock( ...
+            ds = LabelledDataSet(LabelledMemoryDataBlock( ...
                 MathLib.pack2cell(datasource.X'), ...
-                StatisticCollector(), 'label', ...
                 MathLib.pack2cell(MathLib.ind2tf(datasource.y, 1, 10))));
-            model.likelihood = Likelihood('logistic');
-            model.task = Task('classify');
-            Trainer.minibatch(model, ds)
+            AccessPoint.connectOneWay(ds.data, model.I);
+            objective = Likelihood('logistic', model.O, ds.label);
+            trainer = Trainer();
+            log = trainer.suptrain(model, ds, objective);
+            log.display();
         end
         
         function topologicalSort()

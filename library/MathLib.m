@@ -116,6 +116,15 @@ classdef MathLib < handle
         function d = reluDifferential(y)
             d = double(y > 0);
         end
+        
+        function y = softmax(x)
+            y = exp(x) / sum(exp(x(:)));
+        end
+        % PRB: this function is not element-vise, cause a lot of problems
+        function d = softmaxDifferential(y)
+            n = numel(y);
+            d = eye(y) - repmat(-y(:)', n ,1);
+        end
     end
     
     % ============= LIKELIHOOD =============
