@@ -16,7 +16,7 @@ classdef StatisticTransform < SimpleUnit
                     
                 case {'whiten'}
                     data = bsxfun(@minus, data, kernel.offset);
-                    data = MathLib.vec(data, obj.unitdim, 'front');
+                    data = vec(data, obj.dsample, 'front');
                     data = mtimesnd(kernel.encode, data);
                     
                 otherwise
@@ -76,7 +76,7 @@ classdef StatisticTransform < SimpleUnit
                     error = bsxfun(@times, error, kernel.scale);
                     
                 case {'whiten'}
-                    error = mtimesnd(kernel.decode', MathLib.vec(error, obj.unitdim, 'front'));
+                    error = mtimesnd(kernel.decode', vec(error, obj.dsample, 'front'));
                     
                 otherwise
                     error('UNSUPPORTED');
@@ -89,9 +89,9 @@ classdef StatisticTransform < SimpleUnit
                     sizeout = sizein;
                     
                 case {'whiten'}
-                    numelSample = prod(sizein(1 : obj.unitdim));
+                    numelSample = prod(sizein(1 : obj.dsample));
                     sizeout = [ceil(obj.whitenCompressRatio * numelSample), ...
-                        sizein(obj.unitdim + 1 : end)];
+                        sizein(obj.dsample + 1 : end)];
                     
                 otherwise
                     error('UNSUPPORTED');
@@ -105,7 +105,7 @@ classdef StatisticTransform < SimpleUnit
                     
                 case {'whiten'}
                     kernel = obj.getKernel();
-                    numelSample = prod(kernel.sizein(1 : obj.unitdim));
+                    numelSample = prod(kernel.sizein(1 : obj.dsample));
                     assert(sizeout(1) == ceil(obj.whitenCompressRatio * numelSample), ...
                         'UNKNOWN');
                     sizein = [kernel.sizein, sizeout(2 : end)];
@@ -131,9 +131,9 @@ classdef StatisticTransform < SimpleUnit
         
         function kernel = getKernel(obj, inputSize)
             if exist('inputSize', 'var')
-                assert(numel(inputSize) >= obj.unitdim, 'UMPrest:RuntimeError', ...
+                assert(numel(inputSize) >= obj.dsample, 'UMPrest:RuntimeError', ...
                     'Input data does not match minimum dimension requirement');
-                inputSize = inputSize(1 : obj.unitdim);
+                inputSize = inputSize(1 : obj.dsample);
             else
                 assert(not(isempty(obj.lastSampleSize)), 'NOT INITIALIZED');
                 inputSize = obj.lastSampleSize;
@@ -206,10 +206,10 @@ classdef StatisticTransform < SimpleUnit
                 obj.stat = StatisticCollector(arg);
                 obj.outsourced = false;
             end
-            obj.I = UnitAP(obj, obj.unitdim);
+            obj.I = UnitAP(obj, obj.dsample);
             switch obj.mode
                 case {'debias', 'normalize'}
-                    obj.O = UnitAP(obj, obj.unitdim);
+                    obj.O = UnitAP(obj, obj.dsample);
                     
                 case {'whiten'}
                     obj.O = UnitAP(obj, 1);
@@ -249,11 +249,11 @@ classdef StatisticTransform < SimpleUnit
     end
     
     properties (Dependent)
-        unitdim
+        dsample
     end
     methods
-        function value = get.unitdim(obj)
-            value = obj.stat.unitdim;
+        function value = get.dsample(obj)
+            value = obj.stat.dsample;
         end
     end
     

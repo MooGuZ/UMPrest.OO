@@ -64,7 +64,7 @@ classdef Trainer < handle
             objectives = typeAssert(objectives, 'cell');
             Config(varargin).apply(obj);
             % prepare training process
-            obj.trainPrepare(model, datasets, objectives);
+%             obj.trainPrepare(model, datasets, objectives);
             % generate logger
             log = Logger(model, datasets, objectives, obj, varargin{:});
             % training process

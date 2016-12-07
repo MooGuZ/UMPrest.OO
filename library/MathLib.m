@@ -146,29 +146,36 @@ classdef MathLib < handle
             else
                 d = x - ref;
             end
-            v = sum(d(:).^2);
+            v = sum(d(:).^2) / numel(x);
         end
         function d = mseGradient(x, ref, weight)
             % d = 2 * (x - ref) / numel(x);
             if exist('weight', 'var')
                 d = 2 * bsxfun(@times, x - ref, weight);
             else
-                d = 2 * (x - ref);
+                d = 2 * (x - ref) / numel(x);
             end
+        end
+        
+        function v = tmse(x, ref)
+            d = bsxfun(@times, (x - ref).^2, (0.9).^(size(x, 2) - 1 : -1 : 0));
+            v = sum(d(:)) / numel(x);
+        end
+        function d = tmseGradient(x, ref)
+            d = (2 / numel(x)) * bsxfun(@times, x - ref, ...
+                (0.9).^(size(x, 2) - 1 : -1 : 0));
         end
         
         function v = kldiv(x, ref)
             % x = MathLib.bound(x, [eps, inf]);
             % ref = MathLib.bound(ref, [eps, inf]);
-            v = sum(x(:) .* log(x(:) ./ ref(:)));
-            if isinf(v)
-                disp('Check here');
-            end
+            v = sum(x .* log(x ./ ref), 1);
+            v = mean(v(:));
         end
         function d = kldivGradient(x, ref)
             % x = MathLib.bound(x, [eps, inf]);
             % ref = MathLib.bound(ref, [eps, inf]);
-            d = (log(x ./ ref) + 1);
+            d = (log(x ./ ref) + 1) / (numel(x) / size(x, 1));
         end
     end
     
@@ -323,50 +330,6 @@ classdef MathLib < handle
             v(m + 1 : end) = 0.5 * (1 + cos(linspace(0, pi, n - m)));
         end
         
-        function x = vec(x, dim, mode)
-            if exist('dim', 'var')
-                if ~exist('mode', 'var')
-                    mode = 'front';
-                end
-                
-                sz = size(x);
-                
-                switch lower(mode)
-                  case {'front'}
-                    if dim <= 1
-                        return
-                    elseif numel(sz) > dim
-                        x = reshape(x, [prod(sz(1 : dim)), sz(dim + 1 : end)]);
-                    else
-                        x = x(:);
-                    end
-                    
-                  case {'back'}
-                    if dim <= 0
-                        x = x(:)';
-                    elseif numel(sz) > dim
-                        x = reshape(x, [sz(1 : dim), prod(sz(dim + 1 : end))]);
-                    end
-                    
-                  case {'both'}
-                    if dim <= 0
-                        x = x(:)';
-                    elseif numel(sz) > dim
-                        x = reshape(x, ...
-                                    [prod(sz(1 : dim)), prod(sz(dim + 1 : end))]);
-                    else
-                        x = x(:);
-                    end
-                    
-                  otherwise
-                    error('ArguemntError:MathLib', ...
-                          'Unrecognized vectorization mode : %s', upper(mode));
-                end
-            else
-                x = x(:);
-            end
-        end
-        
         function x = mask(x, ind)
             x(~ind) = 0;
         end
@@ -380,7 +343,7 @@ classdef MathLib < handle
             if not(exist('dim', 'var'))
                 dim = numel(orgsz);
             end
-            x = MathLib.vec(x, dim - 1, 'both');
+            x = vec(x, dim - 1, 'both');
             c = cell(1, size(x, 2));
             if dim > 2
                 unitsize = orgsz(1 : dim - 1);
@@ -428,7 +391,7 @@ classdef MathLib < handle
         end
         
         function x = splitDim(x, dim, szarr)
-            if dim >= 1 && dim <= MathLib.ndims(x)
+            if dim >= 1 && dim <= nndims(x)
                 sz = size(x);
                 if isscalar(szarr) || prod(szarr) ~= sz(dim)
                     szarr = [szarr, sz(dim) / prod(szarr)];
@@ -439,7 +402,7 @@ classdef MathLib < handle
         end
         
         function x = expandDim(x, dim)
-            if dim >= 1 && dim < MathLib.ndims(x)
+            if dim >= 1 && dim < nndims(x)
                 sz = size(x);
                 sz = [sz(1 : dim-1), sz(dim) * sz(dim+1), sz(dim+2 : end)];
                 x  = reshape(x, sz);
@@ -517,26 +480,18 @@ classdef MathLib < handle
         end
         
         function value = margin(data, dim)
-            datadim = MathLib.ndims(data);
+            datadim = nndims(data);
             if datadim < dim
                 value = sum(data(:));
             elseif datadim == dim
-                value = sum(MathLib.vec(data, dim))';
+                value = sum(vec(data, dim))';
             else
-                data = MathLib.vec(MathLib.vec(data, dim - 1, 'front'), 2, 'back');
+                data = vec(vec(data, dim - 1, 'front'), 2, 'back');
                 value = sum(sum(data, 1), 3)';
             end
         end
         
-        function n = ndims(mat)
-            if isempty(mat)
-                n = 0;
-            else
-                n = max(numel(MathLib.trimtail(size(mat), 1)), 1);
-            end
-        end
-        
-        function [M, flag] = concatecell(C, unitdim)
+       function [M, flag] = concatecell(C, unitdim)
             if iscell(C)
                 switch numel(C)
                   case {0}
@@ -551,9 +506,9 @@ classdef MathLib < handle
                     diminfo = cellfun(@ndims, C);
                     if isscalar(unique(diminfo))
                         sizeinfo = cellfun(@size, C(:), 'UniformOutput', false);
-                        if all(MathLib.vec(diff(cell2mat(sizeinfo), 1, 1)) == 0)
+                        if all(vec(diff(cell2mat(sizeinfo), 1, 1)) == 0)
                             if not(exist('unitdim', 'var'))
-                                unitdim = MathLib.ndims(C{1});
+                                unitdim = nndims(C{1});
                             end
                             M    = cell2mat(reshape(C, [ones(1, unitdim), numel(C)]));
                             flag = true;
@@ -611,7 +566,7 @@ classdef MathLib < handle
             dim = min(ndims(A), ndims(B));
             unitsize = size(A);
             unitsize = unitsize(1 : dim - 1);
-            C = [MathLib.vec(A, dim - 1, 'both'), MathLib.vec(B, dim - 1, 'both')];
+            C = [vec(A, dim - 1, 'both'), vec(B, dim - 1, 'both')];
             C = reshape(C, [unitsize, size(C, 2)]);
         end
     end

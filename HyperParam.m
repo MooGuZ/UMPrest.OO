@@ -9,7 +9,7 @@ classdef HyperParam < Tensor
                 grad = obj.gradient.pop();
                 grad = obj.stepsize(grad) * grad;
             else
-                grad = obj.gradient.pop() + obj.prior.errprop(obj.data);
+                grad = obj.gradient.pop() + obj.prior.delta(obj.data);
                 grad = obj.stepsize(grad) * grad;
             end
             
@@ -31,7 +31,8 @@ classdef HyperParam < Tensor
                 step = StepsizeCalculator.decline(obj.gradient.n, obj.stepconf);
                 
               case {'adapt'}
-                [step, obj.stepconf] = StepsizeCalculator.adapt(grad, obj.stepconf);
+                obj.stepconf = StepsizeCalculator.adapt(grad, obj.stepconf);
+                step = obj.stepconf.step;
                 
               otherwise
                 error('HyperParam:UnknownArgument', ...
@@ -42,17 +43,51 @@ classdef HyperParam < Tensor
     end
     
     methods
-        function obj = HyperParam(data, varargin)
+        function obj = HyperParam(data, stepconf, gradient, varargin)
             obj = obj@Tensor(data);
-            % parsing configuration from varying input arguments
-            conf = Config(varargin);
-            obj.stepconf = StepsizeCalculator.getConfig( ...
-                conf.pop('stepMethod', UMPrest.parameter.get('stepMethod')));
-            obj.gradient = GradientCalculator( ...
-                conf.pop('gradientMethod', UMPrest.parameter.get('gradMethod')));
-            conf.apply(obj);
+
+            if not(exist('stepconf', 'var'))
+                obj.stepconf = StepsizeCalculator.getConfig( ...
+                    UMPrest.parameter.get('stepMethod'));
+            else
+                obj.stepconf = stepconf;
+            end
+            
+            if not(exist('gradient', 'var'))
+                obj.gradient = GradientCalculator(UMPrest.parameter.get('gradMethod'));
+            else
+                obj.gradient = gradient;
+            end
+            
+            if not(isempty(varargin))
+                Config(varargin).apply(obj);
+            end
         end
     end
+    
+%     methods
+%         function sobj = saveobj(obj)
+%             sobj.data     = obj.getcpu();
+%             sobj.stepconf = obj.stepconf;
+%             sobj.gradient = obj.gradient;
+%             sobj.momentum = obj.momentum;
+%             sobj.prior    = obj.prior;
+%             sobj.inertia  = obj.inertia;
+%         end
+%     end
+%     methods (Static)
+%         function obj = loadobj(sobj)
+%             if isstruct(sobj)
+%                 obj = HyperParam( ...
+%                     sobj.data, sobj.stepconf, sobj.gradient, ...
+%                     'momentum', sobj.momentum, ...
+%                     'prior',    sobj.prior, ...
+%                     'inertia',  sobj.inertia);
+%             else
+%                 obj = sobj;
+%             end
+%         end
+%     end
     
     properties
         stepconf

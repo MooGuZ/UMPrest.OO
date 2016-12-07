@@ -1,27 +1,5 @@
 classdef FileDataBlock < DataBlock
     methods
-        function data = fetch(obj, n)
-            % initialize output
-            data = {};
-            % fillup output from cache util done
-            while n > 0
-                % CASE: enough data in cache
-                if n <= numel(obj.cache) - obj.icache
-                    data = [data, obj.cache(obj.icache + (1 : n))];
-                    obj.icache = obj.icache + n;
-                    break
-                % CASE: cache is traversed
-                elseif obj.icache >= numel(obj.cache)
-                    obj.refresh();
-                % CASE: not enough data in cache
-                else
-                    n = n - (numel(obj.cache) - obj.icache);
-                    data = [data, obj.cache(obj.icache + 1 : end)];
-                    obj.refresh();
-                end
-            end
-        end
-        
         function refresh(obj)
             if not(obj.autoload.status) || obj.autoload.iid >= obj.volumn
                 obj.shuffle();
@@ -78,6 +56,7 @@ classdef FileDataBlock < DataBlock
                 if not(isempty(obj.autoload.ifailed))
                     arrayfun(@obj.ftree.delete, ...
                         sort(obj.autoload.ifailed, 'descent'));
+                    obj.stat.tag(obj.autoload.ifailed) = [];
                     obj.autoload.ifailed = [];
                 end
                 % get new random order
@@ -101,33 +80,24 @@ classdef FileDataBlock < DataBlock
             end
         end
         
-        function [data, label] = recent(obj)
-            if obj.icache
-                data = obj.cache(obj.icache);
-            else
-                data = [];
-            end
-            label = [];
-        end
-
-        function reset(obj)
-            if obj.autoload.status
-                cacheStart = obj.autoload.iid - numel(obj.cache) + 1;
-                if cacheStart > 1
-                    obj.order = obj.order([cacheStart : end, 1 : cacheStart - 1]);
-                end
-            end
-            obj.icache = 0;
-        end
-        
         function data = getdata(obj, index)
-            data = obj.readFcn(obj.ftree.get(index));
+            dataPath = obj.ftree.get(index);
+            % load data from file system to memory
+            data = obj.dataReadFcn(dataPath);
+            % collect statistics information
             if obj.stat.status && not(obj.stat.tag(index))
                 obj.stat.collector.commit(data);
                 obj.stat.tag(index) = true;
             end
+            % load corresponding label
+            if obj.islabelled
+                data = struct('data', data, ...
+                    'label', obj.labelReadFcn(obj.labelSearchFcn(dataPath)));
+            end
         end
-        
+    end
+      
+    methods
         function enableStatistics(obj, sc)
             obj.stat = struct( ...
                 'status',    true, ...
@@ -149,8 +119,8 @@ classdef FileDataBlock < DataBlock
     end
     
     methods
-        function obj = FileDataBlock(flist, readFcn, extList, stat)
-            obj.readFcn = readFcn;
+        function obj = FileDataBlock(flist, dataReadFcn, extList, stat)
+            obj.dataReadFcn = dataReadFcn;
             % create file tree
             if iscell(flist)
                 if isscalar(flist)
@@ -175,6 +145,8 @@ classdef FileDataBlock < DataBlock
             else
                 error('The 1st argument should be string or cell array');
             end
+            % TODO: setup label feature
+            obj.islabelled = false;
             % setup statistic collecter
             if exist('stat', 'var')
                 obj.enableStatistics(stat)
@@ -184,7 +156,7 @@ classdef FileDataBlock < DataBlock
             % setup autoload feature
             obj.enableAutoload();
             % initialize the library
-            obj.shuffle();            
+            obj.shuffle();
         end
     end
     
@@ -192,11 +164,13 @@ classdef FileDataBlock < DataBlock
         capacity = UMPrest.parameter.get('datasetCapacity');
     end
     
-    properties %(SetAccess = private, Hidden)
-        ftree, order
-        cache, icache
-        autoload, stat
-        readFcn
+    properties (SetAccess = protected)
+        ftree % FileTree instance containing all file system information
+        order % integer array indicating current order of files 
+        autoload % a structure containing all information of autoload system
+        dataReadFcn % function handle that read data file from system
+        labelSearchFcn % function handle : DataFilePath -> LabelFilePath 
+        labelReadFcn % function handle that read label file from system
     end
     
     properties (Dependent)

@@ -19,19 +19,4 @@ classdef SISOUnit < SimpleUnit
             end
         end
     end
-    
-    properties (SetAccess = protected)
-        I, O
-    end
-    methods
-        function set.I(obj, value)
-            assert(isa(value, 'UnitAP'), 'ILLEGAL OPERATION');
-            obj.I = value;
-        end
-        
-        function set.O(obj, value)
-            assert(isa(value, 'UnitAP'), 'ILLEGAL OPERATION');
-            obj.O = value;
-        end
-    end
 end

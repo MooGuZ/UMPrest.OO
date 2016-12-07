@@ -93,7 +93,7 @@ classdef MaxPool < Unit
                 r = mp.errprop(p);
                 trecov = trecov + toc(tstart);
                 
-                erecov = erecov + sum(MathLib.vec(r(mp.map.index) ~= m(mp.map.index)));
+                erecov = erecov + sum(vec(r(mp.map.index) ~= m(mp.map.index)));
             end
             
             fprintf('Everage transformation time : %.3e (s)\n', ttrans / times);

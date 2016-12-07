@@ -1,14 +1,19 @@
-% TBC : add properties containing the type of likelihood
+% TODO: use element wise functions here, don't sum up the each element for
+%       convenience of dealing with weight problem.
 classdef Likelihood < Objective
     methods
+        % TODO: apply weight functions in EVALUATION and DELTA
         function value = evaluate(obj, x, ref)
+            if not(exist('x', 'var'))
+                x   = obj.x.state.package;
+                ref = obj.ref.state.pacakge;
+            end
             if isa(x, 'DataPackage')
                 if isempty(obj.weight)
                     value = obj.evalFunction(x.data, ref.data);
                 else
                     value = obj.evalFunction(x.data, ref.data, obj.weight);
-                end
-                    
+                end   
             else
                 if isempty(obj.weight)
                     value = obj.evalFunction(x, ref);
@@ -19,6 +24,10 @@ classdef Likelihood < Objective
         end
         
         function d = delta(obj, x, ref)
+            if not(exist('x', 'var'))
+                x   = obj.x.state.package;
+                ref = obj.ref.state.package;
+            end
             if isa(x, 'DataPackage')
                 if isempty(obj.weight)
                     d = obj.deltaFunction(x.data, ref.data);
@@ -26,6 +35,9 @@ classdef Likelihood < Objective
                     d = obj.deltaFunction(x.data, ref.data, obj.weight);
                 end
                 d = ErrorPackage(d, x.dsample, x.taxis);
+                if nargout == 0
+                    obj.x.push(d);
+                end
             else
                 if isempty(obj.weight)
                     d = obj.deltaFunction(x, ref);
@@ -33,62 +45,53 @@ classdef Likelihood < Objective
                     d = obj.deltaFunction(x, ref, obj.weight);
                 end
             end
-            
+        end
+    end
+    
+    methods
+        function enableWeight(obj, varargin)
+            conf = Config(varargin);
+            obj.weight = struct( ...
+                'status', true, ...
+                'taxis',  conf.pop('taxisWeight', []), ...
+                'daxis',  conf.pop('daxisWeight', []));
         end
         
-%         function value = evaluate(obj, varargin)
-%             switch nargin
-%                 case 2
-%                     datapkg = varargin{1};
-%                     value = obj.evalFunction(datapkg.data, datapkg.label);
-%                 case 3
-%                     data  = varargin{1};
-%                     label = varargin{2};
-%                     value = obj.evalFunction(data, label);
-%                 otherwise
-%                     error('UMPrest:RuntimeError', 'Should not happen');
-%             end
-%         end
-        
-%         function d = delta(obj, varargin)
-%             switch nargin
-%                 case 2
-%                     datapkg = varargin{1};
-%                     d = obj.deltaFunction(datapkg.data, datapkg.label);
-%                 case 3
-%                     data  = varargin{1};
-%                     label = varargin{2};
-%                     d = obj.deltaFunction(data, label);
-%                 otherwise
-%                     error('UMPrest:RuntimeError', 'Should not happen');
-%             end
-%         end
+        function disableWeight(obj)
+            obj.weight = struct('status', false);
+        end
     end
     
     methods
         function obj = Likelihood(type, weight)
-        % TBC : make parameters of function configurable by VARARGIN
+            % TODO: make parameters of function configurable by VARARGIN
+            % TODO: replace current functions with element based ones
             switch lower(type)
-              case {'mse', 'gaussian'}
-                obj.type          = 'MSE';
-                obj.evalFunction  = @MathLib.mse;
-                obj.deltaFunction = @MathLib.mseGradient;
-                
-              case {'logistic'}
-                obj.type          = 'Logistic';
-                obj.evalFunction  = @MathLib.logistic;
-                obj.deltaFunction = @MathLib.logisticGradient;
-                
-              case {'kld', 'kldiv', 'kldivergence'}
-                obj.type          = 'KL-Divergence';
-                obj.evalFunction  = @MathLib.kldiv;
-                obj.deltaFunction = @MathLib.kldivGradient;
-                
-              otherwise
-                error('UMPrest:ArgumentError', 'Unrecognized likelihood : %s', ...
-                      upper(type));
+                case {'mse', 'gaussian'}
+                    obj.type          = 'MSE';
+                    obj.evalFunction  = @MathLib.mse;
+                    obj.deltaFunction = @MathLib.mseGradient;
+                    
+                case {'tmse'}
+                    obj.type          = 'TMSE';
+                    obj.evalFunction  = @MathLib.tmse;
+                    obj.deltaFunction = @MathLib.tmseGradient;
+                    
+                case {'logistic'}
+                    obj.type          = 'Logistic';
+                    obj.evalFunction  = @MathLib.logistic;
+                    obj.deltaFunction = @MathLib.logisticGradient;
+                    
+                case {'kld', 'kldiv', 'kldivergence'}
+                    obj.type          = 'KL-Divergence';
+                    obj.evalFunction  = @MathLib.kldiv;
+                    obj.deltaFunction = @MathLib.kldivGradient;
+                    
+                otherwise
+                    error('UMPrest:ArgumentError', 'Unrecognized likelihood : %s', ...
+                        upper(type));
             end
-            
+            % TODO: more comprehensive setup of Weight Mechanism
             if exist('weight', 'var')
                 obj.weight = weight;
             end
@@ -96,7 +99,7 @@ classdef Likelihood < Objective
     end
     
     properties
-        weight
+        x, ref, weight
     end
     properties (SetAccess = private)
         type

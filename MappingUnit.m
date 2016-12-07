@@ -91,9 +91,9 @@ classdef MappingUnit < EvolvingUnit
                     end
                 end
                 if isscalar(grad)
-                    grad = MathLib.vec(grad{:});
+                    grad = vec(grad{1});
                 else
-                    grad = cellfun(@(x) MathLib.vec(x)', grad, 'UniformOutput', false);
+                    grad = cellfun(@(x) x(:)', grad, 'UniformOutput', false);
                     grad = [grad{:}]';
                 end
             end

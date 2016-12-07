@@ -2,7 +2,7 @@ classdef Prior < Objective
     methods
         function value = evaluate(obj, data)
         % value = sum(obj.evalFunction(data(:), obj.mu, obj.sigma)) / numel(data);
-            value = obj.scale * sum(MathLib.vec(obj.evalFunction(data, obj.mu, obj.sigma)));
+            value = obj.scale * sum(vec(obj.evalFunction(data, obj.mu, obj.sigma)));
         end
         
         function d = delta(obj, data)

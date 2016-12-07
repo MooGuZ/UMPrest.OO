@@ -65,7 +65,7 @@ classdef SequentialModel < Model & MappingUnit
             kernel = zeros(sum(ksize), 1);
             index = 0;
             for i = 1 : numel(buffer)
-                kernel(index + (1 : ksize(i))) = MathLib.vec(buffer{i});
+                kernel(index + (1 : ksize(i))) = vec(buffer{i});
                 index = index + ksize(i);
             end
         end

@@ -1,6 +1,6 @@
 classdef Objective < handle
     methods
-        value = evaluate(obj, datapkg)
-        d = delta(obj, datapkg)
+        varargout = evaluate(obj, varargin)
+        varargout = delta(obj, varargin)
     end
 end

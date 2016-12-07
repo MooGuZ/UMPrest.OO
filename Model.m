@@ -1,33 +1,68 @@
-classdef Model < Interface
+classdef Model < Interface & Evolvable
     methods
         % PRB: package leak to units which is not in the Model
         function varargout = forward(obj, varargin)
-            obj.check();
+            obj.prepare();
+            % load each input units with given package
             if not(isempty(varargin))
-                for i = 1 : numel(obj.I)
-                    obj.I(i).push(varargin{i});
-                end
+                arrayfun(@(i) obj.I(i).push(varargin{i}), 1 : numel(obj.I));
             end
-            for i = 1 : numel(obj.nodes)
-                obj.nodes{i}.forward();
-            end
-            varargout = arrayfun(@(ap) ap.state.package, obj.O, 'UniformOutput', false);
+            % data package backward propagation
+            cellfun(@forward, obj.nodes);
+            % collect output package
+            varargout = arrayfun(@(ap) ap.state.package, obj.O, ...
+                'UniformOutput', false);
         end
         
         function varargout = backward(obj, varargin)
-            obj.check();
+            obj.prepare();
+            % load each input units with given package
             if not(isempty(varargin))
-                for i = 1 : numel(obj.I)
-                    obj.O(i).push(varargin{i});
-                end
+                arrayfun(@(i) obj.O(i).push(varargin{i}), 1 : numel(obj.O));
             end
-            for i = numel(obj.nodes) : -1 : 1
-                obj.nodes{i}.backward();
-            end
-            varargout = AccessPoint.state.package(obj.I);
+            % data package backward propagation
+            cellfun(@backward, obj.nodes(end : -1 : 1));
+            % collect output package
+            varargout = arrayfun(@(ap) ap.state.package, obj.I, ...
+                'UniformOutput', false);
+        end
+    end
+    
+    methods
+        function varargout = sizeIn2Out(obj, varargin)
+            assert(numel(varargin) == numel(obj.I), 'ILLEGAL ARGUMENT');
+            % load SIZEPACKAGE to each input ACCESSPOINT
+            arrayfun(@(i) obj.I(i).push(SizePackage(varargin{i})), varargin, ...
+                     'UniformOutput', false);
+            % pass SIZEPACKAGE through the model
+            obj.forward();
+            % collect output SIZE information
+            varargout = arrayfun(@(ap) ap.state.data, obj.O, ...
+                                 'UniformOutput', false);
         end
         
-        function check(obj)
+        function varargout = sizeOut2In(obj, varargin)
+            assert(numel(varargin) == numel(obj.O), 'ILLEGAL ARGUMENT');
+            % load SIZEPACKAGE to each input ACCESSPOINT
+            arrayfun(@(i) obj.O(i).push(SizePackage(varargin{i})), varargin, ...
+                     'UniformOutput', false);
+            % pass SIZEPACKAGE through the model
+            obj.backward();
+            % collect output SIZE information
+            varargout = arrayfun(@(ap) ap.state.data, obj.I, ...
+                                 'UniformOutput', false);
+        end
+    end
+    
+    methods
+        function update(obj)
+            index = cellfun(@(node) isa(node, 'Evolvable'), obj.nodes);
+            cellfun(@update, obj.nodes(index));
+        end
+    end
+
+    methods
+        function prepare(obj)
             % ensure there is at lest one input
             if isempty(obj.I)
                 error('Please use ''setAsInput'' method to setup a input access point');
@@ -41,31 +76,20 @@ classdef Model < Interface
                 obj.topologicalSort();
             end
         end
-    end
-    
-    properties
-        nodes, edges
-        id2ind
-        sorted
-    end
-    properties (Dependent)
-        startNodes
-    end
-    methods
-        function value = get.startNodes(obj)
-            id = unique(arrayfun(@(ap) ap.parent.id, obj.I, 'UniformOutput', false));
-            value = cellfun(@(id) obj.id2ind(id), id);
+        
+        function clear(obj)
+            cellfun(@clear, obj.nodes);
         end
     end
     
     methods
-        function obj = add(obj, varargin)
+        function add(obj, varargin)
             for i = 1 : numel(varargin)
                 node = varargin{i};
-                if isa(node, 'Model')
-                    for j = 1 : numel(node.nodes)
-                        obj.add(node.nodes{j});
-                    end
+                if iscell(node)
+                    cellfun(@(unit) obj.add(unit), node);
+                elseif isa(node, 'Model')
+                    cellfun(@(unit) obj.add(unit), node.nodes);
                 elseif isa(node, 'Unit')
                     if not(obj.id2ind.isKey(node.id))
                         index = numel(obj.nodes) + 1;
@@ -90,14 +114,14 @@ classdef Model < Interface
             for i = 1 : numel(unit.I)
                 noPrevUnit = true;
                 for j = 1 : numel(unit.I(i).links)
-                    prevID = unit.I(i).links(j).parent.id;
+                    prevID = unit.I(i).links{j}.parent.id;
                     if obj.id2ind.isKey(prevID)
                         noPrevUnit = false;
                         prevIndex = obj.id2ind(prevID);
                         obj.edges{prevIndex} = unique( ...
                             [obj.edges{prevIndex}, index]);
                         % remove this AP from OBJ.O
-                        obj.O(obj.O == unit.I(i).links(j)) = [];
+                        obj.O(obj.O == unit.I(i).links{j}) = [];
                     end
                 end
                 if noPrevUnit
@@ -108,14 +132,14 @@ classdef Model < Interface
             for i = 1 : numel(unit.O)
                 noPostUnit = true;
                 for j = 1 : numel(unit.O(i).links)
-                    postID = unit.O(i).links(j).parent.id;
+                    postID = unit.O(i).links{j}.parent.id;
                     if obj.id2ind.isKey(postID)
                         noPostUnit = false;
                         postIndex = obj.id2ind(postID);
                         obj.edges{index} = unique( ...
                             [obj.edges{index}, postIndex]);
                         % remove this AP from OBJ.I
-                        obj.I(obj.I == unit.O(i).links(j)) = [];
+                        obj.I(obj.I == unit.O(i).links{j}) = [];
                     end
                 end
                 if noPostUnit
@@ -125,7 +149,7 @@ classdef Model < Interface
         end
         
         function topologicalSort(obj)
-            states = zeros(1, numel(obj.nodes));
+            states = false(1, numel(obj.nodes));
             order  = zeros(1, numel(obj.nodes));
             index  = numel(obj.nodes);
             starts = obj.startNodes;
@@ -146,29 +170,54 @@ classdef Model < Interface
         end
         
         function [states, order, index] = visit(obj, root, states, order, index)
-            % mark root as temporal
-            states(root) = 1;
-            % visit all children
-            for i = 1 : numel(obj.edges{root})
-                child = obj.edges{root}(i);
-                if not(states(child))
-                   [states, order, index] = obj.visit(child, states, order, index);
+            if not(states(root))
+                states(root) = true;
+                % visit all children
+                for i = 1 : numel(obj.edges{root})
+                    child = obj.edges{root}(i);
+                    if not(states(child))
+                        [states, order, index] = obj.visit(child, states, order, index);
+                    end
                 end
+                % assign order
+                order(root) = index;
+                index = index - 1;
             end
-            % assign order
-            order(root) = index;
-            index = index - 1;
         end
     end
     
     methods
-        function obj = Model()
-            obj.nodes  = {};
-            obj.edges  = {};
-            obj.I      = [];
-            obj.O      = [];
-            obj.id2ind = containers.Map();
-            obj.sorted = true;
+        function obj = Model(varargin)
+            obj.nodes    = {};
+            obj.edges    = {};
+            obj.I        = [];
+            obj.O        = [];
+            obj.id2ind   = containers.Map( ...
+                'KeyType', 'char', 'ValueType', 'any');
+            obj.sorted   = true;
+            % initialize model with given components
+            obj.add(varargin{:});
+        end
+    end
+    
+    % ======================= CONVERTER FUNCTION =======================
+    methods
+        function cunit = CompoundUnit(obj)
+            cunit = CompoundUnit();
+            cunit.init(obj);
+        end
+    end
+    
+    properties (SetAccess = protected)
+        nodes, edges, id2ind, sorted
+    end
+    properties (Dependent)
+        startNodes
+    end
+    methods
+        function value = get.startNodes(obj)
+            id = unique(arrayfun(@(ap) ap.parent.id, obj.I, 'UniformOutput', false));
+            value = cellfun(@(id) obj.id2ind(id), id);
         end
     end
 end

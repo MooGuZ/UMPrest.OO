@@ -56,5 +56,13 @@ classdef UMPrest < handle
                 end
             end
         end
+        
+        function uidm = UnitIDManager()
+            persistent manager;
+            if isempty(manager)
+                manager = IDManager();
+            end
+            uidm = manager;
+        end
     end
 end

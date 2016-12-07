@@ -1,107 +1,97 @@
 classdef AccessPoint < handle
-    methods (Abstract)
-        data = unpack(obj, package)
-        package = packup(obj, data)
-    end
-    
-    % ======================= CONNECTION =======================
     methods
         function send(obj, package)
-            % package = obj.packup(data);
-            for i = 1 : numel(obj.links)
-                % TODO: skip links type check, make the links only privately
-                %       setable and ensure legality of connection when
-                %       conncection established.
-                if isa(obj.links(i), 'AccessPoint')
-                    obj.links(i).push(package);
-                end
+            switch numel(obj.links)
+              case {0}
+                return
+                  
+              case {1}
+                obj.links{1}.push(package);
+                
+              otherwise
+                cellfun(@(ap) ap.push(package), obj.links);
             end
         end
         
         function push(obj, package)
-            obj.cache{obj.jcache} = package;
-            % update cache index
-            if isempty(obj.icache)
-                obj.icache = obj.jcache;
-            elseif obj.icache == obj.jcache
-                obj.icache = mod(obj.jcache, obj.capacity) + 1;
-            end
-            obj.jcache = mod(obj.jcache, obj.capacity) + 1;
+            obj.cache.push(package);
         end
         
         function package = pop(obj)
-            if isempty(obj.icache)
-                error('EMPTY');
-            else
-                package = obj.cache{obj.icache};
-                % obj.cache{obj.icache} = [];
-            end
-            % update cache index
-            obj.icache = mod(obj.icache, obj.capacity) + 1;
-            if obj.icache == obj.jcache
-                obj.icache = [];
-            end
+            package = obj.cache.pop();
+        end
+    end
+       
+    methods
+        function connect(obj, ap)
+            obj.addlink(ap);
+            ap.addlink(obj);
         end
         
-        function value = count(obj)
-            if isempty(obj.icache)
-                value = 0;
-            elseif obj.icache == obj.jcache
-                value = obj.capacity;
-            else
-                value = mod(obj.jcache - obj.icache, obj.capacity);
-            end
+        function disconnect(obj, ap)
+            obj.rmlink(ap);
+            ap.rmlink(obj);
         end
         
         function addlink(obj, ap)
-            obj.links = unique([obj.links, ap]);
+            if isempty(obj.links)
+                obj.links = {ap};
+            elseif any(cellfun(@ap.compare, obj.links))
+                return
+            else
+                obj.links{end + 1} = ap;
+            end
         end
         
         function rmlink(obj, ap)
-            obj.links(obj.links == ap) = [];
+            switch numel(obj.links)
+              case {0}
+                return
+                
+              case {1}
+                if ap.compare(obj.links{1})
+                    obj.links = {};
+                end
+                
+              otherwise
+                tf = cellfun(@ap.compare, obj.links);
+                obj.links(tf) = [];
+            end
         end
     end
     
     methods
-        function obj = AccessPoint(parent, dsample)
-            obj.parent   = parent;
-            obj.dsample  = dsample;
-            obj.state    = struct('data', [], 'package', []);
-            obj.capacity = UMPrest.parameter.get('AccessPointCapacity');
-            obj.cache    = cell(1, obj.capacity);
-            obj.icache   = [];
-            obj.jcache   = 1;
+        function tf = compare(obj, ap)
+            tf = (obj == ap);
         end
     end
     
-    methods (Static)
-        function connect(ap1, ap2)
-            ap1.addlink(ap2);
-            ap2.addlink(ap1);
-        end
-        
-        function disconnect(ap1, ap2)
-            ap1.rmlink(ap2);
-            ap2.rmlink(ap1);
-        end
-        
-        function connectOneWay(from, to)
-            from.addlink(to);
+    methods
+        function obj = AccessPoint()
+            obj.links = {};
         end
     end
     
-    % PRP: create a QUEUE class for cache
-    properties
-        parent, state, links
-        cache, capacity, icache, jcache
+    properties (SetAccess = protected)
+        links
     end
-    properties (Abstract)
-        dsample
+    properties (Abstract, SetAccess = protected)
+        parent, cache, state
+    end
+    properties (Dependent)
+        isfull, isempty, count
     end
     methods
-        function set.links(obj, value)
-            assert(isempty(value) || isa(value, 'AccessPoint'));
-            obj.links = value;
+        function value = get.isfull(obj)
+            value = obj.cache.isfull;
+        end
+        
+        function value = get.isempty(obj)
+            value = obj.cache.isempty;
+        end
+        
+        function value = get.count(obj)
+            value = obj.cache.count;
         end
     end
 end

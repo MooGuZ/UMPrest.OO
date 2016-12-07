@@ -1,4 +1,4 @@
-classdef DatasetAP < AccessPoint
+classdef DatasetAP < SimpleAP
     methods
         function data = unpack(obj, package)
             data = package.data;
@@ -16,12 +16,23 @@ classdef DatasetAP < AccessPoint
     end
     
     methods
-        function obj = DatasetAP(parent, dsample)
-            obj = obj@AccessPoint(parent, dsample);
+        function obj = DatasetAP(varargin)
+            obj@SimpleAP(varargin{:});
         end
     end
     
-    properties
-        dsample
+    properties (SetAccess = protected)
+        parent, dsample
+    end
+    methods
+        function set.parent(obj, value)
+            assert(isa(value, 'Dataset'), 'ILLEGAL OPERATION');
+            obj.parent = value;
+        end
+        
+        function set.dsample(obj, value)
+            assert(MathLib.isinteger(value) && value > 0);
+            obj.dsample = value;
+        end
     end
 end

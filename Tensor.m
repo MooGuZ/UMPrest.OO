@@ -26,6 +26,8 @@ classdef Tensor < handle
     end
     
     methods
+        % PRB: program would be confused in checking the size of a Tensor array,
+        %      which only have one unit.
         function sz = size(obj, varargin)
             sz = size(obj.data, varargin{:});
         end
@@ -41,27 +43,40 @@ classdef Tensor < handle
         end
     end
     
-    % SAVE and LOAD
-    methods
-        function sobj = saveobj(obj)
-            sobj.data = obj.getcpu();
-        end
+%     % SAVE and LOAD
+%     methods
+%         function sobj = saveobj(obj)
+%             sobj.data = obj.getcpu();
+%         end
+%     end
+%     methods (Static)
+%         function obj = loadobj(sobj)
+%             if isstruct(sobj)
+%                 obj = Tensor(sobj.data);
+%             else
+%                 obj = sobj;
+%             end
+%         end
+%     end
+
+    properties (Access = private)
+        dataToSave
     end
-    methods (Static)
-        function obj = loadobj(sobj)
-            if isstruct(sobj)
-                obj = Tensor(sobj.data);
-            else
-                obj = sobj;
-            end
+    methods
+        function value = get.dataToSave(obj)
+            value = obj.getcpu();
+        end
+        function set.dataToSave(obj, value)
+            obj.set(value);
         end
     end
     
-    properties
+    properties (Transient)
         data % collection of data samples in matrix form (may located in CPU/GPU memory)
     end
     methods
         function set.data(obj, value)
+            assert(isnumeric(value), 'ILLEGAL ASSIGNMENT'); % RMPERF
             if obj.enableGPU
                 if isa(value, 'gpuArray')
                     obj.data = value;

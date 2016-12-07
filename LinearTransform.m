@@ -1,4 +1,4 @@
-classdef LinearTransform < SISOUnit & FeedforwardOperation
+classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
     methods
         function y = dataproc(obj, x)
             y = bsxfun(@plus, obj.weight * x, obj.bias);
@@ -7,7 +7,7 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation
         function d = deltaproc(obj, d, isEvolving)
             if not(exist('isEvolving', 'var')) || isEvolving
                 obj.B.addgrad(sum(d, 2));
-                obj.W.addgrad(d * obj.I.state');
+                obj.W.addgrad(d * obj.I.state.data');
             end
             d = obj.weight' * d;
         end
@@ -35,35 +35,33 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation
     end
     
     methods
-        function obj = LinearTransform(argA, argB, opt)
-            if exist('opt', 'var') && opt
-                weight = argA; bias = argB;
-                assert(MathLib.ndims(weight) <= 2 && MathLib.ndims(bias) <= 1 && ...
-                       size(weight, 1) == size(bias, 1), 'UMPrest:ArgumentError', ...
-                       'Provide WEIGHT and BIAS are illeagal.');
-                obj.W = HyperParam(weight);
-                obj.B = HyperParam(bias);
-            else
-                inputSize = argA; outputSize = argB;
-                % Initialize weight to uniform distribution in the suggestion
-                % range inverse proportional to square root of input element
-                % quantity. While, bias are initialized as zeros.
-                obj.W = HyperParam((rand(outputSize, inputSize) - 0.5) * (2 / sqrt(inputSize)));
-                obj.B = HyperParam(zeros(outputSize, 1));
-            end
-            
+        function obj = LinearTransform(weight, bias)
+            assert(nndims(weight) <= 2 && nndims(bias) <= 1 && ...
+                size(weight, 1) == size(bias, 1), 'UMPrest:ArgumentError', ...
+                'Provide WEIGHT and BIAS are illeagal.');
+            obj.W = HyperParam(weight);
+            obj.B = HyperParam(bias);
             obj.I = UnitAP(obj, 1);
             obj.O = UnitAP(obj, 1);
         end
     end
     
     methods (Static)
+        function obj = randinit(sizein, sizeout)
+            obj = LinearTransform( ...
+                (rand(sizeout, sizein) - 0.5) * (2 / sqrt(sizein)), ...
+                zeros(sizeout, 1));
+        end
+    end
+    
+    methods (Static)
         function debug()
             sizein = 64; sizeout = 128;
-            ltrans = randn(sizeout, sizein); bias = randn(sizeout, 1);
+            ltrans = randn(sizeout, sizein);
+            bias   = randn(sizeout, 1);
             refer = LinearTransform(ltrans, bias, true);
             model = LinearTransform(sizein, sizeout);
-            model.likelihood = Likelihood('mse');
+            likelihood = Likelihood('mse');
             % create validate set
             % data = randn(sizein, 1e2);
             % validset = DataPackage(data, 'label', bsxfun(@plus, ltrans * data, bias));
@@ -71,16 +69,17 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation
             validsetOut = refer.forward(validsetIn);
             % start to learn the linear transformation
             fprintf('Initial objective value : %.2f\n', ...
-                    model.likelihood.evaluate( ...
+                    likelihood.evaluate( ...
                     model.forward(validsetIn).data, ...
                     validsetOut.data));
             for i = 1 : UMPrest.parameter.get('iteration')
                 data = randn(sizein, 8);
                 ipkg = DataPackage(data, 1, false);
                 opkg = refer.forward(ipkg);
-                model.learn(ipkg, opkg);
+                model.backward(likelihood.delta(model.forward(ipkg), opkg));
+                model.update();
                 fprintf('Objective Value after [%04d] turns: %.2f\n', i, ...
-                    model.likelihood.evaluate( ...
+                    likelihood.evaluate( ...
                     model.forward(validsetIn).data, ...
                     validsetOut.data));
             end
@@ -99,13 +98,12 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation
         expandable = false;
     end
     
-    properties (Access = private)
+    properties (Access = protected)
         W, B
     end
     
     properties (Dependent)
-        weight
-        bias
+        weight, bias
     end
     methods
         function value = get.weight(obj)

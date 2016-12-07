@@ -111,7 +111,7 @@ classdef COUnit < MappingUnit
     methods (Static)
         function debug(datapath, batchsize, niter, nepoch, savepath)
             ds = VideoDataset(datapath, 'coder', 'whiten');
-            kernel = ds.coder.getKernel(ds.stat.unitsize);
+            kernel = ds.coder.getKernel(ds.stat.smpsize);
             m = COUnit.randinit(1024, kernel.sizeout);
             m.amp.prior = [Prior('cauchy', 10, 0, 0.4), Prior('slow', 0.25)];
             g = GenerativeUnit(m, 'Likelihood', Likelihood('mse', kernel.pixelweight));

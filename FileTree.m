@@ -34,7 +34,7 @@ classdef FileTree < handle
         
         function tf = match(obj, fname)
             [~,~,ext] = fileparts(fname);
-            tf = strcmpi(ext, obj.pattern);
+            tf = any(strcmpi(ext, obj.pattern));
         end
         
         function explore(obj)
