@@ -74,8 +74,8 @@ classdef Likelihood < Objective
                     
                 case {'tmse'}
                     obj.type          = 'TMSE';
-                    obj.evalFunction  = @MathLib.tmse;
-                    obj.deltaFunction = @MathLib.tmseGradient;
+                    obj.evalFunction  = @(x, ref) MathLib.tmse(x, ref, weight);
+                    obj.deltaFunction = @(x, ref) MathLib.tmseGradient(x, ref, weight);
                     
                 case {'logistic'}
                     obj.type          = 'Logistic';
@@ -92,9 +92,9 @@ classdef Likelihood < Objective
                         upper(type));
             end
             % TODO: more comprehensive setup of Weight Mechanism
-            if exist('weight', 'var')
-                obj.weight = weight;
-            end
+%             if exist('weight', 'var')
+%                 obj.weight = weight;
+%             end
         end
     end
     

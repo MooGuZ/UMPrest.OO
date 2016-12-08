@@ -157,12 +157,12 @@ classdef RecurrentUnit < Unit & Evolvable
         function [refer, aprox] = debug()
             datasize  = 16;
             statesize = 16;
-            nframe  = 7;
+            nframe  = 3;
             nvalid  = 100;
             batchsize = 8;
             % create referent model
-%             refer = LSTM(datasize, statesize);
-            refer = SimpleRNN.randinit(datasize, statesize, 'sigmoid');
+            refer = LSTM.randinit(datasize, statesize);
+%             refer = SimpleRNN.randinit(datasize, statesize, 'sigmoid');
 %             refer.blin = BilinearTransform.randinit(sizeinA, sizeinB, sizehid);
 %             refer.model = RecurrentUnit(Model(refer.blin), {refer.blin.O, refer.blin.IA});
 %             refer.model.enableLastFrameMode();
@@ -176,8 +176,8 @@ classdef RecurrentUnit < Unit & Evolvable
 %                 Model(refer.blin, refer.actIn, refer.lin, refer.actOut), ...
 %                 {refer.actOut.O, refer.blin.IA});
             % create estimate model
-%             aprox = LSTM(datasize, statesize);
-            aprox = SimpleRNN.randinit(datasize, statesize, 'sigmoid');
+            aprox = LSTM.randinit(datasize, statesize);
+%             aprox = SimpleRNN.randinit(datasize, statesize, 'sigmoid');
 %             aprox.blin = BilinearTransform.randinit(sizeinA, sizeinB, sizeout);
 %             aprox.model = RecurrentUnit(Model(aprox.blin), {aprox.blin.O, aprox.blin.IA});
 %             aprox.model.enableLastFrameMode();
@@ -196,7 +196,7 @@ classdef RecurrentUnit < Unit & Evolvable
             validsetInC = DataPackage(rand(statesize, nvalid), 1, false);
             validsetOut = refer.forward(validsetInA, validsetInB, validsetInC);
             % define likelihood as optimization objective
-            likelihood = Likelihood('tmse');
+            likelihood = Likelihood('mse');
             % display current status of estimation
             objval = likelihood.evaluate( ...
                 aprox.forward(validsetInA, validsetInB, validsetInC).data, ...
@@ -221,12 +221,14 @@ classdef RecurrentUnit < Unit & Evolvable
 %                 aprox.model.forward(validsetInA, validsetInB).data, ...
 %                 validsetOut.data);
 %             fprintf('Objective Value after [%04d] turns: %.2e\n', i, objval);
-            % show estimation error
-            distinfo(abs(refer.blin.weightA - aprox.blin.weightA), 'WEIGHT IN A', false);
-            distinfo(abs(refer.blin.weightB - aprox.blin.weightB), 'WEIGHT IN B', false);
-            distinfo(abs(refer.blin.bias - aprox.blin.bias),  'BIAS IN', false);
+%             % show estimation error
+%             distinfo(abs(refer.blin.weightA - aprox.blin.weightA), 'WEIGHT IN A', false);
+%             distinfo(abs(refer.blin.weightB - aprox.blin.weightB), 'WEIGHT IN B', false);
+%             distinfo(abs(refer.blin.bias - aprox.blin.bias),  'BIAS IN', false);
 %             distinfo(abs(refer.lin.weight - aprox.lin.weight), 'WEIGHT HID', false);
 %             distinfo(abs(refer.lin.bias - aprox.lin.bias), 'BIAS HID', false);
+            % FOR LSTM
+            distinfo(abs(cat(2, refer.dump{:}) - cat(2, aprox.dump{:})), 'WEIGHTS', false);
         end
     end
 end

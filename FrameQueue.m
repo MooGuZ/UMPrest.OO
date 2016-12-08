@@ -22,4 +22,10 @@ classdef FrameQueue < Queue
             end                
         end
     end
+    
+    methods
+        function obj = FrameQueue(varargin)
+            obj@Queue(varargin{:});
+        end
+    end
 end

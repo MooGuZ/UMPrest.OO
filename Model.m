@@ -103,6 +103,17 @@ classdef Model < Interface & Evolvable
                 end
             end
         end
+        
+        function init(obj, nodes)
+            obj.I      = [];
+            obj.O      = [];
+            obj.nodes  = nodes;
+            obj.edges  = {};
+            obj.id2ind = containers.Map( ...
+                'KeyType', 'char', 'ValueType', 'any');
+            obj.sorted = true;
+            obj.add(obj.nodes);
+        end
     end
     
     methods
@@ -207,14 +218,24 @@ classdef Model < Interface & Evolvable
             cunit.init(obj);
         end
     end
-    
-    properties (SetAccess = protected)
+
+    properties (SetAccess = protected, Transient)
         nodes, edges, id2ind, sorted
+    end
+    properties (Access = private)
+        propertyForSave
     end
     properties (Dependent)
         startNodes
     end
     methods
+        function value = get.propertyForSave(obj)
+            value = obj.nodes;
+        end
+        function set.propertyForSave(obj, value)
+            obj.init(value);
+        end
+        
         function value = get.startNodes(obj)
             id = unique(arrayfun(@(ap) ap.parent.id, obj.I, 'UniformOutput', false));
             value = cellfun(@(id) obj.id2ind(id), id);

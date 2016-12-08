@@ -5,20 +5,21 @@ classdef DataPackage < Package
             if nndims(data) > dsample + double(taxis) + 1
                 data = vec(data, dsample + double(taxis) + 1, 'back');
             end
-            obj.X       = Tensor(data);
+            obj.data    = data;
             obj.dsample = dsample;
             obj.taxis   = taxis;
         end
     end
     
     methods
-        function vectorize(obj)
-            dsize = size(obj.X);
-            if numel(dsize) >= obj.dsample
-                obj.X.reshape([prod(dsize(1 : obj.dsample)), ...
-                    dsize(obj.dsample + 1 : end)]);
-            else
-                obj.X.reshape(prod(dsize), 1);
+        function obj = vectorize(obj)
+            if obj.dsample ~= 1
+                if obj.taxis
+                    obj.data = reshape(obj.data, ...
+                        [prod(obj.smpsize), obj.nframe, obj.nsequence]);
+                else
+                    obj.data = reshape(obj.data, [prod(obj.smpsize), obj.nsample]);
+                end
             end
             obj.dsample = 1;
         end
@@ -42,29 +43,16 @@ classdef DataPackage < Package
     end
     
     % ======================= DATA STRUCTURE =======================
-    properties (SetAccess = private)
-        dsample, taxis
-    end
-    properties (Access = private)
-        X
+    properties (SetAccess = protected)
+        data, dsample, taxis
     end
     properties (Dependent, SetAccess = protected)
-        data, szsample, datasize
+        smpsize, datasize
         nsample, nframe, nsequence
     end
-    properties
-        info % TBC: reserve field for future usage
-    end
     methods
-        function value = get.data(obj)
-            value = obj.X.get();
-        end
-        function set.data(obj, value)
-            obj.X.set(value);
-        end
-        
-        function value = get.szsample(obj)
-            value = size(obj.X);
+        function value = get.smpsize(obj)
+            value = size(obj.data);
             if numel(value) == obj.dsample
                 return
             elseif numel(value) < obj.dsample
@@ -76,7 +64,7 @@ classdef DataPackage < Package
         
         function value = get.datasize(obj)
             ndim = obj.dsample + double(obj.taxis) + 1;
-            value = size(obj.X);
+            value = size(obj.data);
             if numel(value) == ndim
                 return
             elseif numel(value) < ndim
@@ -87,12 +75,12 @@ classdef DataPackage < Package
         end
         
         function value = get.nsample(obj)
-            value = size(obj.X, obj.dsample + 1) * size(obj.X, obj.dsample + 2);
+            value = size(obj.data, obj.dsample + 1) * size(obj.data, obj.dsample + 2);
         end
         
         function value = get.nframe(obj)
             if obj.taxis
-                value = size(obj.X, obj.dsample + 1);
+                value = size(obj.data, obj.dsample + 1);
             else
                 value = 1;
             end
@@ -100,9 +88,9 @@ classdef DataPackage < Package
         
         function value = get.nsequence(obj)
             if obj.taxis
-                value = size(obj.X, obj.dsample + 2);
+                value = size(obj.data, obj.dsample + 2);
             else
-                value = size(obj.X, obj.dsample + 1);
+                value = size(obj.data, obj.dsample + 1);
             end
         end
     end

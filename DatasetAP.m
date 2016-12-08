@@ -8,10 +8,22 @@ classdef DatasetAP < SimpleAP
         end
         
         function package = packup(obj, data)
-            package = DataPackage.create(data, obj.dsample, obj.parent.taxis);
-            % update state
+            if numel(data) == 1
+                package = DataPackage( ...
+                    Tensor(data{1}).get(), obj.dsample, obj.parent.taxis);
+            else
+                try
+                    data = cat(obj.dsample + double(obj.parent.taxis) + 1, data{:});
+                    package = DataPackage( ...
+                        Tensor(data).get(), obj.dsample, obj.parent.taxis);
+                catch
+                    package = cellfun( ...
+                        @(d) DataPackage(Tensor(d).get(), obj.dsample, obj.parent.taxis), ...
+                        data, 'UniformOutput', false);
+                end
+            end
+            
             obj.state.package = package;
-            obj.state.data    = data;
         end
     end
     

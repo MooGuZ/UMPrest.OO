@@ -219,13 +219,30 @@ classdef RecurrentAP < AccessPoint
     end
     
     properties (SetAccess = protected)
-        parent, host, rlink, state, tmode
-        cache, packageCache, frameCache
+        parent, host, rlink, tmode, cache
+    end
+    properties (SetAccess = protected, Transient)
+        state, packageCache, frameCache
+    end
+    properties (Access = private)
+        propertyForSave
     end
     methods
         function set.rlink(obj, value)
             assert(isa(value, 'RecurrentAP'), 'ILLEGAL OPERATION');
             obj.rlink = value;
+        end
+        
+        function value = get.propertyForSave(obj)
+            value = struct( ...
+                'state',   obj.state.capacity, ...
+                'frame',   obj.frameCache.capacity, ...
+                'package', obj.packageCache.capacity);
+        end
+        function set.propertyForSave(obj, value)
+            obj.state = State(value.state);
+            obj.frameCache = FrameQueue('capacity', value.frame);
+            obj.packageCache = PackageQueue('capacity', value.package);
         end
     end
 end

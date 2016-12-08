@@ -157,13 +157,14 @@ classdef MathLib < handle
             end
         end
         
-        function v = tmse(x, ref)
-            d = bsxfun(@times, (x - ref).^2, (0.9).^(size(x, 2) - 1 : -1 : 0));
+        function v = tmse(x, ref, n)
+            w = [zeros(1, n), ones(1, size(x, 2) - n)];
+            d = bsxfun(@times, (x - ref).^2, w);
             v = sum(d(:)) / numel(x);
         end
-        function d = tmseGradient(x, ref)
-            d = (2 / numel(x)) * bsxfun(@times, x - ref, ...
-                (0.9).^(size(x, 2) - 1 : -1 : 0));
+        function d = tmseGradient(x, ref, n)
+            w = [zeros(1, n), ones(1, size(x, 2) - n)];
+            d = (2 / numel(x)) * bsxfun(@times, x - ref, w);
         end
         
         function v = kldiv(x, ref)

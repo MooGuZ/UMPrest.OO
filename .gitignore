@@ -1,6 +1,6 @@
-# minFunc folder
 minFunc/
 test/*
+experiment/
 
 # system generated files
 .DS_Store
