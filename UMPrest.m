@@ -32,37 +32,37 @@ classdef UMPrest < handle
             p = param;
         end
         
-        function idOrUnit = unit(unitOrId)
-            persistent id2unit;
-            if not(exist('unitOrId', 'var'))
-                id2unit = containers.Map();
-                return
-            end
-            if isempty(id2unit)
-                id2unit = containers.Map();
-            end
-            if isa(unitOrId, 'Unit')
-                % generate a unique id
-                idOrUnit = num2str(rand);
-                while id2unit.isKey(idOrUnit)
-                    idOrUnit = num2str(rand);
-                end
-                id2unit(idOrUnit) = unitOrId;
-            else
-                if id2unit.isKey(unitOrId)
-                    idOrUnit = id2unit(unitOrId);
-                else
-                    idOrUnit = [];
-                end
-            end
-        end
+        % function idOrUnit = unit(unitOrId)
+        %     persistent id2unit;
+        %     if not(exist('unitOrId', 'var'))
+        %         id2unit = containers.Map();
+        %         return
+        %     end
+        %     if isempty(id2unit)
+        %         id2unit = containers.Map();
+        %     end
+        %     if isa(unitOrId, 'Unit')
+        %         % generate a unique id
+        %         idOrUnit = num2str(rand);
+        %         while id2unit.isKey(idOrUnit)
+        %             idOrUnit = num2str(rand);
+        %         end
+        %         id2unit(idOrUnit) = unitOrId;
+        %     else
+        %         if id2unit.isKey(unitOrId)
+        %             idOrUnit = id2unit(unitOrId);
+        %         else
+        %             idOrUnit = [];
+        %         end
+        %     end
+        % end
         
-        function uidm = UnitIDManager()
-            persistent manager;
-            if isempty(manager)
-                manager = IDManager();
-            end
-            uidm = manager;
-        end
+        % function uidm = UnitIDManager()
+        %     persistent manager;
+        %     if isempty(manager)
+        %         manager = IDManager();
+        %     end
+        %     uidm = manager;
+        % end
     end
 end

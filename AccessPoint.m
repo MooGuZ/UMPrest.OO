@@ -62,18 +62,26 @@ classdef AccessPoint < handle
     
     methods
         function tf = compare(obj, ap)
-            tf = (obj == ap);
+            tf = strcmp(obj.id, ap.id);
         end
     end
     
     methods
         function obj = AccessPoint()
+            obj.id    = obj.idset.register();
             obj.links = {};
+        end
+        
+        function delete(obj)
+            obj.idset.deregister(obj.id);
         end
     end
     
+    properties (Constant)
+        idset = IDSet()
+    end
     properties (SetAccess = protected)
-        links
+        id, links
     end
     properties (Abstract, SetAccess = protected)
         parent, cache, state
