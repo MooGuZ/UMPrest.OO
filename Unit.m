@@ -9,7 +9,6 @@ classdef Unit < Interface
         end
     end
     
-    
     properties (Constant, Hidden)
         idset = IDSet()
     end

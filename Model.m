@@ -5,54 +5,66 @@ classdef Model < Interface & Evolvable
             obj.prepare();
             % load each input units with given package
             if not(isempty(varargin))
-                arrayfun(@(i) obj.I(i).push(varargin{i}), 1 : numel(obj.I));
+                for i = 1 : numel(obj.I)
+                    obj.I{i}.push(varargin{i});
+                end
             end
             % data package backward propagation
-            cellfun(@forward, obj.nodes);
+            for i = 1 : numel(obj.nodes)
+                obj.nodes{i}.forward();
+            end
             % collect output package
-            varargout = arrayfun(@(ap) ap.state.package, obj.O, ...
-                'UniformOutput', false);
+            varargout = cell(1, numel(obj.O));
+            for i = 1 : numel(obj.O)
+                varargout{i} = obj.O{i}.packagercd;
+            end
         end
         
         function varargout = backward(obj, varargin)
             obj.prepare();
             % load each input units with given package
             if not(isempty(varargin))
-                arrayfun(@(i) obj.O(i).push(varargin{i}), 1 : numel(obj.O));
+                for i = 1 : numel(obj.O)
+                    obj.O{i}.push(varargin{i});
+                end
             end
             % data package backward propagation
-            cellfun(@backward, obj.nodes(end : -1 : 1));
+            for i = numel(obj.nodes) : -1 : 1
+                obj.nodes{i}.backward();
+            end
             % collect output package
-            varargout = arrayfun(@(ap) ap.state.package, obj.I, ...
-                'UniformOutput', false);
+            varargout = cell(1, numel(obj.I));
+            for i = 1 : numel(obj.I)
+                varargout{i} = obj.I{i}.packagercd;
+            end
         end
     end
     
-    methods
-        function varargout = sizeIn2Out(obj, varargin)
-            assert(numel(varargin) == numel(obj.I), 'ILLEGAL ARGUMENT');
-            % load SIZEPACKAGE to each input ACCESSPOINT
-            arrayfun(@(i) obj.I(i).push(SizePackage(varargin{i})), varargin, ...
-                     'UniformOutput', false);
-            % pass SIZEPACKAGE through the model
-            obj.forward();
-            % collect output SIZE information
-            varargout = arrayfun(@(ap) ap.state.data, obj.O, ...
-                                 'UniformOutput', false);
-        end
-        
-        function varargout = sizeOut2In(obj, varargin)
-            assert(numel(varargin) == numel(obj.O), 'ILLEGAL ARGUMENT');
-            % load SIZEPACKAGE to each input ACCESSPOINT
-            arrayfun(@(i) obj.O(i).push(SizePackage(varargin{i})), varargin, ...
-                     'UniformOutput', false);
-            % pass SIZEPACKAGE through the model
-            obj.backward();
-            % collect output SIZE information
-            varargout = arrayfun(@(ap) ap.state.data, obj.I, ...
-                                 'UniformOutput', false);
-        end
-    end
+    % methods
+    %     function varargout = sizeIn2Out(obj, varargin)
+    %         assert(numel(varargin) == numel(obj.I), 'ILLEGAL ARGUMENT');
+    %         % load SIZEPACKAGE to each input ACCESSPOINT
+    %         arrayfun(@(i) obj.I(i).push(SizePackage(varargin{i})), varargin, ...
+    %                  'UniformOutput', false);
+    %         % pass SIZEPACKAGE through the model
+    %         obj.forward();
+    %         % collect output SIZE information
+    %         varargout = arrayfun(@(ap) ap.datarcd.pop(), obj.O, ...
+    %                              'UniformOutput', false);
+    %     end
+    %     
+    %     function varargout = sizeOut2In(obj, varargin)
+    %         assert(numel(varargin) == numel(obj.O), 'ILLEGAL ARGUMENT');
+    %         % load SIZEPACKAGE to each input ACCESSPOINT
+    %         arrayfun(@(i) obj.O(i).push(SizePackage(varargin{i})), varargin, ...
+    %                  'UniformOutput', false);
+    %         % pass SIZEPACKAGE through the model
+    %         obj.backward();
+    %         % collect output SIZE information
+    %         varargout = arrayfun(@(ap) ap.datarcd.pop(), obj.I, ...
+    %                              'UniformOutput', false);
+    %     end
+    % end
     
     methods
         function update(obj)
@@ -75,10 +87,6 @@ classdef Model < Interface & Evolvable
             if not(obj.sorted)
                 obj.topologicalSort();
             end
-        end
-        
-        function clear(obj)
-            cellfun(@clear, obj.nodes);
         end
     end
     
@@ -103,36 +111,24 @@ classdef Model < Interface & Evolvable
                 end
             end
         end
-        
-        function init(obj, nodes)
-            obj.I      = [];
-            obj.O      = [];
-            obj.nodes  = nodes;
-            obj.edges  = {};
-            obj.id2ind = containers.Map( ...
-                'KeyType', 'char', 'ValueType', 'any');
-            obj.sorted = true;
-            obj.add(obj.nodes);
-        end
     end
     
     methods
-        % PRB: input and output are not symmetric
         function updateConnections(obj, index)
             unit = obj.nodes{index};
             obj.edges{index} = [];
             % update input connection of the unit
             for i = 1 : numel(unit.I)
                 noPrevUnit = true;
-                for j = 1 : numel(unit.I(i).links)
-                    prevID = unit.I(i).links{j}.parent.id;
+                for j = 1 : numel(unit.I{i}.links)
+                    prevAP = unit.I{i}.links{j};
+                    prevID = prevAP.parent.id;
                     if obj.id2ind.isKey(prevID)
                         noPrevUnit = false;
                         prevIndex = obj.id2ind(prevID);
-                        obj.edges{prevIndex} = unique( ...
-                            [obj.edges{prevIndex}, index]);
+                        obj.edges{prevIndex} = unique([obj.edges{prevIndex}, index]);
                         % remove this AP from OBJ.O
-                        obj.O(obj.O == unit.I(i).links{j}) = [];
+                        obj.O(cellfun(@prevAP.compare, obj.O)) = [];
                     end
                 end
                 if noPrevUnit
@@ -142,15 +138,15 @@ classdef Model < Interface & Evolvable
             % update output connections of the unit
             for i = 1 : numel(unit.O)
                 noPostUnit = true;
-                for j = 1 : numel(unit.O(i).links)
-                    postID = unit.O(i).links{j}.parent.id;
+                for j = 1 : numel(unit.O{i}.links)
+                    postAP = unit.O{i}.links{j};
+                    postID = postAP.parent.id;
                     if obj.id2ind.isKey(postID)
                         noPostUnit = false;
                         postIndex = obj.id2ind(postID);
-                        obj.edges{index} = unique( ...
-                            [obj.edges{index}, postIndex]);
+                        obj.edges{index} = unique([obj.edges{index}, postIndex]);
                         % remove this AP from OBJ.I
-                        obj.I(obj.I == unit.O(i).links{j}) = [];
+                        obj.I(cellfun(@postAP.compare, obj.I)) = [];
                     end
                 end
                 if noPostUnit
@@ -198,11 +194,41 @@ classdef Model < Interface & Evolvable
     end
     
     methods
+        function obj = seal(obj)
+            for i = 1 : numel(obj.nodes)
+                unit = obj.nodes{i};
+                % remove all in-ward links from outside
+                for j = 1 : numel(unit.I)
+                    apoint = unit.I{j};
+                    index = cellfun(@(ap) obj.id2ind.isKey(ap.parent.id), apoint.links);
+                    if any(index) && not(all(index))
+                        cellfun(@apoint.disconnect, apoint.links(not(index)));
+                    end
+                end
+                % remove all out-ward links to outside
+                for j = 1 : numel(unit.O)
+                    apoint = unit.O{j};
+                    index = cellfun(@(ap) obj.id2ind.isKey(ap.parent.id), apoint.links);
+                    if any(index) && not(all(index))
+                        cellfun(@apoint.disconnect, apoint.links(not(index)));
+                    end
+                end
+            end
+            obj.prepare();
+        end
+        
+        function obj = recrtmode(obj, n)
+            for i = 1 : numel(obj.nodes)
+                unit = obj.nodes{i};
+                if isa(unit, 'SimpleUnit')
+                    unit.recrtmode(n);
+                end
+            end
+        end
+    end
+    
+    methods
         function obj = Model(varargin)
-            obj.nodes    = {};
-            obj.edges    = {};
-            obj.I        = [];
-            obj.O        = [];
             obj.id2ind   = containers.Map( ...
                 'KeyType', 'char', 'ValueType', 'any');
             obj.sorted   = true;
@@ -211,34 +237,21 @@ classdef Model < Interface & Evolvable
         end
     end
     
-    % ======================= CONVERTER FUNCTION =======================
-    methods
-        function cunit = CompoundUnit(obj)
-            cunit = CompoundUnit();
-            cunit.init(obj);
-        end
-    end
-
-    properties (SetAccess = protected, Transient)
-        nodes, edges, id2ind, sorted
-    end
-    properties (Access = private)
-        propertyForSave
+    properties (SetAccess = protected)
+        I = {} % input access point set
+        O = {} % output access point set
+        nodes = {}
+        edges = {}
+        id2ind
+        sorted
     end
     properties (Dependent)
         startNodes
     end
     methods
-        function value = get.propertyForSave(obj)
-            value = obj.nodes;
-        end
-        function set.propertyForSave(obj, value)
-            obj.init(value);
-        end
-        
         function value = get.startNodes(obj)
-            id = unique(arrayfun(@(ap) ap.parent.id, obj.I, 'UniformOutput', false));
-            value = cellfun(@(id) obj.id2ind(id), id);
+            value = cellfun(@(id) obj.id2ind(id), unique( ...
+                cellfun(@(ap) ap.parent.id, obj.I, 'UniformOutput', false)));
         end
     end
 end

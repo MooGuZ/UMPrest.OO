@@ -3,7 +3,7 @@ classdef IDSet < handle
         function id = register(obj)
             id = obj.newid();
             while obj.hashset.isKey(id)
-                id = obj.newid()
+                id = obj.newid();
             end
             obj.hashset(id) = [];
         end
@@ -28,7 +28,7 @@ classdef IDSet < handle
     end
     
     methods (Access = private)
-        function id = newid(obj)
+        function id = newid(~)
             id = num2str(rand(), '%.16f');
         end
     end

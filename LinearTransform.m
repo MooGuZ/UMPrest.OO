@@ -7,7 +7,7 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
         function d = deltaproc(obj, d, isEvolving)
             if not(exist('isEvolving', 'var')) || isEvolving
                 obj.B.addgrad(sum(d, 2));
-                obj.W.addgrad(d * obj.I.state.data');
+                obj.W.addgrad(d * obj.I{1}.datarcd.pop()');
             end
             d = obj.weight' * d;
         end
@@ -21,6 +21,10 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
                 obj.B.update();
             end
         end
+        
+        function hparam = dump(obj)
+            hparam = {obj.W.getcpu, obj.B.getcpu};
+        end
     end
     
     % ======================= SIZE DESCRIPTION =======================
@@ -32,6 +36,19 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
         function sizeinfo = sizeOut2In(obj,sizeinfo)
             sizeinfo(1) = size(obj.W, 2);
         end
+        
+        function value = smpsize(obj, io)
+            switch lower(io)
+                case {'in', 'input'}
+                    value = size(obj.W, 2);
+                    
+                case {'out', 'output'}
+                    value = size(obj.W, 1);
+                    
+                otherwise
+                    error('UNSUPPORTED');
+            end
+        end
     end
     
     methods
@@ -41,8 +58,8 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
                 'Provide WEIGHT and BIAS are illeagal.');
             obj.W = HyperParam(weight);
             obj.B = HyperParam(bias);
-            obj.I = UnitAP(obj, 1);
-            obj.O = UnitAP(obj, 1);
+            obj.I = {UnitAP(obj, 1, '-recdata')};
+            obj.O = {UnitAP(obj, 1)};
         end
     end
     
@@ -57,10 +74,10 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
     methods (Static)
         function debug()
             sizein = 64; sizeout = 128;
-            ltrans = randn(sizeout, sizein);
+            weight = randn(sizeout, sizein);
             bias   = randn(sizeout, 1);
-            refer = LinearTransform(ltrans, bias, true);
-            model = LinearTransform(sizein, sizeout);
+            refer = LinearTransform(weight, bias);
+            model = LinearTransform.randinit(sizein, sizeout);
             likelihood = Likelihood('mse');
             % create validate set
             % data = randn(sizein, 1e2);
@@ -84,7 +101,7 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
                     validsetOut.data));
             end
             % show result
-            werr = ltrans - model.weight;
+            werr = weight - model.weight;
             berr = bias - model.bias;
             fprintf('Estimate Weight Error > MEAN:%-8.2e\tVAR:%-8.2e\tMAX:%-8.2e\n', ...
                 mean(werr(:)), var(werr(:)), max(abs(werr(:))));

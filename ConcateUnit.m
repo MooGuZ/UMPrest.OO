@@ -1,4 +1,4 @@
-classdef ConcateUnit < MIMOUnit & FeedforwardOperation
+classdef ConcateUnit < MISOUnit & FeedforwardOperation
     methods
         function output = dataproc(obj, inputA, inputB)
             output = cat(obj.catdim, inputA, inputB);
@@ -29,8 +29,8 @@ classdef ConcateUnit < MIMOUnit & FeedforwardOperation
             obj.sizercd = struct();
             obj.IA = UnitAP(obj, 1);
             obj.IB = UnitAP(obj, 1);
-            obj.I = [obj.IA, obj.IB];
-            obj.O = UnitAP(obj, 1);
+            obj.I = {obj.IA, obj.IB};
+            obj.O = {UnitAP(obj, 1)};
         end
     end
     

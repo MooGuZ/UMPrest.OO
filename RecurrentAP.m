@@ -1,248 +1,178 @@
 classdef RecurrentAP < AccessPoint
     methods
-        function addrlink(obj, rap)
-            if not(isempty(obj.rlink))
-                obj.rlink.cleanrlink();
-                obj.cleanrlink();
-            end
-            obj.rlink = rap;
-        end
-        
-        function cleanrlink(obj)
-            obj.rlink = [];
-        end
-        
-        function rconnect(obj, rap)
-            obj.addrlink(rap);
-            rap.addrlink(obj);
-        end
-        
-        % overide SEND function
-        function send(obj, package)
-            if obj.tmode.status
-                obj.host.push(package);
+        function frames = unpack(obj, package)
+            obj.packagercd = package;
+            if obj.no && not(isempty(obj.parent.pkginfo.class))
+                assert(strcmp(class(package), obj.parent.pkginfo.class));
+                assert(package.taxis == obj.parent.pkginfo.taxis);
+                assert(package.nframe == obj.parent.pkginfo.nframe);
+                assert(package.batchsize == obj.parent.pkginfo.batchsize);
             else
-                send@AccessPoint(obj, package);
+                obj.parent.pkginfo.class     = class(package);
+                obj.parent.pkginfo.taxis     = package.taxis;
+                obj.parent.pkginfo.nframe    = package.nframe;
+                obj.parent.pkginfo.batchsize = package.batchsize;
             end
-        end
-        
-        % override PUSH function
-        function push(obj, package)
-            % CASE: recurrent access point on output side
-            if obj.tmode.status && not(isempty(obj.rlink))
-                obj.rlink.cache.nextframe(package);
-            end
-            obj.cache.push(package);
-        end
-    end
-    
-    methods
-        function clear(obj)
-            obj.state.clear();
-            obj.frameCache.init();
-            obj.packageCache.init();
-        end
-    end
-    
-    methods
-        % PRB: this function is duplicate of the one in UnitAP
-        function consistencyCheck(obj, field, value)
-            if isfield(obj.parent.apshare, field)
-                if ischar(value)
-                    assert(strcmpi(value, obj.parent.apshare.(field)), 'INCONSISTENT');
-                else
-                    assert(value == obj.parent.apshare.(field), 'INCONSISTENT');
+            % expand frames along time-axis
+            if package.taxis
+                switch class(package)
+                  case {'DataPackage'}
+                    % revert time-axis and batch-axis
+                    data = permute(package.data, ...
+                        [1 : package.dsample, package.dsample + [2, 1]]);
+                    % expand time-axis into packages
+                    frames = pack2cell(data, package.dsample + 1);
+                    for i = 1 : numel(frames)
+                        frames{i} = DataPackage(frames{i}, package.dsample, false);
+                    end
+                    
+                  case {'ErrorPackage'}
+                    % revert time-axis and batch-axis
+                    data = permute(package.data, ...
+                        [1 : package.dsample, package.dsample + [2, 1]]);
+                    % expand time-axis into packages
+                    frames = pack2cell(data, package.dsample + 1);
+                    for i = 1 : numel(frames)
+                        frames{i} = ErrorPackage(frames{i}, package.dsample, false);
+                    end
+                    frames = frames(end : -1 : 1);                    
+                    
+                  case {'SizePackage'}
+                    datasize = [package.smpsize, package.batchsize];
+                    frames   = {SizePackage(datasize, package.dsample, false)};
+                                        
+                  otherwise
+                    error('UNSUPPORTED');
                 end
             else
-                obj.parent.apshare.(field) = value;
+                frames = {package};
             end
+        end
+        
+        function package = packup(obj, frames)
+            switch obj.parent.pkginfo.class
+              case {'DataPackage'}
+                if isscalar(frames)
+                    package = frames{1};
+                    if obj.parent.pkginfo.taxis
+                        package = DataPackage(splitdim(package.data, package.dsample + 1, 1), ...
+                            package.dsample, true);
+                    end
+                else
+                    dsample = frames{1}.dsample;
+                    frames  = [frames{:}];
+                    data = cat(dsample + 2, frames.data);
+                    data = permute(data, [1 : dsample, dsample + [2, 1]]);
+                    package = DataPackage(data, dsample, true);
+                end
+                
+              case {'ErrorPackage'}
+                if isscalar(frames)
+                    package = frames{1};
+                    if obj.parent.pkginfo.taxis
+                        package = ErrorPackage(splitdim(package.data, package.dsample + 1, 1), ...
+                            package.dsample, true);
+                    end
+                else
+                    dsample = frames{1}.dsample;
+                    frames  = [frames{end : -1 : 1}];
+                    data = cat(dsample + 2, frames.data);
+                    data = permute(data, [1 : dsample, dsample + [2, 1]]);
+                    package = ErrorPackage(data, dsample, true);
+                end
+                
+              case {'SizePackage'}
+                if obj.parent.pkginfo.taxis
+                    datasize = [frames{1}.smpsize, obj.parent.pkginfo.nframe, frames{1}.batchsize];
+                    package  = SizePackage(datasize, frames{1}.dsample, true);
+                else
+                    package = frames{1};
+                end
+                
+              otherwise
+                error('UNSUPPORTED');
+            end
+            obj.packagercd = package;
+        end
+        
+        function extract(obj, package)
+            if not(exist('package', 'var'))
+                package = obj.cache.poll();
+            end
+            frames = obj.unpack(package);
+            % fill up cache of frames
+            obj.hostio.reset();
+            for i = 1 : numel(frames)
+                obj.hostio.push(frames{i});
+            end
+        end
+        
+        function package = compress(obj)
+            frames = cell(1, obj.hostio.cache.count);
+            for i = 1 : numel(frames)
+                frames{i} = obj.hostio.poll();
+            end
+            package = obj.packup(frames);
+        end
+        
+        function sendFrame(obj)
+            obj.hostio.send(obj.hostio.poll());
         end
     end
     
     methods
-        function enableTMode(obj, expand)
-            obj.tmode = struct('status', true, 'expand', logical(expand));
-            % clean frame cache
-            obj.frameCache.clean();
-            % expand package if necessary
-            if obj.tmode.expand
-                obj.state.package = obj.cache.pop();
-                obj.frameExpand(obj.state.package);
-            end
-            % switch to FRAMECACHE
-            obj.cache = obj.frameCache;
+        function obj = cooperate(obj, no)
+            obj.no = no;
         end
-        
-        function disableTMode(obj)
-            % switch to PACKAGECACHE
-            obj.cache = obj.packageCache;
-            % collect packge if necessary
-            if not(obj.tmode.expand)
-                obj.state.package = obj.frameCollect();
-            end
-            obj.tmode = struct('status', false);
-        end
-        
-        function frameExpand(obj, package)
-            obj.consistencyCheck('class', class(package));
-            % process package according to type
-            switch class(package)
-                case {'DataPackage'}
-                    if isempty(obj.rlink)
-                        obj.consistencyCheck('taxis',  package.taxis);
-                        obj.consistencyCheck('nframe', package.nframe);
-                        if package.taxis
-                            % revert time-axis and batch-axis
-                            data = permute(package.data, ...
-                                [1 : package.dsample, package.dsample + [2, 1]]);
-                            % expand time-axis into packages
-                            cellfun(@(d) obj.frameCache.push( ...
-                                DataPackage(d, package.dsample, false)), ...
-                                pack2cell(data, package.dsample + 1));
-                        else
-                            obj.frameCache.push(package);
-                        end
-                    else
-                        if package.taxis
-                            assert(package.nframe == 1, 'WRONG DATA SHAPE');
-                            package = DataPackage(expanddim(package.data, package.dsample + 1), ...
-                                package.dsample, false);
-                        end
-                        obj.frameCache.push(package);
-                    end
-                    
-                case {'ErrorPackage'}
-                    obj.consistencyCheck('taxis',  package.taxis);
-                    if obj.parent.lastFrameMode.status
-                        assert(package.nframe == 1, 'SHAPE MISMATCH');
-                        if package.taxis
-                            package = ErrorPackage(expanddim(package.data, package.dsample + 1), ...
-                                package.dsample, false);
-                        end
-                        zeropkg = ErrorPackage(zeros(package.datasize), package.dsample, false);
-                        obj.frameCache.push(package);
-                        for i = 1 : obj.parent.lastFrameMode.nframe - 1
-                            obj.frameCache.push(zeropkg);
-                        end                            
-                    else
-                        obj.consistencyCheck('nframe', package.nframe);
-                        if package.taxis
-                            % revert time-axis and batch-axis
-                            data = permute(package.data, ...
-                                [1 : package.dsample, package.dsample + [2, 1]]);
-                            % expand time-axis into packages
-                            data = pack2cell(data, package.dsample + 1);
-                            cellfun(@(d) obj.frameCache.push( ...
-                                ErrorPackage(d, package.dsample, false)), ...
-                                data(end : -1 : 1));
-                        else
-                            obj.frameCache.push(package);
-                        end
-                    end
-                    
-                case {'SizePackage'} % TBC
-                    error('UNSUPPORTTED');
-                    
-                otherwise
-                    error('UNKNOWN PACKAGE CLASS');
-            end
-        end
-        
-        % PRB: code needs revise
-        function package = frameCollect(obj)
-            switch obj.parent.apshare.class
-                case {'DataPackage'}
-                    if obj.parent.lastFrameMode.status
-                        packages = obj.frameCache.stackpop();
-                    else
-                        packages = cell2array(arrayfun( ...
-                            @(i) obj.frameCache.pop(), 1 : obj.frameCache.count, ...
-                            'UniformOutput', false));
-                    end
-                    if isscalar(packages)
-                        if obj.parent.apshare.taxis
-                            package = DataPackage( ...
-                                splitdim(packages.data, packages.dsample + 1, 1), ...
-                                packages.dsample, true);
-                        end
-                    else
-                        dsample = packages(1).dsample;
-                        data = cat(dsample + 2, packages.data);
-                        data = permute(data, [1 : dsample, dsample + [2, 1]]);
-                        package = DataPackage(data, dsample, true);
-                    end
-                    
-                case {'ErrorPackage'}
-                    packages = cell2array(arrayfun( ...
-                        @(i) obj.frameCache.pop(), 1 : obj.frameCache.count, ...
-                        'UniformOutput', false));
-                    if isscalar(packages)
-                        if obj.parent.apshare.taxis
-                            package = DataPackage( ...
-                                splitdim(packages.data, packages.dsample + 1, 1), ...
-                                packages.dsample, true);
-                        end
-                    else
-                        dsample = packages(1).dsample;
-                        data = cat(dsample + 2, packages(end : -1 : 1).data);
-                        data = permute(data, [1 : dsample, dsample + [2, 1]]);
-                        package = DataPackage(data, dsample, true);
-                    end
-                    
-                case {'SizePackage'} % TBC
-                    error('UNSUPPORTED');
-                    
-                otherwise
-                    error('UNKNOWN PACKAGE CLASS');
-            end
+    end
+    
+    methods (Static)
+        function pkginfo = initPackageInfo()
+            pkginfo = struct( ...
+                'class',     [], ...
+                'taxis',     [], ...
+                'nframe',    [], ...
+                'batchsize', []);
         end
     end
     
     methods
         function obj = RecurrentAP(parent, host, varargin)
             conf = Config(varargin);
+            
+            obj.no = 0;
+            
             obj.parent = parent;
-            obj.host   = host;
-            % TODO: seal the model when creating Recurrent Unit
-%             % take over all links from host
-%             cellfun(@(ap) obj.connect(ap), obj.host.links);
-%             cellfun(@(ap) obj.host.disconnect(ap), obj.links);
-            obj.host.addlink(obj);
-            obj.state = State();
-            obj.packageCache = PackageQueue('Capacity', ...
-                conf.pop('capacity', UMPrest.parameter.get('AccessPointCapacity')), ...
-                '-dropold');
-            obj.frameCache = FrameQueue();
-            obj.cache = obj.packageCache;
-            obj.tmode = struct('status', false);
+            obj.hostio = SimpleAP(obj.parent, obj.parent.memoryLength).connect(host);
+                        
+            if conf.exist('capacity')
+                obj.cache  = PackageContainer(conf.pop('capacity'), '-overwrite');
+            else
+                obj.cache = PackageContainer();
+            end
         end
     end
     
     properties (SetAccess = protected)
-        parent, host, rlink, tmode, cache
-    end
-    properties (SetAccess = protected, Transient)
-        state, packageCache, frameCache
-    end
-    properties (Access = private)
-        propertyForSave
+        parent % handle of a SimpleUnit, the host of this AccessPoint
+        hostio % IO interface to kernel access points
+        cache  % a queue containing all unprocessed packages
+        no     % series number, 0 represent independent, otherwise in cooperate mode
     end
     methods
-        function set.rlink(obj, value)
-            assert(isa(value, 'RecurrentAP'), 'ILLEGAL OPERATION');
-            obj.rlink = value;
+        function set.parent(obj, value)
+            assert(isa(value, 'RecurrentUnit'), 'ILLEGAL OPERATION');
+            obj.parent = value;
         end
         
-        function value = get.propertyForSave(obj)
-            value = struct( ...
-                'state',   obj.state.capacity, ...
-                'frame',   obj.frameCache.capacity, ...
-                'package', obj.packageCache.capacity);
+        function set.hostio(obj, value)
+            assert(isa(value, 'AccessPoint'), 'ILLEGAL OPERATION');
+            obj.hostio = value;
         end
-        function set.propertyForSave(obj, value)
-            obj.state = State(value.state);
-            obj.frameCache = FrameQueue('capacity', value.frame);
-            obj.packageCache = PackageQueue('capacity', value.package);
+        
+        function set.no(obj, value)
+            assert(MathLib.isinteger(value) && value >= 0, 'ILLEGAL OPERATION');
+            obj.no = value;
         end
     end
 end

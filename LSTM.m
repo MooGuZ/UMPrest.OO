@@ -1,67 +1,76 @@
 classdef LSTM < RecurrentUnit
     methods
-        function obj = LSTM(fw, fb, iw, ib, gw, gb, ow, ob)
-            ccat = ConcateUnit(1);
-            f    = LinearTransform(fw, fb);
-            fact = Activation('sigmoid');
-            i    = LinearTransform(iw, ib);
-            iact = Activation('sigmoid');
-            g    = LinearTransform(gw, gb);
-            gact = Activation('tanh');
-            fc   = TimesUnit();
-            ic   = TimesUnit();
-            c    = PlusUnit();
-            o    = LinearTransform(ow, ob);
-            oact = Activation('sigmoid');
-            cact = Activation('tanh');
-            hid  = TimesUnit();
-            % build connections
-            ccat.O.connect(f.I);
-            ccat.O.connect(i.I);
-            ccat.O.connect(g.I);
-            ccat.O.connect(o.I);
-            f.O.connect(fact.I);
-            i.O.connect(iact.I);
-            g.O.connect(gact.I);
-            o.O.connect(oact.I);
-            fact.O.connect(fc.IA);
-            iact.O.connect(ic.IA);
-            gact.O.connect(ic.IB);
-            fc.O.connect(c.IA);
-            ic.O.connect(c.IB);
-            c.O.connect(cact.I);
-            oact.O.connect(hid.IA);
-            cact.O.connect(hid.IB);
+        function obj = LSTM(stateSelect, updateExtract, updateSelect, outputSelect)
+            inputMixer = ConcateUnit(1).aheadof(stateSelect).aheadof(...
+                updateSelect).aheadof(updateExtract).aheadof(outputSelect);
+            stateGate  = GateUnit(); stateGate.appendto([], stateSelect);
+            updateAct  = Activation('tanh'); updateAct.appendto(updateExtract);
+            updateGate = GateUnit(); updateGate.appendto(updateAct, updateSelect);
+            stateMixer = PlusUnit().appendto(stateGate, updateGate);
+            outputProc = Activation('tanh'); outputProc.appendto(stateMixer);
+            outputGate = GateUnit(); outputGate.appendto(outputProc, outputSelect);
             % build recurrent unit
-            obj@RecurrentUnit( ...
-                Model(ccat, f, fact, i, iact, g, gact, ...
-                fc, ic, c, o, oact, cact, hid), ...
-                {hid.O, ccat.IB}, {c.O, fc.IB});
+            obj@RecurrentUnit(Model( ...
+                inputMixer, stateSelect, stateGate, updateExtract, updateSelect, updateAct,...
+                updateGate, stateMixer, outputSelect, outputProc, outputGate), ...
+                {stateMixer.O{1}, stateGate.I{1}, stateSelect.smpsize('out')}, ...
+                {outputGate.O{1}, inputMixer.I{2}, outputSelect.smpsize('out')});
             % assign properties
-            obj.f = f;
-            obj.i = i;
-            obj.g = g;
-            obj.o = o;
+            obj.stateSelect   = stateSelect;
+            obj.updateExtract = updateExtract;
+            obj.updateSelect  = updateSelect;
+            obj.outputSelect  = outputSelect;
         end
         
         function param = dump(obj)
-            param = {obj.f.weight, obj.f.bias, obj.i.weight, obj.i.bias, ...
-                obj.g.weight, obj.g.bias, obj.o.weight, obj.o.bias};
+            param = cellcomb(arrayfun(@dump, ...
+                [obj.stateSelect, obj.updateExtract, obj.updateSelect, obj.outputSelect], ...
+                'UniformOutput', false));
+        end
+        
+        function view(obj)
+            cellsize = size(obj.stateGate.weight, 2) / 2;
+            baseview(reshape(obj.stateGate.weight(:, 1 : cellsize), [32, 32, cellsize]), ...
+                'figureName', 'State Gate (Input Part)');
+            baseview(reshape(obj.stateGate.weight(:, cellsize + 1 : end), [32, 32, cellsize]), ...
+                'figureName', 'State Gate (Output Part)');
+            pause();
+            
+            baseview(reshape(obj.updateGate.weight(:, 1 : cellsize), [32, 32, cellsize]), ...
+                'figureName', 'Update Gate (Input Part)');
+            baseview(reshape(obj.updateGate.weight(:, cellsize + 1 : end), [32, 32, cellsize]), ...
+                'figureName', 'Update Gate (Output Part)');
+            pause();
+            
+            baseview(reshape(obj.updateGen.weight(:, 1 : cellsize), [32, 32, cellsize]), ...
+                'figureName', 'Update Generator (Input Part)');
+            baseview(reshape(obj.updateGen.weight(:, cellsize + 1 : end), [32, 32, cellsize]), ...
+                'figureName', 'Update Generator (Output Part)');
+            pause();
+            
+            baseview(reshape(obj.outputGate.weight(:, 1 : cellsize), [32, 32, cellsize]), ...
+                'figureName', 'Output Gate (Input Part)');
+            baseview(reshape(obj.outputGate.weight(:, cellsize + 1 : end), [32, 32, cellsize]), ...
+                'figureName', 'Output Gate (Output Part)');
         end
     end
     
     methods (Static)
         function unit = randinit(datasize, cellsize)
-            f = LinearTransform.randinit(datasize + cellsize, cellsize);
-            i = LinearTransform.randinit(datasize + cellsize, cellsize);
-            g = LinearTransform.randinit(datasize + cellsize, cellsize);
-            o = LinearTransform.randinit(datasize + cellsize, cellsize);
-            unit = LSTM(f.weight, f.bias, i.weight, i.bias, ...
-                g.weight, g.bias, o.weight, o.bias);
+            unit = LSTM( ...
+                LinearTransform.randinit(datasize + cellsize, cellsize), ...
+                LinearTransform.randinit(datasize + cellsize, cellsize), ...
+                LinearTransform.randinit(datasize + cellsize, cellsize), ...
+                LinearTransform.randinit(datasize + cellsize, cellsize));
+        end
+        
+        function unit = loaddump(fw, fb, iw, ib, gw, gb, ow, ob)
+            unit = LSTM(LinearTransform(fw, fb), LinearTransform(iw, ib), ...
+                LinearTransform(gw, gb), LinearTransform(ow, ob));
         end
     end
     
     properties
-        f, i, g, o
+        stateSelect, updateExtract, updateSelect, outputSelect
     end
 end

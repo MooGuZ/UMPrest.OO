@@ -1,6 +1,6 @@
-classdef StatisticTransform < SimpleUnit
+classdef StatisticTransform < SISOUnit & BidirectionOperation
     methods    
-        function data = process(obj, data)
+        function data = dataproc(obj, data)
             if not(obj.outsourced)
                 obj.stat.commit(data);
             end
@@ -25,7 +25,7 @@ classdef StatisticTransform < SimpleUnit
             end
         end
         
-        function data = invproc(obj, data)
+        function data = datainvp(obj, data)
             kernel = obj.getKernel();
             switch obj.mode
                 case {'debias'}
@@ -47,7 +47,7 @@ classdef StatisticTransform < SimpleUnit
             end
         end
         
-        function error = delta(obj, error)
+        function error = deltaproc(obj, error)
             kernel = obj.getKernel();
             switch obj.mode
                 case {'debias'}
@@ -66,7 +66,7 @@ classdef StatisticTransform < SimpleUnit
             end
         end
         
-        function error = invdelta(obj, error)
+        function error = deltainvp(obj, error)
             kernel = obj.getKernel();
             switch obj.mode
                 case {'debias'}
@@ -206,13 +206,13 @@ classdef StatisticTransform < SimpleUnit
                 obj.stat = StatisticCollector(arg);
                 obj.outsourced = false;
             end
-            obj.I = UnitAP(obj, obj.dsample);
+            obj.I = {UnitAP(obj, obj.dsample)};
             switch obj.mode
                 case {'debias', 'normalize'}
-                    obj.O = UnitAP(obj, obj.dsample);
+                    obj.O = {UnitAP(obj, obj.dsample)};
                     
                 case {'whiten'}
-                    obj.O = UnitAP(obj, 1);
+                    obj.O = {UnitAP(obj, 1)};
             end
             obj = Config(varargin).apply(obj);
         end

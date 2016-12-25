@@ -8,7 +8,7 @@ classdef SoftmaxActivation < SISOUnit & FeedforwardOperation
         function idelta = deltaproc(obj, odelta)
             [n, m] = size(odelta);
             Imat  = eye(n);
-            odata = obj.O.state.data;
+            odata = obj.O{1}.datarcd.pop();
             idelta = cell2mat(arrayfun( ...
                 @(i) (Imat - repmat(odata(:, i), 1, n))' * odelta(:, i), 1 : m, ...
                 'UniformOutput', false));
@@ -25,13 +25,17 @@ classdef SoftmaxActivation < SISOUnit & FeedforwardOperation
     
     methods
         function obj = SoftmaxActivation()
-            obj.I = UnitAP(obj, 1);
-            obj.O = UnitAP(obj, 1);
+            obj.I = {UnitAP(obj, 0, '-expandable')};
+            obj.O = {UnitAP(obj, 0, '-expandable', '-recdata')};
         end
     end
     
     properties (Constant, Hidden)
         taxis      = false;
         expandable = false;
+    end
+    
+    properties (Constant)
+        type = 'Softmax';
     end
 end

@@ -1,4 +1,4 @@
-classdef BilinearTransform < MIMOUnit & FeedforwardOperation & Evolvable
+classdef BilinearTransform < MISOUnit & FeedforwardOperation & Evolvable
     methods
         function y = dataproc(obj, a, b)
             y = bsxfun(@plus, obj.weightA * a + obj.weightB * b, obj.bias);
@@ -6,8 +6,8 @@ classdef BilinearTransform < MIMOUnit & FeedforwardOperation & Evolvable
         
         function [da, db] = deltaproc(obj, d)
             obj.B.addgrad(sum(d, 2));
-            obj.WA.addgrad(d * obj.IA.state.data');
-            obj.WB.addgrad(d * obj.IB.state.data');
+            obj.WA.addgrad(d * obj.IA.datarcd.pop()');
+            obj.WB.addgrad(d * obj.IB.datarcd.pop()');
             da = obj.weightA' * d;
             db = obj.weightB' * d;
         end
@@ -31,6 +31,19 @@ classdef BilinearTransform < MIMOUnit & FeedforwardOperation & Evolvable
             sizeinA = [size(obj.WA, 2), sizeout(2)];
             sizeinB = [size(obj.WB, 2), sizeout(2)];
         end
+        
+        function value = smpsize(obj, io)
+            switch lower(io)
+                case {'in', 'input'}
+                    value = {size(obj.WA, 2), size(obj.WB, 2)};
+                    
+                case {'out', 'output'}
+                    value = size(obj.WA, 1);
+                    
+                otherwise
+                    error('UNSUPPORTED');
+            end
+        end
     end
     
     methods
@@ -39,10 +52,10 @@ classdef BilinearTransform < MIMOUnit & FeedforwardOperation & Evolvable
             obj.WB = HyperParam(weightB);
             obj.B  = HyperParam(bias);
             % craete access points
-            obj.IA = UnitAP(obj, 1);
-            obj.IB = UnitAP(obj, 1);
-            obj.I  = [obj.IA, obj.IB];
-            obj.O  = UnitAP(obj, 1);
+            obj.IA = UnitAP(obj, 1, '-recdata');
+            obj.IB = UnitAP(obj, 1, '-recdata');
+            obj.I  = {obj.IA, obj.IB};
+            obj.O  = {UnitAP(obj, 1)};
         end
     end
     

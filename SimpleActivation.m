@@ -8,7 +8,7 @@ classdef SimpleActivation < SISOUnit & ElementwiseOperation
                     obj.datainvp = @MathLib.sigmoidInverse;
                     obj.gradient = @MathLib.sigmoidDifferential;
                     
-                case {'hypertgt', 'tanh'}
+                case {'hypertgt', 'tanh', 'hypertangent'}
                     obj.type     = 'HyperTangent';
                     obj.dataproc = @tanh;
                     obj.datainvp = @MathLib.tanhInverse;
@@ -25,8 +25,8 @@ classdef SimpleActivation < SISOUnit & ElementwiseOperation
                         'Unrecognized activation type : %s', upper(type));
             end
             % setup access points
-            obj.I = UnitAP(obj, 1);
-            obj.O = UnitAP(obj, 1);
+            obj.I = {UnitAP(obj, 0, '-expandable')};
+            obj.O = {UnitAP(obj, 0, '-expandable', '-recdata')};
         end
     end
     

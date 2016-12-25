@@ -11,28 +11,20 @@ classdef CompoundUnit < Unit
         end
         
         function init(obj, model)
-            obj.kernel = model;
+            obj.kernel = model.seal();
             % setup I/O access points
-            obj.I = cell2array(arrayfun( ...
-                @(ap) GhostAP(obj, ap), obj.kernel.I, 'UniformOutput', false));
-            obj.O = cell2array(arrayfun( ...
-                @(ap) GhostAP(obj, ap), obj.kernel.O, 'UniformOutput', false));
-            % TODO: prevent modification of the kernel
-            % kernel.freeze();
+            obj.I = cellfun(@(ap) GhostAP(obj, ap), obj.kernel.I, 'UniformOutput', false);
+            obj.O = cellfun(@(ap) GhostAP(obj, ap), obj.kernel.O, 'UniformOutput', false);
         end
         
-        function clear(obj)
-            obj.kernel.clear();
+        function recrtmode(obj)
+            obj.kernel.recrtmode();
         end
     end
     
     properties (SetAccess = protected)
-        kernel
-    end
-    methods
-        function set.kernel(obj, value)
-            assert(isa(value, 'Model'), 'ILLEGAL OPERATION');
-            obj.kernel = value;
-        end 
+        I = {}  % input access point set
+        O = {}  % output access point set
+        kernel  % model, which does actual works
     end
 end

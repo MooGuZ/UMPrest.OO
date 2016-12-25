@@ -2,12 +2,15 @@ classdef DataPackage < Package
     % ======================= CONSTRUCTOR =======================
     methods
         function obj = DataPackage(data, dsample, taxis)
-            if nndims(data) > dsample + double(taxis) + 1
-                data = vec(data, dsample + double(taxis) + 1, 'back');
-            end
-            obj.data    = data;
             obj.dsample = dsample;
             obj.taxis   = taxis;
+            % combine higher dimension into batch-axis if necessary
+            expdim = dsample + double(taxis) + 1;
+            if nndims(data) > expdim
+                obj.data = vec(data, expdim, 'back');
+            else
+                obj.data = data;
+            end
         end
     end
     
@@ -16,12 +19,18 @@ classdef DataPackage < Package
             if obj.dsample ~= 1
                 if obj.taxis
                     obj.data = reshape(obj.data, ...
-                        [prod(obj.smpsize), obj.nframe, obj.nsequence]);
+                        [prod(obj.smpsize), obj.nframe, obj.batchsize]);
                 else
                     obj.data = reshape(obj.data, [prod(obj.smpsize), obj.nsample]);
                 end
             end
             obj.dsample = 1;
+        end
+        
+        function obj = tconcate(obj)
+            if obj.batchsize > 1 && obj.taxis
+                obj.data = expanddim(obj.data, obj.dsample + 1);
+            end
         end
     end
     
@@ -48,7 +57,7 @@ classdef DataPackage < Package
     end
     properties (Dependent, SetAccess = protected)
         smpsize, datasize
-        nsample, nframe, nsequence
+        nsample, nframe, batchsize
     end
     methods
         function value = get.smpsize(obj)
@@ -86,7 +95,7 @@ classdef DataPackage < Package
             end
         end
         
-        function value = get.nsequence(obj)
+        function value = get.batchsize(obj)
             if obj.taxis
                 value = size(obj.data, obj.dsample + 2);
             else

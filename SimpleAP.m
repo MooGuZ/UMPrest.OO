@@ -1,52 +1,44 @@
 classdef SimpleAP < AccessPoint
-    methods (Abstract)
-        data = unpack(obj, package)
-        package = packup(obj, data)
-    end
-    
     methods
-        function obj = SimpleAP(parent, dsample, varargin)
-            conf = Config(varargin);
-            obj.parent  = parent;
-            obj.cache   = PackageQueue('Capacity', ...
-                conf.pop('capacity', UMPrest.parameter.get('AccessPointCapacity')), ...
-                '-dropold');
-            obj.state   = State(UMPrest.parameter.get('memoryLength'));
-            obj.dsample = dsample;
+        function send(obj, package)
+            send@AccessPoint(obj, package);
+            obj.packagercd = package;
+        end
+        
+        function package = pop(obj)
+            package = pop@AccessPoint(obj);
+            obj.packagercd = package;
+        end
+        
+        function package = poll(obj)
+            package = poll@AccessPoint(obj);
+            obj.packagercd = package;
         end
     end
     
     methods
-        function clear(obj)
-            obj.state.clear();
-            obj.cache.init();
+        function obj = SimpleAP(parent, capacity)
+            obj.parent = parent;
+            if exist('capacity', 'var')
+                obj.cache = Container(capacity);
+            else
+                obj.cache = Container();
+            end
         end
     end
     
-    properties (Abstract, SetAccess = protected)
-        dsample
-    end
-    properties (SetAccess = protected, Transient)
-        cache, state
+    properties (SetAccess = protected)
+        parent, cache
     end
     methods
+        function set.parent(obj, value)
+            assert(isa(value, 'Unit'), 'ILLEGAL ASSIGNMENT');
+            obj.parent = value;
+        end
+        
         function set.cache(obj, value)
-            assert(isa(value, 'Queue'), 'ILLEGAL OPERATION');
+            assert(isa(value, 'Container'), 'ILLEGAL ASSIGNMENT');
             obj.cache = value;
-        end
-    end
-    properties (Access = private)
-        propertyForSave
-    end
-    methods
-        function value = get.propertyForSave(obj)
-            value = struct( ...
-                'state',   obj.state.capacity, ...
-                'cache',   obj.cache.capacity);
-        end
-        function set.propertyForSave(obj, value)
-            obj.state = State(value.state);
-            obj.cache = PackageQueue('capacity', value.cache);
         end
     end
 end

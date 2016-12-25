@@ -1,4 +1,4 @@
-classdef PlusUnit < MIMOUnit & FeedforwardOperation
+classdef PlusUnit < MISOUnit & FeedforwardOperation
     methods
         function output = dataproc(~, inputA, inputB)
             output = inputA + inputB;
@@ -22,8 +22,8 @@ classdef PlusUnit < MIMOUnit & FeedforwardOperation
         function obj = PlusUnit()
             obj.IA = UnitAP(obj, 1);
             obj.IB = UnitAP(obj, 1);
-            obj.O = UnitAP(obj, 1);
-            obj.I = [obj.IA, obj.IB];
+            obj.O = {UnitAP(obj, 1)};
+            obj.I = {obj.IA, obj.IB};
         end
     end
     

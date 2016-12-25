@@ -96,7 +96,4 @@ classdef FileTree < handle
         subfolder, subfile
         pattern, volumn
     end
-    methods
-
-    end
 end

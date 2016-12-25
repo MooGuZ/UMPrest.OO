@@ -125,7 +125,7 @@ classdef Trainer < handle
                     % data pass
                     model.forward();
                     for i = 1 : numel(model.O)
-                        model.O(i).push(model.O(i).state.package);
+                        model.O(i).push(model.O(i).packagercd);
                     end
                     model.backward();
                     % objective evaluation and generate gradient

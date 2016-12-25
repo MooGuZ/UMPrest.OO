@@ -1,15 +1,8 @@
 classdef AccessPoint < handle
     methods
         function send(obj, package)
-            switch numel(obj.links)
-              case {0}
-                return
-                  
-              case {1}
-                obj.links{1}.push(package);
-                
-              otherwise
-                cellfun(@(ap) ap.push(package), obj.links);
+            for i = 1 : numel(obj.links)
+                obj.links{i}.push(package);
             end
         end
         
@@ -20,42 +13,59 @@ classdef AccessPoint < handle
         function package = pop(obj)
             package = obj.cache.pop();
         end
+        
+        function package = poll(obj)
+            package = obj.cache.poll();
+        end
+        
+        function package = fetch(obj, index)
+            package = obj.cache.fetch(index);
+        end
+        
+        function reset(obj)
+            obj.cache.reset();
+        end
     end
-       
+    
     methods
-        function connect(obj, ap)
-            obj.addlink(ap);
-            ap.addlink(obj);
-        end
-        
-        function disconnect(obj, ap)
-            obj.rmlink(ap);
-            ap.rmlink(obj);
-        end
-        
-        function addlink(obj, ap)
-            if isempty(obj.links)
-                obj.links = {ap};
-            elseif any(cellfun(@ap.compare, obj.links))
-                return
-            else
-                obj.links{end + 1} = ap;
+        function obj = connect(obj, varargin)
+            for i = 1 : numel(varargin)
+                apoint = varargin{i};
+                obj.addlink(apoint);
+                apoint.addlink(obj);
             end
         end
         
-        function rmlink(obj, ap)
-            switch numel(obj.links)
-              case {0}
-                return
-                
-              case {1}
-                if ap.compare(obj.links{1})
-                    obj.links = {};
+        function obj = disconnect(obj, varargin)
+            for i = 1 : numel(varargin)
+                apoint = varargin{i};
+                obj.rmlink(apoint);
+                apoint.rmlink(obj);
+            end
+        end
+        
+        function aplist = isolate(obj)
+            aplist = obj.links;
+            for i = 1 : numel(aplist)
+                obj.disconnect(aplist{i});
+            end
+        end
+        
+        function addlink(obj, ap)
+            for i = 1 : numel(obj.links)
+                if ap.compare(obj.links{i})
+                    return
                 end
-                
-              otherwise
-                tf = cellfun(@ap.compare, obj.links);
-                obj.links(tf) = [];
+            end
+            obj.links{end + 1} = ap;
+        end
+        
+        function rmlink(obj, ap)
+            for i = 1 : numel(obj.links)
+                if ap.compare(obj.links{i})
+                    obj.links(i) = [];
+                    return
+                end
             end
         end
     end
@@ -68,8 +78,7 @@ classdef AccessPoint < handle
     
     methods
         function obj = AccessPoint()
-            obj.id    = obj.idset.register();
-            obj.links = {};
+            obj.id = obj.idset.register();
         end
         
         function delete(obj)
@@ -81,25 +90,20 @@ classdef AccessPoint < handle
         idset = IDSet()
     end
     properties (SetAccess = protected)
-        id, links
+        id, links = {}
+    end
+    properties
+        packagercd
     end
     properties (Abstract, SetAccess = protected)
-        parent, cache, state
+        parent, cache
     end
     properties (Dependent)
-        isfull, isempty, count
+        isempty
     end
     methods
-        function value = get.isfull(obj)
-            value = obj.cache.isfull;
-        end
-        
         function value = get.isempty(obj)
             value = obj.cache.isempty;
-        end
-        
-        function value = get.count(obj)
-            value = obj.cache.count;
         end
     end
 end

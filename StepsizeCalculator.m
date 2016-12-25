@@ -19,7 +19,8 @@ classdef StepsizeCalculator < handle
                     'method',     method, ...
                     'step',       [], ...
                     'maxStep',    [], ...
-                    'maxScale',   param.get('maxScale',   30), ...
+                    'activate',   true, ...
+                    'maxScale',   param.get('maxScale',   sqrt(10)), ...
                     'upFactor',   param.get('upFactor',   1.02), ...
                     'downFactor', param.get('downFactor', 0.95), ...
                     'targetETA',  param.get('targetETA',  1e-3));
@@ -60,17 +61,27 @@ classdef StepsizeCalculator < handle
 %                     fprintf('step decrease from %.2e ', conf.step);
                     conf.step = conf.step * conf.downFactor;
 %                     fprintf('to %.2e\n', conf.step);
-                else
+                elseif factor > 0
 %                     fprintf('step increase from %.2e ', conf.step);
                     conf.step = conf.step * conf.upFactor;
 %                     fprintf('to %.2e\n', conf.step);
-                    if conf.step >= conf.maxStep
-%                         fprintf('Adjust targetETA from %.2e ', conf.targetETA);
-                        conf.targetETA = conf.targetETA / conf.maxScale;
-%                         fprintf('to %.2e\n', conf.targetETA);
+                    if conf.activate
+                        if conf.step >= conf.maxStep
+%                             fprintf('Adjust targetETA from %.2e ', conf.targetETA);
+                            conf.targetETA = conf.targetETA / conf.maxScale^2;
+%                             fprintf('to %.2e\n', conf.targetETA);
 %                         fprintf('Adjust maxStep from %.2e ', conf.maxStep);
-                        conf.maxStep = conf.maxStep * conf.maxScale;
+%                         conf.maxStep = conf.maxStep * conf.maxScale;
+%                         conf.step = conf.step / conf.maxScale;
+                            conf.maxStep = conf.maxStep / conf.maxScale;
+                            conf.activate = false;
 %                         fprintf('to %.2e\n', conf.maxStep);
+                        end
+                    else
+                        if conf.step <= conf.maxStep * sqrt(conf.maxScale)
+                            conf.maxScale = conf.maxScale.^0.9;
+                            conf.activate = true;
+                        end
                     end
                 end
             end

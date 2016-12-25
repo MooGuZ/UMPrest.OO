@@ -1,8 +1,9 @@
-classdef MIMOUnit < SimpleUnit
+classdef MISOUnit < SimpleUnit
     methods
-%         function varargout = propagate(obj, apin, apout, proc, varargin)
-%             % clear CDINFO of parent unit
+%         function opackage = propagate(obj, apin, apout, proc, varargin)
 %             obj.pkginfo = UnitAP.initPackageInfo();
+%             % get output access point
+%             apout = apout{1};
 %             % get input package
 %             if isempty(varargin)
 %                 ipackage = cellfun(@pop, apin, 'UniformOutput', false);
@@ -12,19 +13,16 @@ classdef MIMOUnit < SimpleUnit
 %             % unpack data from package
 %             idata = cellfun(@(ap, pkg) ap.unpack(pkg), apin, ipackage, 'UniformOutput', false);
 %             % process the data
-%             odata = cell(1, numel(apout));
-%             [odata{:}] = proc(obj.pkginfo.class, idata{:});
+%             odata = proc(obj.pkginfo.class, idata{:});
 %             % packup data into package
-%             varargout = cellfun(@(ap, d) ap.packup(d), apout, odata, 'UniformOutput', false);
+%             opackage = apout.packup(odata);
 %             % send package if no output argument
 %             if nargout == 0
-%                 for i = 1 : numel(apout)
-%                     apout{i}.send(varargout{i});
-%                 end
+%                 apout.send(opackage);
 %             end
 %         end
-        
-        function varargout = forward(obj, varargin)
+
+        function pkgout = forward(obj, varargin)
             obj.pkginfo = UnitAP.initPackageInfo();
             % get input package from cache
             if isempty(varargin)
@@ -39,38 +37,26 @@ classdef MIMOUnit < SimpleUnit
                 datain{i} = obj.I{i}.unpack(varargin{i});
             end
             % process input data
-            dataout = cell(1, numel(obj.O));
-            [dataout{:}] = obj.process(obj.pkginfo.class, datain{:});
+            dataout = obj.process(obj.pkginfo.class, datain{:});
             % packup output data into package
-            varargout = cell(1, numel(obj.O));
-            for i = 1 : numel(obj.O)
-                varargout{i} = obj.O{i}.packup(dataout{i});
-            end
+            pkgout = obj.O{1}.packup(dataout);
             % send package when no output argument given
             if nargout == 0
-                for i = 1 : numel(obj.O)
-                    obj.O{i}.send(varargout{i});
-                end
+                obj.O{1}.send(pkgout);
             end
         end
         
-        function varargout = backward(obj, varargin)
+        function varargout = backward(obj, pkgout)
             obj.pkginfo = UnitAP.initPackageInfo();
             % get output package from cache
-            if isempty(varargin)
-                varargin = cell(1, numel(obj.O));
-                for i = 1 : numel(obj.O)
-                    varargin{i} = obj.O{i}.pop();
-                end
+            if not(exist('pkgout', 'var'))
+                pkgout = obj.O{1}.pop();
             end
             % unpack output data from package
-            dataout = cell(1, numel(obj.O));
-            for i = 1 : numel(obj.O)
-                dataout{i} = obj.O{i}.unpack(varargin{i});
-            end
+            dataout = obj.O{1}.unpack(pkgout);
             % process output data
             datain = cell(1, numel(obj.I));
-            [datain{:}] = obj.invproc(obj.pkginfo.class, dataout{:});
+            [datain{:}] = obj.invproc(obj.pkginfo.class, dataout);
             % packup input data into package
             varargout = cell(1, numel(obj.I));
             for i = 1 : numel(obj.I)
@@ -105,10 +91,11 @@ classdef MIMOUnit < SimpleUnit
         
         function set.O(obj, value)
             try
-                assert(iscell(value) && not(isscalar(value)));
-                for i = 1 : numel(value)
-                    assert(isa(value{i}, 'UnitAP'));
-                    value{i}.cooperate(i);
+                assert(iscell(value));
+                if isscalar(value)
+                    assert(isa(value{1}, 'UnitAP'));
+                else
+                    assert(isempty(value));
                 end
                 obj.O = value;
             catch

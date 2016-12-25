@@ -1,6 +1,6 @@
-minFunc/
-test/*
-experiment/
+legacy/
+script/
+data/
 
 # system generated files
 .DS_Store

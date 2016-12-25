@@ -5,8 +5,8 @@ classdef Likelihood < Objective
         % TODO: apply weight functions in EVALUATION and DELTA
         function value = evaluate(obj, x, ref)
             if not(exist('x', 'var'))
-                x   = obj.x.state.package;
-                ref = obj.ref.state.pacakge;
+                x   = obj.x.packagercd;
+                ref = obj.ref.packagercd;
             end
             if isa(x, 'DataPackage')
                 if isempty(obj.weight)
@@ -25,8 +25,8 @@ classdef Likelihood < Objective
         
         function d = delta(obj, x, ref)
             if not(exist('x', 'var'))
-                x   = obj.x.state.package;
-                ref = obj.ref.state.package;
+                x   = obj.x.packagercd;
+                ref = obj.ref.packagercd;
             end
             if isa(x, 'DataPackage')
                 if isempty(obj.weight)

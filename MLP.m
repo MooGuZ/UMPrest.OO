@@ -15,6 +15,6 @@ for i = 1 : numel(units) - 1
 end
 units{end} = Perceptron(sizeinfo(end - 1), sizeinfo(end), 'actType', oactType);
 % connect units
-arrayfun(@(i) units{i}.connect(units{i+1}), 1 : numel(units) - 1);
+arrayfun(@(i) units{i}.aheadof(units{i+1}), 1 : numel(units) - 1);
 % build model
-mlp = Model(units).CompoundUnit();
+mlp = Model(units);
