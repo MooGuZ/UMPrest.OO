@@ -65,7 +65,7 @@ classdef StepsizeCalculator < handle
                     conf.step = conf.step * conf.upFactor;
 %                     fprintf('to %.2e\n', conf.step);
                     if conf.step >= conf.maxStep
-     		        conf.targetETA = conf.targetETA / conf.maxScale;
+     		            conf.targetETA = conf.targetETA / conf.maxScale;
                         conf.maxStep = conf.maxStep * conf.maxSclae;
                         conf.maxScale = conf.maxScale^0.9;
                     end

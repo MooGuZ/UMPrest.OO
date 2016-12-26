@@ -23,7 +23,7 @@ classdef PackageContainer < Container
     
     methods (Static)
         function obj = loadobj(sstruct)
-            if sstruct.simple
+            if sstruct.issimple
                 obj = PackageContainer();
             elseif sstruct.overwrite
                 obj = PackageContainer(sstruct.capacity, '-overwrite');

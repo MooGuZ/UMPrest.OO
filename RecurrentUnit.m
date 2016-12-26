@@ -80,41 +80,25 @@ classdef RecurrentUnit < Unit & Evolvable
             if isa(obj.kernel, 'Evolvable')
                 obj.kernel.update();
             end
-            % update initial state
-%             for i = 1 : numel(obj.S)
-%                 obj.S{i}.update();
-%             end
+            % NOTE: following code would update initial value of hidden
+            %       state in optimization process. However, this part has
+            %       not been well examinated.
+            % for i = 1 : numel(obj.S)
+            %     obj.S{i}.update();
+            % end
         end
     end
     
-%     methods
-%         function value = smpsize(obj, io)
-%             switch lower(io)
-%                 case {'in', 'input'}
-%                     if isscalar(obj.I)
-%                         value = obj.I{1}.smpsize();
-%                     else
-%                         value = cell(1, numel(obj.I));
-%                         for i = 1 : numel(value)
-%                             value{i} = obj.I{i}.smpsize();
-%                         end
-%                     end
-%                     
-%                 case {'out', 'output'}
-%                     if isscalar(obj.O)
-%                         value = obj.O{1}.smpsize();
-%                     else
-%                         value = cell(1, numel(obj.O));
-%                         for i = 1 : numel(value)
-%                             value{i} = obj.O{i}.smpsize();
-%                         end
-%                     end
-%                     
-%                 otherwise
-%                     error('UNSUPPORTED');
-%             end
-%         end
-%     end
+    methods
+        function obj = enablePrediction(obj, varargin)
+            % NOTE: 1. create structure containing 'number of prediction',
+            %          'number of input frame'
+            %       2. check provide links to cover all input
+        end
+        
+        function obj = disablePrediction(obj)
+        end
+    end
     
     methods
         function obj = RecurrentUnit(kernel, varargin)
