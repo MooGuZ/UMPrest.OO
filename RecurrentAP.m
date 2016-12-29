@@ -97,7 +97,7 @@ classdef RecurrentAP < AccessPoint
         
         function extract(obj, package)
             if not(exist('package', 'var'))
-                package = obj.cache.poll();
+                package = obj.cache.pull();
             end
             frames = obj.unpack(package);
             % fill up cache of frames
@@ -110,13 +110,13 @@ classdef RecurrentAP < AccessPoint
         function package = compress(obj)
             frames = cell(1, obj.hostio.cache.count);
             for i = 1 : numel(frames)
-                frames{i} = obj.hostio.poll();
+                frames{i} = obj.hostio.pull();
             end
             package = obj.packup(frames);
         end
         
         function sendFrame(obj)
-            obj.hostio.send(obj.hostio.poll());
+            obj.hostio.send(obj.hostio.pull());
         end
     end
     

@@ -29,7 +29,7 @@ classdef Container < handle
             end
         end
         
-        function element = poll(obj)
+        function element = pull(obj)
             if obj.isempty
                 error('CONTAINER IS EMPTY');
             elseif obj.issimple

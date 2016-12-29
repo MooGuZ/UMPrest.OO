@@ -1,5 +1,13 @@
 classdef RecurrentUnit < Unit & Evolvable
     methods
+        % NOTE: current implementation doesn't take into consideration the
+        %       case that output interface don't connect with a recurrent
+        %       link. In this case, if only require selfeed frames by next
+        %       unit, it is necessary to distinguish subnet of
+        %       input-to-state with the whole network. And both FORWARD and
+        %       BACKWARD operations should be modified correspondingly.
+        % NOTE: currently, FORWARD operation is specified for DataPackage,
+        %       while BACKWARD for ErrorPackage.
         function varargout = forward(obj, varargin)
             obj.pkginfo = RecurrentAP.initPackageInfo();
             % clear hidden state
@@ -16,7 +24,7 @@ classdef RecurrentUnit < Unit & Evolvable
                     obj.I{i}.extract(varargin{i});
                 end
             end
-            % process frames one by one
+            % process all input frames
             for t = 1 : obj.pkginfo.nframe
                 % send frame to kernel
                 for i = 1 : numel(obj.I)
@@ -29,7 +37,25 @@ classdef RecurrentUnit < Unit & Evolvable
                 % process data by kernel
                 obj.kernel.forward();
             end
-            % compress frames into package
+            % do selfeed cycle if necessary
+            if obj.selfeed.status
+                % update prelead-frames quantity record
+                obj.selfeed.numPreleadFrames = obj.pkginfo.nframe;
+                % slefeed cycle
+                for t = 1 : obj.selfeed.numSelfeedFrames
+                    % get input frame from last output frame
+                    for i = 1 : numel(obj.selfeed.linkUnits)
+                        obj.selfeed.linkUnits{i}.forward();
+                    end
+                    % update state in kernel
+                    for i = 1 : numel(obj.S)
+                        obj.S{i}.forward();
+                    end
+                    % process data by kernel
+                    obj.kernel.forward();
+                end
+            end
+            % collect frames into package
             varargout = cellfun(@compress, obj.O, 'UniformOutput', false);
             if nargout == 0
                 for i = 1 : numel(obj.O)
@@ -54,7 +80,28 @@ classdef RecurrentUnit < Unit & Evolvable
                     obj.O{i}.extract(varargin{i});
                 end
             end
-            % process frames one by one
+            % process selfeed frames
+            if obj.selfeed.status
+                for t = 1 : obj.selfeed.numSelfeedFrames
+                    % send frame to kernel
+                    for i = 1 : numel(obj.O)
+                        obj.O{i}.sendFrame();
+                    end
+                    % update state in kernel
+                    for i = 1 : numel(obj.S)
+                        obj.S{i}.backward();
+                    end
+                    % process data by kernel
+                    obj.kernel.backward();
+                    % feedback package from input to output
+                    for i = 1 : numel(obj.selfeed.linkUnits)
+                        obj.selfeed.linkUnits{i}.backward();
+                    end
+                end
+                % update frame quantity
+                obj.pkginfo.nframe = obj.pkginfo.nframe - obj.selfeed.numSelfeedFrames;
+            end
+            % process ordinary frames
             for t = 1 : obj.pkginfo.nframe
                 % send frame to kernel
                 for i = 1 : numel(obj.O)
@@ -89,14 +136,58 @@ classdef RecurrentUnit < Unit & Evolvable
         end
     end
     
+    properties (SetAccess = protected)
+        selfeed
+    end
     methods
-        function obj = enablePrediction(obj, varargin)
+        function obj = enableSelfeed(obj, n, varargin)
             % NOTE: 1. create structure containing 'number of prediction',
             %          'number of input frame'
             %       2. check provide links to cover all input
+            % NOTE: this function require IO have been initialized to work properly
+            if numel(varargin) == 0
+                assert(numel(obj.I) == numel(obj.O), 'SPECIFIC RECURRENT LINK REQUIRED');
+                if numel(obj.I) ~= 1
+                    warning('CONNECTION ESTABLISHED AUTOMATICALLY WITHOUT SPECIFICATION');
+                end
+                rlinks = cell(1, numel(obj.I));
+                for i = 1 : numel(rlinks)
+                    rlinks{i} = {obj.O{i}.hostio.links{1}, obj.I{i}.hostio.links{1}};
+                end
+            else
+                inputTF = false(1, numel(obj.I));
+                for i = 1 : numel(varargin)
+                    tprev = varargin{i}{2};
+                    for j = 1 : numel(obj.I)
+                        if tprev.compare(obj.I{j}.hostio.links{1})
+                            inputTF(j) = true;
+                            break
+                        end
+                    end
+                end
+                assert(all(inputTF), 'INPUT INTERFACE NOT COVERRED');
+                rlinks = varargin;
+            end
+            % create link units
+            lnunits = cell(1, numel(rlinks));
+            for i = 1 : numel(lnunits)
+                lnunits{i} = Link(rlinks{i}{1}, rlinks{i}{2});
+            end
+            % initialize control structure
+            obj.selfedd = struct( ...
+                'status', true, ...
+                'numSelfeedFrames', n, ...
+                'numPreleadFrames', [], ...
+                'linkUnits', lnunits);
         end
         
-        function obj = disablePrediction(obj)
+        function obj = disableSelfeed(obj)
+            % isolate all link units
+            for i = 1 : numel(obj.selfeed.linkUnits)
+                obj.selfeed.linkUnits{i}.isolate();
+            end
+            % modify control structure
+            obj.selfeed = struct('status', false);
         end
     end
     
@@ -120,6 +211,8 @@ classdef RecurrentUnit < Unit & Evolvable
                 'UniformOutput', false);
             obj.O = cellfun(@(ap) RecurrentAP(obj, ap), apout, ...
                 'UniformOutput', false);
+            % initially disable selfeed
+            obj.disableSelfeed();
         end
     end
     

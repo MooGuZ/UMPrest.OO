@@ -10,8 +10,8 @@ classdef SimpleAP < AccessPoint
             obj.packagercd = package;
         end
         
-        function package = poll(obj)
-            package = poll@AccessPoint(obj);
+        function package = pull(obj)
+            package = pull@AccessPoint(obj);
             obj.packagercd = package;
         end
     end

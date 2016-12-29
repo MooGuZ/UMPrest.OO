@@ -6,7 +6,7 @@ classdef RecurrentState < Unit & Evolvable
                     obj.parent.pkginfo.class, ...
                     obj.parent.pkginfo.batchsize);
             else
-                package = obj.I{1}.poll();
+                package = obj.I{1}.pull();
             end
             obj.O{1}.send(package);
         end
@@ -17,7 +17,7 @@ classdef RecurrentState < Unit & Evolvable
                     obj.parent.pkginfo.class, ...
                     obj.parent.pkginfo.batchsize);
             else
-                package = obj.O{1}.poll();
+                package = obj.O{1}.pull();
             end
             obj.I{1}.send(package);
         end
@@ -28,14 +28,14 @@ classdef RecurrentState < Unit & Evolvable
                 if isa(package, 'ErrorPackage')
                     obj.S.addgrad(sum(package.data, obj.dstate + 1));
                     obj.S.update();
-                    obj.O{1}.poll();
+                    obj.O{1}.pull();
                 end
             elseif not(obj.I{1}.isempty)
                 package = obj.I{1}.fetch(1);
                 if isa(package, 'ErrorPackage')
                     obj.S.addgrad(sum(package.data, obj.dstate + 1));
                     obj.S.update();
-                    obj.I{1}.poll();
+                    obj.I{1}.pull();
                 end
             end
         end

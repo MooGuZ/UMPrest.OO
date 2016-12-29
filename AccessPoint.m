@@ -14,8 +14,8 @@ classdef AccessPoint < handle
             package = obj.cache.pop();
         end
         
-        function package = poll(obj)
-            package = obj.cache.poll();
+        function package = pull(obj)
+            package = obj.cache.pull();
         end
         
         function package = fetch(obj, index)
@@ -92,8 +92,8 @@ classdef AccessPoint < handle
     properties (SetAccess = protected)
         id, links = {}
     end
-    properties
-        packagercd
+    properties (Transient)
+        packagercd = []
     end
     properties (Abstract, SetAccess = protected)
         parent, cache

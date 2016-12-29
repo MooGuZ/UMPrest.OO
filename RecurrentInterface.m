@@ -2,7 +2,7 @@ classdef RecurrentInterface < handle
     methods
         function extract(obj, package)
             if not(exist('package', 'var'))
-                package = obj.pkgap.poll();
+                package = obj.pkgap.pull();
             end
             frames = obj.pkgap.unpack(package);
             % fill up cache of frames
@@ -15,13 +15,13 @@ classdef RecurrentInterface < handle
         function package = compress(obj)
             frames = cell(1, obj.frmap.cache.count);
             for i = 1 : numel(frames)
-                frames{i} = obj.frmap.poll();
+                frames{i} = obj.frmap.pull();
             end
             package = obj.pkgap.packup(frames);
         end
         
         function sendFrame(obj)
-            obj.frmap.send(obj.frmap.poll());
+            obj.frmap.send(obj.frmap.pull());
         end
     end
     
