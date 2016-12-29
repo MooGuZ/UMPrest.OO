@@ -16,12 +16,12 @@ classdef SimpleUnit < Unit & Operation
         % NOTE: currently there is no way to turn of recurrent mode
             for i = 1 : numel(obj.I)
                 if obj.I{i}.recdata
-                    obj.I{i}.datarcd.init(n);
+                    obj.I{i}.datarcdlen = n;
                 end
             end
             for i = 1 : numel(obj.O)
                 if obj.O{i}.recdata
-                    obj.O{i}.datarcd.init(n);
+                    obj.O{i}.datarcdlen = n;
                 end
             end
         end

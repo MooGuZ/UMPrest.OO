@@ -2,22 +2,18 @@ classdef PackageContainer < Container
 % PACKAGECONTAINER is a container that would automatically combine ErrorPackages
     methods
         function push(obj, element)
-        % NOTE: this implementation is based on the assumption that only 
-        %       ERRORPACKAGE has MERGE methods
-            switch class(element)
-              case {'ErrorPackage'}
-                try
-                    obj.fetch(obj.count).merge(element);
-                catch
-                    push@Container(obj, element);
+            if obj.count && isa(element, 'ErrorPackage')
+                stacktop = obj.fetch(obj.count);
+                if isa(stacktop, 'ErrorPackage')
+                    try
+                        stacktop.merge(element);
+                        return
+                    catch
+                        % do nothing
+                    end
                 end
-                
-              case {'DataPackage', 'SizePackage'}
-                push@Container(obj, element);
-                
-              otherwise
-                error('UNSUPPORTED');
             end
+            push@Container(obj, element);
         end
     end
     

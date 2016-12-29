@@ -167,18 +167,15 @@ classdef UnitAP < AccessPoint
             obj.dsample    = dsample;
             obj.expandable = conf.pop('expandable', false);
             obj.recdata    = conf.pop('recdata', false);
-
+            
+            if obj.recdata
+                obj.datarcdlen = conf.pop('dataRecordLength', 1);
+            end
             
             if conf.exist('capacity')
                 obj.cache = PackageContainer(conf.pop('capacity'), '-overwrite');
             else
                 obj.cache = PackageContainer();
-            end
-            
-            if obj.recdata && conf.exist('dataRecordLength')
-                obj.dararcd = Container(conf.pop('dataRecordLength'), '-overwrite');
-            else
-                obj.datarcd = Container();
             end
         end
     end
@@ -190,16 +187,14 @@ classdef UnitAP < AccessPoint
         expandable % TRUE/FALSE, indicating dimension of data can be expanded
         no         % series number, 0 represent independent, otherwise in cooperate mode
     end
-    properties
+    properties (Dependent)
         recdata    % TRUE/FALSE, indicating this AccessPoint would record passed data
+        datarcdlen % length of data records, default 1
     end
     properties (SetAccess = protected)
         cache      % a queue containing all unprocessed packages
         datarcd    % a stack containing copy of data proccessed by host Unit
     end
-    % properties (Access = private)
-    %     saveprop
-    % end
     methods
         function set.parent(obj, value)
             assert(isa(value, 'SimpleUnit'), 'ILLEGAL OPERATION');
@@ -214,23 +209,40 @@ classdef UnitAP < AccessPoint
             obj.expandable = logical(value);
         end
         
+        function value = get.datarcdlen(obj)
+            if obj.recdata
+                value = obj.datarcd.capacity;
+            else
+                value = 0;
+            end
+        end
+        function set.datarcdlen(obj, value)
+            assert(obj.recdata, 'ILLEGAL OPERATION');
+            if value ~= obj.datarcdlen
+                if value == 1
+                    obj.datarcd.simple();
+                else
+                    obj.datarcd.init(value);
+                end
+            end
+        end
+        
+        function value = get.recdata(obj)
+            value = not(isempty(obj.datarcd));
+        end
         function set.recdata(obj, value)
-            obj.recdata = logical(value);
+            if value ~= obj.recdata
+                if value
+                    obj.datarcd = Container();
+                else
+                    obj.datarcd = [];
+                end
+            end
         end
         
         function set.no(obj, value)
             assert(MathLib.isinteger(value) && value >= 0, 'ILLEGAL OPERATION');
             obj.no = value;
         end
-        
-        % function value = get.saveprop(obj)
-        %     value = struct( ...
-        %         'cache',   obj.cache.dump(), ...
-        %         'datarcd', obj.datarcd.dump());
-        % end
-        % function set.saveprop(obj, value)
-        %     obj.cache   = PackageContainer.loaddump(value.cache);
-        %     obj.datarcd = Container.loaddump(value.datarcd);
-        % end
     end
 end

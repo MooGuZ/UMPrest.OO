@@ -19,10 +19,10 @@ classdef StepsizeCalculator < handle
                     'method',     method, ...
                     'step',       [], ...
                     'maxStep',    [], ...
-                    'maxScale',   param.get('maxScale',   5), ...
+                    'maxScale',   param.get('maxScale',   3), ...
                     'upFactor',   param.get('upFactor',   1.02), ...
                     'downFactor', param.get('downFactor', 0.95), ...
-                    'targetETA',  param.get('targetETA',  1e-4));
+                    'targetETA',  param.get('targetETA',  5e-2));
                 
               otherwise
                 error('UMPrest:ArgumentError', ...
@@ -61,12 +61,14 @@ classdef StepsizeCalculator < handle
                     conf.step = conf.step * conf.downFactor;
 %                     fprintf('to %.2e\n', conf.step);
                 elseif factor > 0
-%                     fprintf('step increase from %.2e ', conf.step);
+                    % fprintf('step increase from %.2e ', conf.step);
                     conf.step = conf.step * conf.upFactor;
-%                     fprintf('to %.2e\n', conf.step);
+                    % fprintf('to %.2e\n', conf.step);
                     if conf.step >= conf.maxStep
+                        % fprintf('Adjust targetETA from %.2e ', conf.targetETA);
      		            conf.targetETA = conf.targetETA / conf.maxScale;
-                        conf.maxStep = conf.maxStep * conf.maxSclae;
+                        % fprintf('to %.2e\n', conf.targetETA);
+                        conf.maxStep = conf.maxStep * conf.maxScale;
                         conf.maxScale = conf.maxScale^0.9;
                     end
 %                     if conf.activate
