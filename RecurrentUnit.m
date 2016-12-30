@@ -174,17 +174,19 @@ classdef RecurrentUnit < Unit & Evolvable
                 lnunits{i} = Link(rlinks{i}{1}, rlinks{i}{2});
             end
             % initialize control structure
-            obj.selfedd = struct( ...
+            obj.selfeed = struct( ...
                 'status', true, ...
                 'numSelfeedFrames', n, ...
-                'numPreleadFrames', [], ...
-                'linkUnits', lnunits);
+                'numPreleadFrames', []);
+            obj.selfeed.linkUnits = lnunits;
         end
         
         function obj = disableSelfeed(obj)
-            % isolate all link units
-            for i = 1 : numel(obj.selfeed.linkUnits)
-                obj.selfeed.linkUnits{i}.isolate();
+            if not(isempty(obj.selfeed))
+                % isolate all link units
+                for i = 1 : numel(obj.selfeed.linkUnits)
+                    obj.selfeed.linkUnits{i}.isolate();
+                end
             end
             % modify control structure
             obj.selfeed = struct('status', false);
@@ -268,11 +270,12 @@ classdef RecurrentUnit < Unit & Evolvable
         function [refer, aprox] = debug()
             datasize  = 16;
             statesize = 16;
-            nframe  = 7;
+            nframe  = 1;
             nvalid  = 100;
             batchsize = 8;
             % create referent model
             refer = LSTM.randinit(datasize, statesize);
+            refer.enableSelfeed(1);
 %             refer = SimpleRNN.randinit(datasize, statesize, 'sigmoid');
 %             refer.blin = BilinearTransform.randinit(sizeinA, sizeinB, sizehid);
 %             refer.model = RecurrentUnit(Model(refer.blin), {refer.blin.O, refer.blin.IA});
@@ -288,6 +291,7 @@ classdef RecurrentUnit < Unit & Evolvable
 %                 {refer.actOut.O, refer.blin.IA});
             % create estimate model
             aprox = LSTM.randinit(datasize, statesize);
+            aprox.enableSelfeed(1);
 %             aprox = SimpleRNN.randinit(datasize, statesize, 'sigmoid');
 %             aprox.blin = BilinearTransform.randinit(sizeinA, sizeinB, sizeout);
 %             aprox.model = RecurrentUnit(Model(aprox.blin), {aprox.blin.O, aprox.blin.IA});
@@ -315,7 +319,7 @@ classdef RecurrentUnit < Unit & Evolvable
 %                 aprox.forward(validsetInA, validsetInB, validsetInC).data, ...
 %                 validsetOut.data);
             disp('[Initial Error Distribution]');
-            distinfo(abs(cat(2, refer.dump{:}) - cat(2, aprox.dump{:})), 'WEIGHTS', true);
+            distinfo(abs(cat(2, refer.dump{:}) - cat(2, aprox.dump{:})), 'WEIGHTS', false);
 %             distinfo(abs(refer.blin.weightA - aprox.blin.weightA), 'WEIGHT IN A', false);
 %             distinfo(abs(refer.blin.weightB - aprox.blin.weightB), 'WEIGHT IN B', false);
 %             distinfo(abs(refer.blin.bias - aprox.blin.bias),  'BIAS IN', false);
@@ -350,7 +354,7 @@ classdef RecurrentUnit < Unit & Evolvable
 %             distinfo(abs(refer.lin.weight - aprox.lin.weight), 'WEIGHT HID', false);
 %             distinfo(abs(refer.lin.bias - aprox.lin.bias), 'BIAS HID', false);
             % FOR LSTM
-            distinfo(abs(cat(2, refer.dump{:}) - cat(2, aprox.dump{:})), 'WEIGHTS', true);
+            distinfo(abs(cat(2, refer.dump{:}) - cat(2, aprox.dump{:})), 'WEIGHTS', false);
         end
     end
 end
