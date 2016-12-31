@@ -64,6 +64,9 @@ classdef RecurrentUnit < Unit & Evolvable
             end
         end
         
+        % TODO: add '-overwrite' option to data records and make warning
+        %       in backward propagate of ErrorPackage while truncate its
+        %       process to specific depth.
         function varargout = backward(obj, varargin)
             obj.pkginfo = RecurrentAP.initPackageInfo();
             % clear hidden state
@@ -228,7 +231,7 @@ classdef RecurrentUnit < Unit & Evolvable
         pkginfo
     end
     properties (Constant)
-        memoryLength = 30
+        memoryLength = 40
     end
     methods
         function set.I(obj, value)

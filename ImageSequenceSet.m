@@ -10,24 +10,45 @@ classdef ImageSequenceSet < Dataset
             end
             
             if obj.db.islabelled
-                if not(obj.framemode.status)
+                d = cellfun(@(x) x.data, d, 'UniformOutput', false);
+                if not(obj.frameSelection.status)
                     l = cellfun(@(x) x.label, d, 'UniformOutput', false);
                 end
-                d = cellfun(@(x) x.data, d, 'UniformOutput', false);
             end
             
             if obj.patchmode.status
+                ipatch = randi(numel(d), 1, n);
                 d = arrayfun(@(index) obj.getPatch(d{index}), ...
-                    randi(numel(d), 1, n), 'UniformOutput', false);
+                    ipatch, 'UniformOutput', false);
+                if exist('l', 'var')
+                    l = l(index);
+                end
             end
             
-            if obj.framemode.status
-                switch obj.framemode.type
-                    case {'truncate'}
-                        [d, l] = cellfun(@obj.truncateFrame, d, 'UniformOutput', false);
-                        
-                    case {'shift'}
-                        [d, l] = cellfun(@obj.shiftFrame, d, 'UniformOutput', false);
+            if obj.frameSelection.status
+                l = cell(1, numel(d));
+                for i = 1 : numel(d)
+                    nframe = size(d{i}, obj.dsample + 1);
+                    % initial index of data and label with shifting setting
+                    if obj.frameSelection.shift > 0
+                        idata  = 1 : nframe - obj.frameSelection.shift;
+                        ilabel = obj.frameSelection.shift + 1 : nframe;
+                    elseif obj.frameSelection.shift < 0
+                        idata  = 1 - obj.frameSelection.shift : nframe;
+                        ilabel = 1 : nframe + obj.frameSelection.shift;
+                    else
+                        idata  = 1 : nframe;
+                        ilabel = 1 : nframe;
+                    end
+                    % truncate data frames
+                    if obj.frameSelection.dtruncate > 0
+                        idata = idata(1 : end - obj.frameSelection.dtruncate);
+                    elseif obj.frameSelection.dtruncate < 0
+                        idata = idata(1 - obj.frameSelection.dtruncate : end);
+                    end
+                    % get data and label
+                    l{i} = sltondim(d{i}, obj.dsample + 1, ilabel);
+                    d{i} = sltondim(d{i}, obj.dsample + 1, idata);
                 end
             end
             
@@ -57,12 +78,12 @@ classdef ImageSequenceSet < Dataset
             l = sltondim(data, obj.dsample + 1, index + obj.framemode.n);
         end
         
-        function package = packup(obj, d)
-            package = obj.data.packup(d);
-            if nargout == 0
-                obj.data.send(package);
-            end
-        end
+%         function package = packup(obj, d)
+%             package = obj.data.packup(d);
+%             if nargout == 0
+%                 obj.data.send(package);
+%             end
+%         end
         
         function patch = getPatch(obj, d)
             patch = randcrop(d, obj.patchmode.size);
@@ -79,21 +100,59 @@ classdef ImageSequenceSet < Dataset
             obj.patchmode = struct('status', false);
         end
         
-        function enableFrameMode(obj, type, n)
-            obj.framemode = struct( ...
-                'status', true, ...
-                'type',   type, ...
-                'n',      n);
+%         function enableFrameMode(obj, type, n)
+%             obj.framemode = struct( ...
+%                 'status', true, ...
+%                 'type',   type, ...
+%                 'n',      n);
+%             obj.label = DatasetAP(obj, obj.dsample);
+%         end
+%         
+%         function disableFrameMode(obj)
+%             obj.framemode = struct('status', false);
+%             if obj.islabelled % PRB: dimension of label is unsure
+%                 obj.label = DatasetAP(obj, 1);
+%             else
+%                 obj.label = [];
+%             end
+%         end
+    end
+
+    properties
+        frameSelection
+    end
+    methods
+        function obj = initFrameSelection(obj)
+            obj.frameSelection = struct( ...
+                'status',    true, ...
+                'shift',     0, ...
+                'dtruncate', 0);
             obj.label = DatasetAP(obj, obj.dsample);
         end
         
-        function disableFrameMode(obj)
-            obj.framemode = struct('status', false);
-            if obj.islabelled % PRB: dimension of label is unsure
-                obj.label = DatasetAP(obj, 1);
+        function obj = disableFrameSelection(obj)
+            obj.frameSelection = struct('status', false);
+            if obj.db.islabelled
+                % PRB: dimension of data and label in DataBlocks should be
+                %      able to guess from existing data or raise an error.
+                obj.label = DatasetAP(obj, obj.db.labeldim());
             else
                 obj.label = [];
             end
+        end
+        
+        function obj = shiftFrames(obj, n)
+            if not(obj.frameSelection.status)
+                obj.initFrameSelection();
+            end
+            obj.frameSelection.shift = n;
+        end
+        
+        function obj = truncateDataFrames(obj, n)
+            if not(obj.frameSelection.status)
+                obj.initFrameSelection();
+            end
+            obj.frameSelection.dtruncate = n;
         end
     end
     
@@ -118,20 +177,21 @@ classdef ImageSequenceSet < Dataset
                 obj.disablePatchMode();
             end
             
-            if conf.exist('frameTruncate')
-                obj.enableFrameMode('truncate', conf.pop('frameTruncate'));
-            elseif conf.exist('frameShift')
-                obj.enableFrameMode('shift', conf.pop('frameshift'));
-            else
-                obj.disableFrameMode();
-            end
+            obj.disableFrameSelection();
+            
+%             if conf.exist('frameTruncate')
+%                 obj.enableFrameMode('truncate', conf.pop('frameTruncate'));
+%             elseif conf.exist('frameShift')
+%                 obj.enableFrameMode('shift', conf.pop('frameshift'));
+%             else
+%                 obj.disableFrameMode();
+%             end
         end
     end
     
     properties
         db % DataBlock that manage the data
         patchmode % structure contains all information about patch corping
-        framemode % structure contains all information about
     end
     properties (Constant)
         dsample = 2;
@@ -147,7 +207,7 @@ classdef ImageSequenceSet < Dataset
         end
         
         function value = get.islabelled(obj)
-            value = obj.db.islabelled || obj.framemode.status;
+            value = obj.db.islabelled || obj.frameSelection.status;
         end
     end
 end

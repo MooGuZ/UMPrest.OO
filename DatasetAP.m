@@ -38,12 +38,7 @@ classdef DatasetAP < AccessPoint
     properties (SetAccess = protected)
         parent  % handle of a SimpleUnit, the host of this AccessPoint
         dsample % dimension of data pass through this AccessPoint
-    end
-    properties (SetAccess = protected, Transient)
         cache   % a queue containing all unprocessed packages
-    end
-    properties (Access = private)
-        saveprop
     end
     methods
         function set.parent(obj, value)
@@ -54,13 +49,6 @@ classdef DatasetAP < AccessPoint
         function set.dsample(obj, value)
             assert(MathLib.isinteger(value) && value > 0);
             obj.dsample = value;
-        end
-        
-        function value = get.saveprop(obj)
-            value.cache = obj.cache.dump();
-        end
-        function set.saveprop(obj, value)
-            obj.cache = PackageContainer.loaddump(value.cache);
         end
     end
 end
