@@ -22,9 +22,9 @@ classdef IDSet < handle
             obj.hashset.remove(obj.hashset.keys);
         end
         
-        function value = size(obj)
-            value = obj.hashset.Count;
-        end
+        % function value = size(obj)
+        %     value = obj.hashset.Count;
+        % end
     end
     
     methods (Access = private)
@@ -41,5 +41,13 @@ classdef IDSet < handle
     
     properties (Access = protected)
         hashset
+    end
+    properties (Dependent)
+        count
+    end
+    methods
+        function value = get.count(obj)
+            value = obj.hashset.Count;
+        end
     end
 end
