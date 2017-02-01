@@ -1,23 +1,31 @@
 classdef HyperParam < Tensor
     methods
+        function cleanup(obj)
+            obj.gradient.data = 0;
+        end
+        
         function addgrad(obj, grad)
-            obj.gradient.push(grad);
+            if not(obj.frozen)
+                obj.gradient.push(grad);
+            end
         end
         
         function update(obj)
-            if isempty(obj.prior)
-                grad = obj.gradient.pop();
-                grad = obj.stepsize(grad) * grad;
-            else
-                grad = obj.gradient.pop() + obj.prior.delta(obj.data);
-                grad = obj.stepsize(grad) * grad;
+            if not(obj.frozen)
+                if isempty(obj.prior)
+                    grad = obj.gradient.pop();
+                    grad = obj.stepsize(grad) * grad;
+                else
+                    grad = obj.gradient.pop() + obj.prior.delta(obj.data);
+                    grad = obj.stepsize(grad) * grad;
+                end
+                
+                if obj.useMomentum
+                    grad = obj.inertia * obj.momentum + grad;
+                    obj.momentum = grad;
+                end
+                obj.data = obj.data - grad;
             end
-            
-            if obj.useMomentum
-                grad = obj.inertia * obj.momentum + grad;
-                obj.momentum = grad;
-            end
-            obj.data = obj.data - grad;
         end
     end
     
@@ -104,6 +112,10 @@ classdef HyperParam < Tensor
     
     properties
         inertia = 0.9
+    end
+    
+    properties
+        frozen = false;
     end
     
     properties (Dependent)

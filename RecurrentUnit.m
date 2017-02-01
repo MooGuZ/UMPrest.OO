@@ -125,18 +125,39 @@ classdef RecurrentUnit < Unit & Evolvable
                 end
             end
         end
-        
-        function obj = update(obj)
-            if isa(obj.kernel, 'Evolvable')
-                obj.kernel.update();
-            end
-            % NOTE: following code would update initial value of hidden
-            %       state in optimization process. However, this part has
-            %       not been well examinated.
-            % for i = 1 : numel(obj.S)
-            %     obj.S{i}.update();
-            % end
+    end
+       
+    methods
+        function hpcell = hparam(obj)
+            hpcell = obj.hpcache;
         end
+        
+        function unitdump = dump(obj)
+            unitdump = obj.kernel.dump();
+            unitdump{1} = class(obj);
+        end
+        
+        % function rawdata = dumpraw(obj)
+        %     rawdata = obj.kernel.dumpraw();
+        % end
+        % 
+        % function update(obj)
+        %     obj.kernel.update();
+        %     % NOTE: following code would update initial value of hidden
+        %     %       state in optimization process. However, this part has
+        %     %       not been well examinated.
+        %     % for i = 1 : numel(obj.S)
+        %     %     obj.S{i}.update();
+        %     % end
+        % end
+        % 
+        % function freeze(obj)
+        %     obj.kernel.freeze();
+        % end
+        % 
+        % function unfreeze(obj)
+        %     obj.kernel.unfreeze();
+        % end
     end
     
     properties (SetAccess = protected)
@@ -218,14 +239,19 @@ classdef RecurrentUnit < Unit & Evolvable
                 'UniformOutput', false);
             % initially disable selfeed
             obj.disableSelfeed();
+            % get hyper-parameter list
+            obj.hpcache = obj.kernel.hparam();
         end
     end
     
     properties (SetAccess = protected)
-        kernel % instance of INTERFACE, who actually process the data
+        kernel % instance of MODEL, who actually process the data
         I = {} % input access points set
         O = {} % output access points set
         S = {} % hidden states set
+    end
+    properties (Access = private)
+        hpcache
     end
     properties (Hidden)
         pkginfo
@@ -276,58 +302,33 @@ classdef RecurrentUnit < Unit & Evolvable
             nframe  = 1;
             nvalid  = 100;
             batchsize = 8;
+            
             % create referent model
-            refer = LSTM.randinit(datasize, statesize);
-            refer.enableSelfeed(1);
-%             refer = SimpleRNN.randinit(datasize, statesize, 'sigmoid');
-%             refer.blin = BilinearTransform.randinit(sizeinA, sizeinB, sizehid);
-%             refer.model = RecurrentUnit(Model(refer.blin), {refer.blin.O, refer.blin.IA});
-%             refer.model.enableLastFrameMode();
-%             refer.actIn = Activation('ReLu');
-%             refer.lin = LinearTransform.randinit(sizehid, sizeout);
-%             refer.actOut = Activation('sigmoid');
-%             refer.blin.O.connect(refer.actIn.I);
-%             refer.actIn.O.connect(refer.lin.I);
-%             refer.lin.O.connect(refer.actOut.I);
-%             refer.model = RecurrentUnit( ...
-%                 Model(refer.blin, refer.actIn, refer.lin, refer.actOut), ...
-%                 {refer.actOut.O, refer.blin.IA});
+            refer = RecCO.randinit(datasize, statesize);
+            % refer = LSTM.randinit(datasize, statesize);
+            % refer = SimpleRNN.randinit(datasize, statesize, 'sigmoid');
+            % refer.enableSelfeed(1);
+            
             % create estimate model
-            aprox = LSTM.randinit(datasize, statesize);
-            aprox.enableSelfeed(1);
-%             aprox = SimpleRNN.randinit(datasize, statesize, 'sigmoid');
-%             aprox.blin = BilinearTransform.randinit(sizeinA, sizeinB, sizeout);
-%             aprox.model = RecurrentUnit(Model(aprox.blin), {aprox.blin.O, aprox.blin.IA});
-%             aprox.model.enableLastFrameMode();
-%             aprox.actIn = Activation('ReLU');
-%             aprox.lin = LinearTransform.randinit(sizehid, sizeout);
-%             aprox.actOut = Activation('sigmoid');
-%             aprox.blin.O.connect(aprox.actIn.I);
-%             aprox.actIn.O.connect(aprox.lin.I);
-%             aprox.lin.O.connect(aprox.actOut.I);
-%             aprox.model = RecurrentUnit( ...
-%                 Model(aprox.blin, aprox.actIn, aprox.lin, aprox.actOut), ...
-%                 {aprox.actOut.O, aprox.blin.IA});
+            aprox = RecCO.randinit(datasize, statesize);
+            % aprox = LSTM.randinit(datasize, statesize);
+            % aprox = SimpleRNN.randinit(datasize, statesize, 'sigmoid');
+            % aprox.enableSelfeed(1);
+            
             % create validate data
             validsetInA = DataPackage(rand(datasize, nframe, nvalid), 1, true);
             validsetOut = refer.forward(validsetInA);
-%             validsetInB = DataPackage(rand(statesize, nvalid), 1, false);
-%             validsetInC = DataPackage(rand(statesize, nvalid), 1, false);
-%             validsetOut = refer.forward(validsetInA, validsetInB, validsetInC);
+
             % define likelihood as optimization objective
             likelihood = Likelihood('mse');
+            
             % display current status of estimation
             objval = likelihood.evaluate(aprox.forward(validsetInA).data, validsetOut.data);
-%             objval = likelihood.evaluate( ...
-%                 aprox.forward(validsetInA, validsetInB, validsetInC).data, ...
-%                 validsetOut.data);
             disp('[Initial Error Distribution]');
-            distinfo(abs(cat(2, refer.dump{:}) - cat(2, aprox.dump{:})), 'WEIGHTS', false);
-%             distinfo(abs(refer.blin.weightA - aprox.blin.weightA), 'WEIGHT IN A', false);
-%             distinfo(abs(refer.blin.weightB - aprox.blin.weightB), 'WEIGHT IN B', false);
-%             distinfo(abs(refer.blin.bias - aprox.blin.bias),  'BIAS IN', false);
+            distinfo(abs(refer.dumpraw() - aprox.dumpraw()), 'WEIGHTS', true);
             disp(repmat('=', 1, 100));
             fprintf('Initial objective value : %.2e\n', objval);
+            
             % optimize estimation by SGD
             for i = 1 : UMPrest.parameter.get('iteration')
                 apkg = DataPackage(randn(datasize, nframe, batchsize), 1, true);
@@ -357,7 +358,7 @@ classdef RecurrentUnit < Unit & Evolvable
 %             distinfo(abs(refer.lin.weight - aprox.lin.weight), 'WEIGHT HID', false);
 %             distinfo(abs(refer.lin.bias - aprox.lin.bias), 'BIAS HID', false);
             % FOR LSTM
-            distinfo(abs(cat(2, refer.dump{:}) - cat(2, aprox.dump{:})), 'WEIGHTS', false);
+            distinfo(abs(refer.dumpraw() - aprox.dumpraw()), 'WEIGHTS', true);
         end
     end
 end

@@ -1,4 +1,4 @@
-classdef RecurrentState < Unit & Evolvable
+classdef RecurrentState < Unit
     methods
         function forward(obj)
             if obj.I{1}.isempty
@@ -22,23 +22,23 @@ classdef RecurrentState < Unit & Evolvable
             obj.I{1}.send(package);
         end
         
-        function update(obj)
-            if not(obj.O{1}.isempty)
-                package = obj.O{1}.fetch(1);
-                if isa(package, 'ErrorPackage')
-                    obj.S.addgrad(sum(package.data, obj.dstate + 1));
-                    obj.S.update();
-                    obj.O{1}.pull();
-                end
-            elseif not(obj.I{1}.isempty)
-                package = obj.I{1}.fetch(1);
-                if isa(package, 'ErrorPackage')
-                    obj.S.addgrad(sum(package.data, obj.dstate + 1));
-                    obj.S.update();
-                    obj.I{1}.pull();
-                end
-            end
-        end
+        % function update(obj)
+        %     if not(obj.O{1}.isempty)
+        %         package = obj.O{1}.fetch(1);
+        %         if isa(package, 'ErrorPackage')
+        %             obj.S.addgrad(sum(package.data, obj.dstate + 1));
+        %             obj.S.update();
+        %             obj.O{1}.pull();
+        %         end
+        %     elseif not(obj.I{1}.isempty)
+        %         package = obj.I{1}.fetch(1);
+        %         if isa(package, 'ErrorPackage')
+        %             obj.S.addgrad(sum(package.data, obj.dstate + 1));
+        %             obj.S.update();
+        %             obj.I{1}.pull();
+        %         end
+        %     end
+        % end
         
         function clear(obj)
             obj.I{1}.reset();

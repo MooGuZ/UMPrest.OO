@@ -67,9 +67,44 @@ classdef Model < Interface & Evolvable
     % end
     
     methods
+        function hpcell = hparam(obj)
+            % hpcell = cell(1, numel(obj.evolvable));
+            % for i = 1 : numel(hpcell)
+            %     hpcell{i} = obj.evolvable{i}.hparam();
+            % end
+            hpcell = cellfun(@hparam, obj.evolvable, 'UniformOutput', false);
+            hpcell = cat(2, hpcell{:});
+        end
+        
+        function datamat = dump(obj)
+            % datamat = cell(1, numel(obj.evolvable));
+            % for i = 1 : numel(datamat)
+            %     datamat{i} = obj.evolvable{i}.dump();
+            % end
+            datamat = [{'Model'}, cellfun(@dump, obj.evolvable, 'UniformOutput', false)];
+        end
+        
+        function rawdata = dumpraw(obj)
+            rawdata = cellfun(@dumpraw, obj.evolvable, 'UniformOutput', false);
+            rawdata = cat(1, rawdata{:});
+        end
+        
         function update(obj)
-            index = cellfun(@(node) isa(node, 'Evolvable'), obj.nodes);
-            cellfun(@update, obj.nodes(index));
+            for i = 1 : numel(obj.evolvable)
+                obj.evolvable{i}.update();
+            end
+        end
+        
+        function freeze(obj)
+            for i = 1 : numel(obj.evolvable)
+                obj.evolvable{i}.freeze();
+            end
+        end
+        
+        function unfreeze(obj)
+            for i = 1 : numel(obj.evolvable)
+                obj.evolvable{i}.unfreeze();
+            end
         end
     end
 
@@ -105,6 +140,9 @@ classdef Model < Interface & Evolvable
                         obj.id2ind(node.id) = index;
                         obj.updateConnections(index);
                         obj.sorted = false;
+                        if isa(node, 'Evolvable')
+                            obj.evolvable{end + 1} = node;
+                        end
                     end
                 else
                     warning('NOT AVAILABLE');
@@ -202,7 +240,8 @@ classdef Model < Interface & Evolvable
                     apoint = unit.I{j};
                     index = cellfun(@(ap) obj.id2ind.isKey(ap.parent.id), apoint.links);
                     if any(index) && not(all(index))
-                        cellfun(@apoint.disconnect, apoint.links(not(index)));
+                        cellfun(@apoint.disconnect, apoint.links(not(index)), ...
+                            'UniformOutput', false);
                     end
                 end
                 % remove all out-ward links to outside
@@ -210,7 +249,8 @@ classdef Model < Interface & Evolvable
                     apoint = unit.O{j};
                     index = cellfun(@(ap) obj.id2ind.isKey(ap.parent.id), apoint.links);
                     if any(index) && not(all(index))
-                        cellfun(@apoint.disconnect, apoint.links(not(index)));
+                        cellfun(@apoint.disconnect, apoint.links(not(index)), ...
+                            'UniformOutput', false);
                     end
                 end
             end
@@ -242,6 +282,7 @@ classdef Model < Interface & Evolvable
         O = {} % output access point set
         nodes = {}
         edges = {}
+        evolvable = {}
         id2ind
         sorted
     end

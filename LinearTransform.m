@@ -12,18 +12,20 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
             d = obj.weight' * d;
         end
         
-        function update(obj, stepsize)
-            if exist('stepsize', 'var')
-                obj.W.update(stepsize);
-                obj.B.update(stepsize);
-            else
-                obj.W.update();
-                obj.B.update();
-            end
-        end
-        
-        function hparam = dump(obj)
-            hparam = {obj.W.getcpu, obj.B.getcpu};
+        % function update(obj, stepsize)
+        %     if exist('stepsize', 'var')
+        %         obj.W.update(stepsize);
+        %         obj.B.update(stepsize);
+        %     else
+        %         obj.W.update();
+        %         obj.B.update();
+        %     end
+        % end
+    end
+    
+    methods
+        function hpcell = hparam(obj)
+            hpcell = {obj.W, obj.B};
         end
     end
     
@@ -112,7 +114,7 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
     
     properties (Constant, Hidden)
         taxis      = false;
-        expandable = false;
+        % expandable = false;
     end
     
     properties (Access = protected)

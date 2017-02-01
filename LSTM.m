@@ -22,11 +22,11 @@ classdef LSTM < RecurrentUnit
             obj.outputSelect  = outputSelect;
         end
         
-        function param = dump(obj)
-            param = cellcomb(arrayfun(@dump, ...
-                [obj.stateSelect, obj.updateExtract, obj.updateSelect, obj.outputSelect], ...
-                'UniformOutput', false));
-        end
+        % function param = dump(obj)
+        %     param = cellcomb(arrayfun(@dump, ...
+        %         [obj.stateSelect, obj.updateExtract, obj.updateSelect, obj.outputSelect], ...
+        %         'UniformOutput', false));
+        % end
         
         function view(obj)
             cellsize = size(obj.stateGate.weight, 2) / 2;
@@ -64,9 +64,17 @@ classdef LSTM < RecurrentUnit
                 LinearTransform.randinit(datasize + cellsize, cellsize));
         end
         
-        function unit = loaddump(fw, fb, iw, ib, gw, gb, ow, ob)
-            unit = LSTM(LinearTransform(fw, fb), LinearTransform(iw, ib), ...
-                LinearTransform(gw, gb), LinearTransform(ow, ob));
+        % function unit = loaddump(fw, fb, iw, ib, gw, gb, ow, ob)
+        %     unit = LSTM(LinearTransform(fw, fb), LinearTransform(iw, ib), ...
+        %         LinearTransform(gw, gb), LinearTransform(ow, ob));
+        % end
+        
+        function unit = loaddump(datamat)
+            stateSelect   = LinearTransform(datamat{1}{:});
+            updateExtract = LinearTransform(datamat{2}{:});
+            updateSelect  = LinearTransform(datamat{3}{:});
+            outputSelect  = LinearTransform(datamat{4}{:});
+            unit = LSTM(stateSelect, updateExtract, updateSelect, outputSelect);
         end
     end
     

@@ -12,13 +12,8 @@ classdef BilinearTransform < MISOUnit & FeedforwardOperation & Evolvable
             db = obj.weightB' * d;
         end
         
-        function update(obj)
-%             fprintf('[WA]   ');
-            obj.WA.update();
-%             fprintf('[WB]   ');
-            obj.WB.update();
-%             fprintf('[BIAS] ');
-            obj.B.update();
+        function hpcell = hparam(obj)
+            hpcell = {obj.WA, obj.WB, obj.B};
         end
         
         % PRB: not completely rule out all bad conditions
