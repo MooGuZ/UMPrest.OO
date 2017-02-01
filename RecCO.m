@@ -40,13 +40,13 @@ classdef RecCO < RecurrentUnit
     
     methods (Static)
         function obj = randinit(datasize, cellsize)
-            alphaSelect = LinearTransform.randinit(datasize + cellsize, cellsize);
-            thetaSelect = LinearTransform.randinit(datasize + cellsize, cellsize);
-            alphaUpdateSelect = LinearTransform.randinit(datasize + cellsize, cellsize);
-            thetaUpdateSelect = LinearTransform.randinit(datasize + cellsize, cellsize);
-            outputSelect = LinearTransform.randinit(datasize + cellsize, datasize);
-            realExtract = LinearTransform.randinit(datasize + cellsize, datasize);
-            imagExtract = LinearTransform.randinit(datasize + cellsize, datasize);
+            alphaSelect = LinearTransform.randinit(2 * datasize, cellsize);
+            thetaSelect = LinearTransform.randinit(2 * datasize, cellsize);
+            alphaUpdateSelect = LinearTransform.randinit(2 * datasize, cellsize);
+            thetaUpdateSelect = LinearTransform.randinit(2 * datasize, cellsize);
+            outputSelect = LinearTransform.randinit(2 * datasize, datasize);
+            realExtract = LinearTransform.randinit(2 * datasize, cellsize);
+            imagExtract = LinearTransform.randinit(2 * datasize, cellsize);
             outputProc = BilinearTransform.randinit(cellsize, cellsize, datasize);
             obj = RecCO(alphaSelect, thetaSelect, realExtract, imagExtract, alphaUpdateSelect, ...
                 thetaUpdateSelect, outputProc, outputSelect);
