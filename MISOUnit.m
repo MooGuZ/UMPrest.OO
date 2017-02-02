@@ -91,13 +91,17 @@ classdef MISOUnit < SimpleUnit
         
         function set.O(obj, value)
             try
-                assert(iscell(value));
-                if isscalar(value)
-                    assert(isa(value{1}, 'UnitAP'));
+                if isa(value, 'UnitAP')
+                    obj.O = {value};
                 else
-                    assert(isempty(value));
+                    assert(iscell(value));
+                    if isscalar(value)
+                        assert(isa(value{1}, 'UnitAP'));
+                    else
+                        assert(isempty(value));
+                    end
+                    obj.O = value;
                 end
-                obj.O = value;
             catch
                 error('ILLEGAL ASSIGNMENT');
             end

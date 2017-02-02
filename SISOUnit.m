@@ -65,13 +65,17 @@ classdef SISOUnit < SimpleUnit
     methods
         function set.I(obj, value)
             try
-                assert(iscell(value));
-                if isscalar(value)
-                    assert(isa(value{1}, 'UnitAP'));
+                if isa(value, 'UnitAP')
+                    obj.I = {value};
                 else
-                    assert(isempty(value));
+                    assert(iscell(value));
+                    if isscalar(value)
+                        assert(isa(value{1}, 'UnitAP'));
+                    else
+                        assert(isempty(value));
+                    end
+                    obj.I = value;
                 end
-                obj.I = value;
             catch
                 error('ILLEGAL ASSIGNMENT');
             end
@@ -79,13 +83,17 @@ classdef SISOUnit < SimpleUnit
 
         function set.O(obj, value)
             try
-                assert(iscell(value));
-                if isscalar(value)
-                    assert(isa(value{1}, 'UnitAP'));
+                if isa(value, 'UnitAP')
+                    obj.O = {value};
                 else
-                    assert(isempty(value));
+                    assert(iscell(value));
+                    if isscalar(value)
+                        assert(isa(value{1}, 'UnitAP'));
+                    else
+                        assert(isempty(value));
+                    end
+                    obj.O = value;
                 end
-                obj.O = value;
             catch
                 error('ILLEGAL ASSIGNMENT');
             end
