@@ -1,26 +1,39 @@
 classdef Tensor < handle
     methods
-        function data = get(obj)
-            data = obj.data;
+        function value = get(obj)
+            value = obj.data;
         end
         
-        function set(obj, data)
-            obj.data = data;
-        end
-        
-        function data = getcpu(obj) % get data in form of locating in cpu memory
-            if isa(obj.data, 'gpuArray')
-                data = double(gather(obj.data));
+        function set(obj, value)
+            assert(isnumeric(value), 'ILLEGAL ASSIGNMENT'); % RMPERF
+            if obj.enableGPU
+                if isa(value, 'gpuArray')
+                    obj.data = value;
+                else
+                    obj.data = gpuArray(single(value));
+                end
             else
-                data = obj.data;
+                if isa(value, 'gpuArray')
+                    obj.data = double(gather(value));
+                else
+                    obj.data = value;
+                end
             end
         end
         
-        function data = getgpu(obj) % get data in form of locating in gpu memory
+        function value = getcpu(obj) % get data in form of locating in cpu memory
             if isa(obj.data, 'gpuArray')
-                data = obj.data;
+                value = double(gather(obj.data));
             else
-                data = gpuArray(single(obj.data));
+                value = obj.data;
+            end
+        end
+        
+        function value = getgpu(obj) % get data in form of locating in gpu memory
+            if isa(obj.data, 'gpuArray')
+                value = obj.data;
+            else
+                value = gpuArray(single(obj.data));
             end
         end
     end
@@ -39,7 +52,7 @@ classdef Tensor < handle
     
     methods
         function obj = Tensor(data)
-            obj.data = data;
+            obj.set(data);
         end
     end
     
@@ -60,37 +73,19 @@ classdef Tensor < handle
 %     end
 
     properties (Access = private)
-        dataToSave
+        dump
     end
     methods
-        function value = get.dataToSave(obj)
+        function value = get.dump(obj)
             value = obj.getcpu();
         end
-        function set.dataToSave(obj, value)
+        function set.dump(obj, value)
             obj.set(value);
         end
     end
     
-    properties (Transient)
+    properties (SetAccess = protected, Transient)
         data % collection of data samples in matrix form (may located in CPU/GPU memory)
-    end
-    methods
-        function set.data(obj, value)
-            assert(isnumeric(value), 'ILLEGAL ASSIGNMENT'); % RMPERF
-            if obj.enableGPU
-                if isa(value, 'gpuArray')
-                    obj.data = value;
-                else
-                    obj.data = gpuArray(single(value));
-                end
-            else
-                if isa(value, 'gpuArray')
-                    obj.data = double(gather(value));
-                else
-                    obj.data = value;
-                end
-            end
-        end
     end
     
     properties (Constant)
