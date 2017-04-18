@@ -72,6 +72,11 @@ classdef Config < handle & matlab.mixin.CustomDisplay
                 end
             end
         end
+        
+        function kvpairs = expand(obj)
+            kvpairs = [obj.map.keys(); obj.map.values];
+            kvpairs = kvpairs(:)';
+        end
     end
     
     % ======================= CONSTRUCTOR =======================

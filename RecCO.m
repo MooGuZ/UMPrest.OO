@@ -38,6 +38,16 @@ classdef RecCO < RecurrentUnit
         end
     end
     
+    methods
+        function unitdump = dump(obj)
+            unitdump = {'RecCO', ...
+                obj.alphaSelect.dump(), obj.thetaSelect.dump(), ...
+                obj.realExtract.dump(), obj.imagExtract.dump(), ...
+                obj.alphaUpdateSelect.dump(), obj.thetaUpdateSelect.dump(), ...
+                obj.outputProc.dump(), obj.outputSelect.dump()};
+        end
+    end
+    
     methods (Static)
         function obj = randinit(datasize, cellsize)
             alphaSelect = LinearTransform.randinit(2 * datasize, cellsize);

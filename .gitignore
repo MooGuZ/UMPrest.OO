@@ -1,6 +1,7 @@
 legacy/
 script/
 data/
+experiment/records/
 
 # system generated files
 .DS_Store

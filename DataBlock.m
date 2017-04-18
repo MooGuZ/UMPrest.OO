@@ -1,3 +1,6 @@
+% DATABLOCK works as a container of data. It provides a method FETCH for
+% caller to obtain sample without concern of implementation detail.
+% DATABLOCK would automatically load data and shuffle samples.
 classdef DataBlock < handle
     methods (Abstract)
         refresh(obj) % reload data from source to cache
@@ -35,7 +38,6 @@ classdef DataBlock < handle
     properties (SetAccess = protected)
         cache  % cell array containing data loaded in the memeory
         icache % index of cache indicating fetching progress (pointing to last readed unit)
-        stat   % a structure containing all information of STATISTICCOLLECTOR
         islabelled % (T/F) indicating whether or not data comes with label
     end
     methods

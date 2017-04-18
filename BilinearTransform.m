@@ -102,6 +102,19 @@ classdef BilinearTransform < MISOUnit & FeedforwardOperation & Evolvable
     end
     
     methods (Static)
+        function debugTask()
+            sizeinA = 64; 
+            sizeinB = 32;
+            sizeout = 48;
+            refer = BilinearTransform( ...
+                randn(sizeout, sizeinA), randn(sizeout, sizeinB), randn(sizeout, 1));
+            model = BilinearTransform.randinit(sizeinA, sizeinB, sizeout);
+            dataset = {DataGenerator('normal', sizeinA), DataGenerator('normal', sizeinB)};
+            objective = Likelihood('mse');
+            task = SimulationTest(model, refer, dataset, objective);
+            task.run(300, 16, 64);
+        end
+        
         function debug()
             sizeinA = 64; 
             sizeinB = 32;

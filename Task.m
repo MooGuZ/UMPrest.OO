@@ -1,34 +1,26 @@
 classdef Task < handle
-    methods (Static)
-        function info = classify(x, ref)
-            [~, indexA] = max(x, [], 1);
-            [~, indexB] = max(ref, [], 1);
-            n = sum(indexA(:) == indexB(:));
-            m = numel(indexA);
-            info = sprintf('%13s >> %.2f%% accuracy (%d / %d)', 'CLASSIFY', n / m , n, m);
-        end
+    methods (Abstract)
+        varargout = run(varargin)
     end
     
+    properties (SetAccess = protected)
+        model, dataset, objective
+    end
     methods
-        function obj = Task(type)
-            switch lower(type)
-              case {'classify'}
-                obj.run = @Task.classify;
-                
-              otherwise
-                error('UMPrest:ArgumentError', 'Unrecognized task type : %s', ...
-                      upper(type));
-            end
+        function set.model(obj, value)
+            assert(isa(value, 'Interface'), 'ILLEGAL ASSIGNMENT');
+            obj.model = value;
         end
-    end
-    
-    properties
-        run
-    end
-    methods
-        function set.run(obj, value)
-            assert(isa(value, 'function_handle'));
-            obj.run = value;
+        
+        function set.dataset(obj, value)
+            assert(iscell(value) || isa(value, 'Dataset') || isa(value, 'DataGenerator'), ...
+                'ILLEGAL ASSIGNMENT');
+            obj.dataset = value;
+        end
+        
+        function set.objective(obj, value)
+            assert(iscell(value) || isa(value, 'Objective'), 'ILLEGAL ASSIGNMENT');
+            obj.objective = value;
         end
     end
 end

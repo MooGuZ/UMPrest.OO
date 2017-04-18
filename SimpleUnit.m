@@ -13,7 +13,7 @@ classdef SimpleUnit < Unit & Operation
     
     methods
         function obj = recrtmode(obj, n)
-        % NOTE: currently there is no way to turn of recurrent mode
+        % NOTE: currently there is no way to turn off recurrent mode
             for i = 1 : numel(obj.I)
                 if obj.I{i}.recdata
                     obj.I{i}.datarcdlen = n;

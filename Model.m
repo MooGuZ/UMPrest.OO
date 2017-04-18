@@ -76,12 +76,15 @@ classdef Model < Interface & Evolvable
             hpcell = cat(2, hpcell{:});
         end
         
-        function datamat = dump(obj)
-            % datamat = cell(1, numel(obj.evolvable));
-            % for i = 1 : numel(datamat)
-            %     datamat{i} = obj.evolvable{i}.dump();
+        function modeldump = dump(obj)
+            % IMPLEMENT A:
+            % modeldump = cell(1, numel(obj.evolvable));
+            % for i = 1 : numel(modeldump)
+            %     modeldump{i} = obj.evolvable{i}.dump();
             % end
-            datamat = [{'Model'}, cellfun(@dump, obj.evolvable, 'UniformOutput', false)];
+            % IMPLEMENT B:
+            % modeldump = [{'Model'}, cellfun(@dump, obj.evolvable, 'UniformOutput', false)];
+            modeldump = {'Model', obj}; 
         end
         
         function rawdata = dumpraw(obj)
@@ -144,6 +147,8 @@ classdef Model < Interface & Evolvable
                             obj.evolvable{end + 1} = node;
                         end
                     end
+                elseif isempty(node)
+                    % skip
                 else
                     warning('NOT AVAILABLE');
                 end
@@ -257,6 +262,9 @@ classdef Model < Interface & Evolvable
             obj.prepare();
         end
         
+        % RECRTMODE extends containers in each units to specific capacity.
+        % This methods calls RECRTMODE method of class SIMPLEUNIT to
+        % complete this operation.
         function obj = recrtmode(obj, n)
             for i = 1 : numel(obj.nodes)
                 unit = obj.nodes{i};

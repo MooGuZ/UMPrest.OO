@@ -133,8 +133,9 @@ classdef RecurrentUnit < Unit & Evolvable
         end
         
         function unitdump = dump(obj)
-            unitdump = obj.kernel.dump();
-            unitdump{1} = class(obj);
+            unitdump = {'RecurrentUnit', obj};
+            % data = obj.kernel.dump();
+            % data{1} = class(obj);
         end
         
         % function rawdata = dumpraw(obj)

@@ -4,11 +4,9 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
             y = bsxfun(@plus, obj.weight * x, obj.bias);
         end
         
-        function d = deltaproc(obj, d, isEvolving)
-            if not(exist('isEvolving', 'var')) || isEvolving
-                obj.B.addgrad(sum(d, 2));
-                obj.W.addgrad(d * obj.I{1}.datarcd.pop()');
-            end
+        function d = deltaproc(obj, d)
+            obj.B.addgrad(sum(d, 2));
+            obj.W.addgrad(d * obj.I{1}.datarcd.pop()');
             d = obj.weight' * d;
         end
         
@@ -75,45 +73,19 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
     
     methods (Static)
         function debug()
-            sizein = 64; sizeout = 128;
-            weight = randn(sizeout, sizein);
-            bias   = randn(sizeout, 1);
-            refer = LinearTransform(weight, bias);
+            sizein  = 64;
+            sizeout = 16;
+            refer = LinearTransform(randn(sizeout, sizein), randn(sizeout, 1));
             model = LinearTransform.randinit(sizein, sizeout);
-            likelihood = Likelihood('mse');
-            % create validate set
-            % data = randn(sizein, 1e2);
-            % validset = DataPackage(data, 'label', bsxfun(@plus, ltrans * data, bias));
-            validsetIn  = DataPackage(randn(sizein, 1e2), 1, false);
-            validsetOut = refer.forward(validsetIn);
-            % start to learn the linear transformation
-            fprintf('Initial objective value : %.2f\n', ...
-                    likelihood.evaluate( ...
-                    model.forward(validsetIn).data, ...
-                    validsetOut.data));
-            for i = 1 : UMPrest.parameter.get('iteration')
-                data = randn(sizein, 8);
-                ipkg = DataPackage(data, 1, false);
-                opkg = refer.forward(ipkg);
-                model.backward(likelihood.delta(model.forward(ipkg), opkg));
-                model.update();
-                fprintf('Objective Value after [%04d] turns: %.2f\n', i, ...
-                    likelihood.evaluate( ...
-                    model.forward(validsetIn).data, ...
-                    validsetOut.data));
-            end
-            % show result
-            werr = weight - model.weight;
-            berr = bias - model.bias;
-            fprintf('Estimate Weight Error > MEAN:%-8.2e\tVAR:%-8.2e\tMAX:%-8.2e\n', ...
-                mean(werr(:)), var(werr(:)), max(abs(werr(:))));
-            fprintf('Estimate Bias Error   > MEAN:%-8.2e\tVAR:%-8.2e\tMAX:%-8.2e\n', ...
-                mean(berr(:)), var(berr(:)), max(abs(berr(:))));
+            dataset = DataGenerator('normal', sizein);
+            objective = Likelihood('mse');
+            task = SimulationTest(model, refer, dataset, objective);
+            task.run(300, 16, 64);
         end
     end
     
     properties (Constant, Hidden)
-        taxis      = false;
+        taxis = false;
         % expandable = false;
     end
     

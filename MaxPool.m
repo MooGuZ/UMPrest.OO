@@ -1,6 +1,6 @@
-classdef MaxPool < Unit
+classdef MaxPool < SISOUnit & FeedforwardOperation
     methods
-        function y = transform(obj, x)
+        function y = dataproc(obj, x)
             [y, c] = MathLib.groupmax(x, obj.shape(2), 2);
             [y, r] = MathLib.groupmax(y, obj.shape(1), 1);
             % calculate column subscription of each element
@@ -10,97 +10,70 @@ classdef MaxPool < Unit
                 ind = MathLib.offsetOnDim(ind, i, prod(csize(1 : i-1)));
             end
             c = c(ind);
+            % creat map for this operation
+            map = struct();
             % record size of input
-            obj.map.size = size(x);
+            map.size = size(x);
             % compose index of each element
-            obj.map.index = (c - 1) * size(x, 1) + r;
+            map.index = (c - 1) * size(x, 1) + r;
             for i = 3 : ndims(x)
-                obj.map.index = MathLib.offsetOnDim(obj.map.index, i, ...
-                    prod(obj.map.size(1 : i - 1)));
+                map.index = MathLib.offsetOnDim(map.index, i, ...
+                    prod(map.size(1 : i - 1)));
             end
+            % record map
+            obj.maprcd.push(map);
         end
         
-        % TODO: deal with the condition that 'obj.map' is empty
-        function x = compose(obj, y)
-            x = obj.errprop(y);
-        end
-        
-        function deltaOut = errprop(obj, deltaIn, ~)
-            deltaOut = zeros(obj.map.size, 'like', deltaIn);
-            deltaOut(obj.map.index) = deltaIn(:);
-        end
-        
-        function unit = inverseUnit(obj)
-            unit = obj; % TEMPORAL
+        function deltaOut = deltaproc(obj, deltaIn)
+            map = obj.maprcd.pop();
+            deltaOut = zeros(map.size, 'like', deltaIn);
+            deltaOut(map.index) = deltaIn(:);
         end
     end
     
-    properties (Dependent)
-        inputSizeRequirement
-    end
     methods
-        function value = get.inputSizeRequirement(~)
-            value = SizeDescription.format([nan, nan, inf]);
+        function szinfo = sizeIn2Out(obj, szinfo)
+            szinfo(1 : 2) = ceil(szinfo(1 : 2) ./ obj.shape);
         end
         
-        function descriptionOut = sizeIn2Out(obj, descriptionIn)
-            descriptionOut = [ceil(descriptionIn(1 : 2) ./ obj.shape), ...
-                descriptionIn(3 : end)];
+        function szinfo = sizeOut2In(obj, szinfo)
+            warning('Size calculation of MaxPool Unit is not accurate!');
+            szinfo(1 : 2) = szinfo(1 : 2) .* obj.shape;
+        end
+    end
+    
+    methods
+        % OVERIDE SIMPLEUNIT.RECRTMODE
+        function obj = recrtmode(obj, n)
+            if n == 1
+                obj.maprcd.simple();
+            else
+                obj.maprcd.init(n);
+            end
         end
     end
     
     methods
         function obj = MaxPool(shape)
             obj.shape = shape;
+            obj.maprcd = Container();
+            obj.I = {UnitAP(obj, 0, '-expandable')};
+            obj.O = {UnitAP(obj, 0, '-expandable')};
         end
+    end
+    
+    properties (Constant)
+        taxis = false;
     end
     
     properties
-        shape
-    end
-    properties (Access = private)
-        map
+        maprcd, shape
     end
     methods
         function set.shape(obj, value)
-            assert(MathLib.isinteger(value) && all(value > 0));
-            switch numel(value)
-                case {1}
-                    obj.shape = value * [1, 1];
-                case {2}
-                    obj.shape = value;
-                otherwise
-                    error('Shape of MaxPool should be at most 2D');
-            end
-        end
-    end
-    
-    methods (Static)
-        function benchmark(matsize, poolsize, times)
-            mp = MaxPool(poolsize);
-            
-            ttrans = 0;
-            trecov = 0;
-            erecov = 0;
-            for i = 1 : times
-                m = rand(matsize);
-                
-                tstart = tic;
-                p = mp.transform(m);
-                ttrans = ttrans + toc(tstart);
-                
-                tstart = tic;
-                r = mp.errprop(p);
-                trecov = trecov + toc(tstart);
-                
-                erecov = erecov + sum(vec(r(mp.map.index) ~= m(mp.map.index)));
-            end
-            
-            fprintf('Everage transformation time : %.3e (s)\n', ttrans / times);
-            fprintf('Everage reconstruction time : %.3e (s)\n', trecov / times);
-            if erecov > 0
-                fprintf('There are %d errors!\n', erecov);
-            end
+            assert(numel(value) == 2 && MathLib.isinteger(value) && all(value > 0), ...
+                'ILLEGAL ASSIGNMENT');
+            obj.shape = value;
         end
     end
 end

@@ -97,7 +97,17 @@ classdef FileDataBlock < DataBlock
         end
     end
       
+    properties (SetAccess = protected)
+        stat % control structure of statistical collector
+    end
     methods
+        function set.stat(obj, value)
+            if value.status
+                assert(isa(value.collector, 'StatisticCollector'));
+            end
+            obj.stat = value;
+        end
+        
         function enableStatistics(obj, sc)
             obj.stat = struct( ...
                 'status',    true, ...
@@ -108,7 +118,12 @@ classdef FileDataBlock < DataBlock
         function disableStatistics(obj)
             obj.stat = struct('status', false);
         end
-        
+    end
+    
+    properties (SetAccess = protected)
+        autoload % control structure of autoload system
+    end
+    methods 
         function enableAutoload(obj)
             obj.autoload = struct('status', true, 'iid', 0, 'ifailed', []);
         end
@@ -117,10 +132,24 @@ classdef FileDataBlock < DataBlock
             obj.autoload = struct('status', false);
         end
     end
+       
+    methods (Access = protected)
+        function enableLabel(obj, labelSearchFcn, labelReadFcn)
+            obj.islabelled = true;
+            obj.labelSearchFcn = labelSearchFcn;
+            obj.labelReadFcn = labelReadFcn;
+        end
+        
+        function disableLabel(obj)
+            obj.islabelled = false;
+            obj.labelSearchFcn = [];
+            obj.labelReadFcn = [];
+        end
+    end
     
     methods
-        function obj = FileDataBlock(flist, dataReadFcn, extList, stat)
-            obj.dataReadFcn = dataReadFcn;
+        function obj = FileDataBlock(flist, dataReadFcn, extList, varargin)
+            conf = Config(varargin);
             % create file tree
             if iscell(flist)
                 if isscalar(flist)
@@ -145,16 +174,24 @@ classdef FileDataBlock < DataBlock
             else
                 error('The 1st argument should be string or cell array');
             end
-            % TODO: setup label feature
-            obj.islabelled = false;
+            % setup data read function handle
+            obj.dataReadFcn = dataReadFcn;
             % setup statistic collecter
-            if exist('stat', 'var')
-                obj.enableStatistics(stat)
+            if conf.exist('stat')
+                obj.enableStatistics(conf.pop('stat'))
             else
                 obj.disableStatistics();
             end
             % setup autoload feature
             obj.enableAutoload();
+            % setup label mode
+            if conf.exist('labelReadFcn')
+                obj.enableLabel( ...
+                    conf.pop('labelSearchFcn', @(p) p), ...
+                    conf.pop('labelReadFcn'));
+            else
+                obj.disableLabel();
+            end
             % initialize the library
             obj.shuffle();
         end
@@ -167,7 +204,6 @@ classdef FileDataBlock < DataBlock
     properties (SetAccess = protected)
         ftree % FileTree instance containing all file system information
         order % integer array indicating current order of files 
-        autoload % a structure containing all information of autoload system
         dataReadFcn % function handle that read data file from system
         labelSearchFcn % function handle : DataFilePath -> LabelFilePath 
         labelReadFcn % function handle that read label file from system

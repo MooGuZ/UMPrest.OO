@@ -5,9 +5,9 @@ classdef DataPackage < Package
             obj.dsample = dsample;
             obj.taxis   = taxis;
             % combine higher dimension into batch-axis if necessary
-            expdim = dsample + double(taxis) + 1;
-            if nndims(data) > expdim
-                obj.data = vec(data, expdim, 'back');
+            batchUnitDim = dsample + double(taxis);
+            if nndims(data) > batchUnitDim
+                obj.data = vec(data, batchUnitDim, 'back');
             else
                 obj.data = data;
             end
@@ -27,10 +27,55 @@ classdef DataPackage < Package
             obj.dsample = 1;
         end
         
+        function obj = reshape(obj, shape)
+            if obj.taxis
+                obj.data = reshape(obj.data, [shape, obj.nframe, obj.batchsize]);
+            else
+                obj.data = reshape(obj.data, [shape, obj.nsample]);
+            end
+            obj.dsample = numel(shape);
+        end
+        
         function obj = tconcate(obj)
             if obj.batchsize > 1 && obj.taxis
                 obj.data = expanddim(obj.data, obj.dsample + 1);
             end
+        end
+        
+        function obj = tcombine(obj)
+            if obj.taxis
+                obj.dsample = obj.dsample + 1;
+                obj.taxis   = false;
+            end
+        end
+        
+        function obj = tsplit(obj)
+            if not(obj.taxis) && obj.dsample > 0
+                obj.dsample = obj.dsample - 1;
+                obj.taxis   = true;
+            end
+        end
+        
+        function obj = tselectRandom(obj, n)
+            if obj.taxis && obj.nframe >= n
+                obj.data = sltondim(obj.data, obj.dsample + 1, randi(obj.nframe - n, 1) + (1:n));
+            else
+                error('This operation can not be completed');
+            end
+        end
+        
+        function clone = copy(obj)
+            clone = DataPackage(obj.data, obj.dsample, obj.taxis);
+        end
+    end
+    
+    methods (Static)
+        function package = tcat(pkga, pkgb)
+            assert(pkga.dsample == pkgb.dsample);
+            assert(pkga.taxis && pkgb.taxis);
+            assert(pkga.batchsize == pkgb.batchsize);
+            da = pkga.data; db = pkgb.data;
+            package = DataPackage(cat(pkga.dsample + 1, da, db), pkga.dsample, true);
         end
     end
     

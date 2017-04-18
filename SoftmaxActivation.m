@@ -32,7 +32,7 @@ classdef SoftmaxActivation < SISOUnit & FeedforwardOperation
     
     properties (Constant, Hidden)
         taxis      = false;
-        expandable = false;
+        expandable = false; % RFP: this property is in AccessPoint now
     end
     
     properties (Constant)

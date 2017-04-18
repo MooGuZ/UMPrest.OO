@@ -1,0 +1,36 @@
+{"conf": {
+    "gradmode": {
+	"mode": "basic",
+	"rmsprop": {
+	    "decay2ndOrd": 0.999
+	},
+	"adam": {
+	    "decay1stOrd": 0.9,
+	    "decay2ndOrd": 0.999
+	}
+    },
+    "stepmode": {
+	"mode": "adapt",
+	"static": {
+	    "step": 0.001
+	},
+	"decline": {
+	    "initStep": 0.001,
+	    "downFactor": 0.9,
+	    "windowSize": 500
+	},
+	"adapt": {
+	    "upFactor": 1.02,
+	    "downFactor": 0.95,
+	    "maxInitStep": 100,
+	    "estimatedChange": 0.01
+	}
+    },
+    "momentum": {
+	"status": false,
+	"inertia": 0.9
+    }
+}}
+
+
+    

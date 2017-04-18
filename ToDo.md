@@ -50,6 +50,10 @@
 ## Jun 07, 2016
 - [ ] `errprop` may need to deal with the situation that input is a cell array instead of numerical/logical array, when the size of data in DataPackage is not unified.
 
+## Apr 18, 2017
+- [ ] implement **CustomTask**, the general task class with maximum flexibility
+- [ ] define dump form of general model, mainly about the storage of connections
+
 ## Abandoned
 - [x] implement memory limitation in calculating of GenerativeModel
   by implant Divide & Conquer in the abstract class. At this time

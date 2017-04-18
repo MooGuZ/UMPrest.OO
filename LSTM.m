@@ -55,6 +55,16 @@ classdef LSTM < RecurrentUnit
         end
     end
     
+    methods
+        function unitdump = dump(obj)
+            unitdump = {'LSTM', ...
+                obj.stateSelect.dump(), ...
+                obj.updateExtract.dump(), ...
+                obj.updateSelect.dump(), ...
+                obj.outputSelect.dump()};
+        end
+    end
+    
     methods (Static)
         function unit = randinit(datasize, cellsize)
             unit = LSTM( ...

@@ -5,8 +5,8 @@ classdef Likelihood < Objective
         % TODO: apply weight functions in EVALUATION and DELTA
         function value = evaluate(obj, x, ref)
             if not(exist('x', 'var'))
-                x   = obj.x.packagercd;
-                ref = obj.ref.packagercd;
+                x   = obj.x.pop();
+                ref = obj.ref.pop();
             end
             if isa(x, 'DataPackage')
                 if isempty(obj.weight)
@@ -25,8 +25,8 @@ classdef Likelihood < Objective
         
         function d = delta(obj, x, ref)
             if not(exist('x', 'var'))
-                x   = obj.x.packagercd;
-                ref = obj.ref.packagercd;
+                x   = obj.x.pop();
+                ref = obj.ref.pop();
             end
             if isa(x, 'DataPackage')
                 if isempty(obj.weight)
@@ -92,9 +92,12 @@ classdef Likelihood < Objective
                         upper(type));
             end
             % TODO: more comprehensive setup of Weight Mechanism
-%             if exist('weight', 'var')
-%                 obj.weight = weight;
-%             end
+            % if exist('weight', 'var')
+            %     obj.weight = weight;
+            % end
+            % initialize access-points
+            obj.x   = SimpleAP(obj);
+            obj.ref = SimpleAP(obj);
         end
     end
     

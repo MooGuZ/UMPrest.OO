@@ -8,6 +8,10 @@ classdef ErrorPackage < DataPackage
                 error('ILLEAGAL OPERATION');
             end
         end
+        
+        function clone = copy(obj)
+            clone = ErrorPackage(obj.data, obj.dsample, obj.taxis);
+        end
     end
     
     methods

@@ -4,6 +4,7 @@ classdef AccessPoint < handle
             for i = 1 : numel(obj.links)
                 obj.links{i}.push(package);
             end
+            obj.packagercd = package;
         end
         
         function push(obj, package)
@@ -90,18 +91,23 @@ classdef AccessPoint < handle
         idset = IDSet()
     end
     properties (SetAccess = protected)
-        id, links = {}
+        id, cache, links = {}
     end
     properties (Transient)
         packagercd = []
     end
     properties (Abstract, SetAccess = protected)
-        parent, cache
+        parent
     end
     properties (Dependent)
         isempty
     end
     methods
+        function set.cache(obj, value)
+            assert(isa(value, 'Container'), 'ILLEGAL ASSIGNMENT');
+            obj.cache = value;
+        end
+        
         function value = get.isempty(obj)
             value = obj.cache.isempty;
         end

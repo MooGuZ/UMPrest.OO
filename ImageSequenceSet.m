@@ -3,52 +3,29 @@ classdef ImageSequenceSet < Dataset
         function varargout = next(obj, n)
             if not(exist('n', 'var')), n = 1; end
             
-            if obj.patchmode.status
-                d = obj.db.fetch(ceil(n / obj.patchmode.patchPerSample));
-            else
-                d = obj.db.fetch(n);
-            end
-            
+            d = obj.db.fetch(ceil(n / obj.dataPerSample));
             if obj.db.islabelled
+                l = cellfun(@(x) x.label, d, 'UniformOutput', false);
                 d = cellfun(@(x) x.data, d, 'UniformOutput', false);
-                if not(obj.frameSelection.status)
-                    l = cellfun(@(x) x.label, d, 'UniformOutput', false);
-                end
             end
             
-            if obj.patchmode.status
-                ipatch = randi(numel(d), 1, n);
-                d = arrayfun(@(index) obj.getPatch(d{index}), ...
-                    ipatch, 'UniformOutput', false);
-                if exist('l', 'var')
-                    l = l(index);
+            if obj.patchmode.status || obj.slicemode.status
+                idata = randi(numel(d), 1, n);
+                % obtain data by cropping/slicing
+                if obj.patchmode.status && obj.slicemode.status
+                    cropsize = [obj.patchmode.size, obj.slicemode.n];
+                    d = arrayfun(@(index) randcrop(d{index}, cropsize), idata, ...
+                        'UniformOutput', false);
+                elseif obj.patchmode.status
+                    d = arrayfun(@(index) randcrop(d{index}, obj.patchmode.size), idata, ...
+                        'UniformOutput', false);
+                elseif obj.slicemode.status
+                    d = arrayfun(@(index) randslice(d{index}, obj.dsample + 1, obj.slicemode.n), ...
+                        idata, 'UniformOutput', false);
                 end
-            end
-            
-            if obj.frameSelection.status
-                l = cell(1, numel(d));
-                for i = 1 : numel(d)
-                    nframe = size(d{i}, obj.dsample + 1);
-                    % initial index of data and label with shifting setting
-                    if obj.frameSelection.shift > 0
-                        idata  = 1 : nframe - obj.frameSelection.shift;
-                        ilabel = obj.frameSelection.shift + 1 : nframe;
-                    elseif obj.frameSelection.shift < 0
-                        idata  = 1 - obj.frameSelection.shift : nframe;
-                        ilabel = 1 : nframe + obj.frameSelection.shift;
-                    else
-                        idata  = 1 : nframe;
-                        ilabel = 1 : nframe;
-                    end
-                    % truncate data frames
-                    if obj.frameSelection.dtruncate > 0
-                        idata = idata(1 : end - obj.frameSelection.dtruncate);
-                    elseif obj.frameSelection.dtruncate < 0
-                        idata = idata(1 - obj.frameSelection.dtruncate : end);
-                    end
-                    % get data and label
-                    l{i} = sltondim(d{i}, obj.dsample + 1, ilabel);
-                    d{i} = sltondim(d{i}, obj.dsample + 1, idata);
+                % reorder labels
+                if obj.islabelled
+                    l = l(idata);
                 end
             end
             
@@ -67,139 +44,96 @@ classdef ImageSequenceSet < Dataset
             end
         end
         
-        function [d, l] = truncateFrame(obj, data)
-            index = 1 : size(data, obj.dsample + 1) - obj.framemode.n;
-            [d, l] = sltondim(data, obj.dsample + 1, index);
-        end
-        
-        function [d, l] = shiftFrame(obj, data)
-            index = 1 : size(data, obj.dsample + 1) - obj.framemode.n;
-            d = sltondim(data, obj.dsample + 1, index);
-            l = sltondim(data, obj.dsample + 1, index + obj.framemode.n);
-        end
-        
-%         function package = packup(obj, d)
-%             package = obj.data.packup(d);
-%             if nargout == 0
-%                 obj.data.send(package);
-%             end
-%         end
-        
-        function patch = getPatch(obj, d)
-            patch = randcrop(d, obj.patchmode.size);
-        end
-        
-        function enablePatchMode(obj, conf)
+        function obj = enablePatchMode(obj, patchsize, patchPerSample)
+            assert(MathLib.isinteger(patchsize) && numel(patchsize) == 2, ...
+                'ILLEGAL PATCH SIZE');
+            if not(exist('patchPerSample', 'var'))
+                patchPerSample = 1;
+            end
             obj.patchmode = struct( ...
                 'status', true, ...
-                'size',   conf.pop('patchsize'), ...
-                'patchPerSample', conf.pop('patchPerSample', 1));
+                'size',   patchsize, ...
+                'patchPerSample', patchPerSample);
         end
         
-        function disablePatchMode(obj)
+        function obj = disablePatchMode(obj)
             obj.patchmode = struct('status', false);
         end
         
-%         function enableFrameMode(obj, type, n)
-%             obj.framemode = struct( ...
-%                 'status', true, ...
-%                 'type',   type, ...
-%                 'n',      n);
-%             obj.label = DatasetAP(obj, obj.dsample);
-%         end
-%         
-%         function disableFrameMode(obj)
-%             obj.framemode = struct('status', false);
-%             if obj.islabelled % PRB: dimension of label is unsure
-%                 obj.label = DatasetAP(obj, 1);
-%             else
-%                 obj.label = [];
-%             end
-%         end
+        function obj = enableSliceMode(obj, slicelen, slicePerSample)
+            if not(exist('slicePerSample', 'var'))
+                slicePerSample = 1;
+            end
+            obj.slicemode = struct( ...
+                'status', true, ...
+                'n', slicelen, ...
+                'slicePerSample', slicePerSample);
+        end
+        
+        function obj = disableSliceMode(obj)
+            obj.slicemode = struct('status', false);
+        end
     end
 
-    properties
-        frameSelection
-    end
-    methods
-        function obj = initFrameSelection(obj)
-            obj.frameSelection = struct( ...
-                'status',    true, ...
-                'shift',     0, ...
-                'dtruncate', 0);
-            obj.label = DatasetAP(obj, obj.dsample);
-        end
-        
-        function obj = disableFrameSelection(obj)
-            obj.frameSelection = struct('status', false);
-            if obj.db.islabelled
-                % PRB: dimension of data and label in DataBlocks should be
-                %      able to guess from existing data or raise an error.
-                obj.label = DatasetAP(obj, obj.db.labeldim());
-            else
-                obj.label = [];
-            end
-        end
-        
-        function obj = shiftFrames(obj, n)
-            if not(obj.frameSelection.status)
-                obj.initFrameSelection();
-            end
-            obj.frameSelection.shift = n;
-        end
-        
-        function obj = truncateDataFrames(obj, n)
-            if not(obj.frameSelection.status)
-                obj.initFrameSelection();
-            end
-            obj.frameSelection.dtruncate = n;
-        end
-    end
-    
     methods
         function obj = ImageSequenceSet(dbsource, varargin)
             conf = Config(varargin);
-            
-            if iscell(dbsource) || ischar(dbsource)
-                obj.db = FileDataBlock(dbsource, ...
-                    conf.pop('dataReadFcn', @videoread), ...
-                    conf.pop('dataExt', '.gif'), ...
-                    conf.pop('stat', StatisticCollector(obj.dsample)));
-            elseif isa(dbsource, 'DataBlock')
-                obj.db = dbsource;
-            end
-            
-            obj.data = DatasetAP(obj, obj.dsample);
-            
+            % create accespoints 
+            obj.data  = DatasetAP(obj, obj.dsample, obj.taxis);
+            obj.label = DatasetAP(obj, obj.dlabel, false);
+            % setup patch mode
             if conf.exist('patchsize')
-                obj.enablePatchMode(conf);
+                if conf.exist('patchPerSample')
+                    obj.enablePatchMode(conf.pop('patchsize'), conf.pop('patchPerSample'));
+                else
+                    obj.enablePatchMode(conf.pop('patchsize'));
+                end
             else
                 obj.disablePatchMode();
             end
-            
-            obj.disableFrameSelection();
-            
-%             if conf.exist('frameTruncate')
-%                 obj.enableFrameMode('truncate', conf.pop('frameTruncate'));
-%             elseif conf.exist('frameShift')
-%                 obj.enableFrameMode('shift', conf.pop('frameshift'));
-%             else
-%                 obj.disableFrameMode();
-%             end
+            % setup frame mode
+            if conf.exist('slicelength')
+                if conf.exist('slicePerSample')
+                    obj.enableSliceMode(conf.pop('slicelength'), conf.pop('slicePerSample'));
+                else
+                    obj.enableSliceMode(conf.pop('slicePerSample'));
+                end
+            else
+                obj.disableSliceMode();
+            end
+            % create data block
+            if iscell(dbsource) || ischar(dbsource)
+                % interpret properties list
+                dataReadFcn = conf.pop('dataReadFcn', @videoread);
+                dataExt     = conf.pop('dataExt', '.gif');
+                stat        = conf.pop('stat', StatisticCollector(obj.dsample));
+                others      = conf.expand();
+                % build file data block
+                obj.db = FileDataBlock( ...
+                    dbsource, dataReadFcn, dataExt, 'stat', stat, others{:});
+            elseif isa(dbsource, 'DataBlock')
+                obj.db = dbsource;
+            else
+                error('ILLEGAL FIRST ARGUMENT');
+            end
         end
     end
     
     properties
-        db % DataBlock that manage the data
-        patchmode % structure contains all information about patch corping
+        db        % abstract data pool (automatically loading and shuffling)
+        patchmode % control structure of patch corping
+        slicemode % control structure for frame slicing
     end
     properties (Constant)
         dsample = 2;
+        dlabel  = 1;
         taxis   = true;
     end
     properties (Dependent)
         volumn
         islabelled
+        dataPerSample
+        hideTAxis % option for hiding temporal axis in output data package
     end
     methods
         function value = get.volumn(obj)
@@ -207,7 +141,25 @@ classdef ImageSequenceSet < Dataset
         end
         
         function value = get.islabelled(obj)
-            value = obj.db.islabelled || obj.frameSelection.status;
+            value = obj.db.islabelled;
+        end
+        
+        function value = get.dataPerSample(obj)
+            value = 1;
+            if obj.patchmode.status
+                value = value * obj.patchmode.patchPerSample;
+            end
+            if obj.slicemode.status
+                value = value * obj.slicemode.slicePerSample;
+            end
+        end
+        
+        function value = get.hideTAxis(obj)
+            value = obj.data.hideTAxis;
+        end
+        
+        function set.hideTAxis(obj, value)
+            obj.data.hideTAxis = value;
         end
     end
 end

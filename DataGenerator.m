@@ -4,12 +4,28 @@ classdef DataGenerator < handle
             if not(exist('n', 'var'))
                 n = 1;
             end
-            datapkg = DataPackage(obj.datagen([obj.unitsize, n]));
+            % generate data package
+            if obj.tmode.status
+                datasize = [obj.unitsize, obj.tmode.nframe, n];
+                datapkg = DataPackage(obj.datagen(datasize), obj.unitdim, true);
+            else
+                datasize = [obj.unitsize, n];
+                datapkg  = DataPackage(obj.datagen(datasize), obj.unitdim, false);
+            end
+        end
+        
+        function obj = enableTAxis(obj, n)
+            obj.tmode = struct('status', true, 'nframe', n);
+        end
+        
+        function obj = disableTAxis(obj)
+            obj.tmode = struct('status', false);
         end
     end
     
     methods
         function obj = DataGenerator(type, unitsize, varargin)
+            conf = Config(varargin);
             switch lower(type)
               case {'uniform'}
                 obj.datagen = @rand;
@@ -28,19 +44,31 @@ classdef DataGenerator < handle
                         'Unrecognized distribution : %s', upper(type));
             end
             obj.unitsize = unitsize;
+            if conf.exist('tmode')
+                obj.enableTAxis(conf.pop('tmode'));
+            else
+                obj.disableTAxis();
+            end
         end
     end
     
-    properties
-        unitsize
-    end
     properties (Access = private)
         datagen
+    end
+    properties (SetAccess = protected)
+        unitsize, tmode
+    end
+    properties (Dependent)
+        unitdim
     end
     methods
         function set.unitsize(obj, value)
             assert(all(MathLib.isinteger(value)));
             obj.unitsize = value(:)';
+        end
+        
+        function value = get.unitdim(obj)
+            value = numel(obj.unitsize);
         end
     end
 end

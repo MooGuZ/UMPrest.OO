@@ -1,7 +1,7 @@
 classdef RecurrentAP < AccessPoint
     methods
         function frames = unpack(obj, package)
-            obj.packagercd = package;
+            % obj.packagercd = package;
             if obj.no && not(isempty(obj.parent.pkginfo.class))
                 assert(strcmp(class(package), obj.parent.pkginfo.class));
                 assert(package.taxis == obj.parent.pkginfo.taxis);
@@ -92,7 +92,7 @@ classdef RecurrentAP < AccessPoint
               otherwise
                 error('UNSUPPORTED');
             end
-            obj.packagercd = package;
+            % obj.packagercd = package;
         end
         
         function extract(obj, package)
@@ -124,6 +124,11 @@ classdef RecurrentAP < AccessPoint
         function obj = cooperate(obj, no)
             obj.no = no;
         end
+        
+        function obj = reset(obj)
+            obj.cache.reset();
+            obj.hostio.reset();
+        end
     end
     
     methods (Static)
@@ -143,7 +148,8 @@ classdef RecurrentAP < AccessPoint
             obj.no = 0;
             
             obj.parent = parent;
-            obj.hostio = SimpleAP(obj.parent, obj.parent.memoryLength).connect(host);
+            obj.hostio = SimpleAP(obj.parent, '-nomerge', ...
+                'capacity', obj.parent.memoryLength).connect(host);
                         
             if conf.exist('capacity')
                 obj.cache  = PackageContainer(conf.pop('capacity'), '-overwrite');
@@ -156,7 +162,6 @@ classdef RecurrentAP < AccessPoint
     properties (SetAccess = protected)
         parent % handle of a SimpleUnit, the host of this AccessPoint
         hostio % IO interface to kernel access points
-        cache  % a queue containing all unprocessed packages
         no     % series number, 0 represent independent, otherwise in cooperate mode
     end
     methods

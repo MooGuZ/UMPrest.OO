@@ -54,8 +54,8 @@ classdef UnitAP < AccessPoint
               otherwise
                 error('UNSUPPORTED');
             end
-            % record states
-            obj.packagercd = package;
+            % % record states
+            % obj.packagercd = package;
         end
         
         function package = packup(obj, data)
@@ -88,16 +88,21 @@ classdef UnitAP < AccessPoint
               otherwise
                 error('UNSUPPORTED');
             end
-            obj.packagercd = package;
+            % obj.packagercd = package;
         end
     end
     
     methods (Access = private)
+        % NOTE: implementation here allow the case that data package
+        %       contains data with more dimensions than interface
+        %       requirement and cannot be automatically correct. In this
+        %       case, error should be raised in the calculation process of
+        %       the parent unit.
         function [datasize, flag] = sizeOut2In(obj, datasize, dsample, taxis)
             taxisFlag = true;
             % CASE: data with TAXIS and unit has not
             if taxis && not(obj.parent.taxis)
-                datasize = [datasize(1 : dsample), prod(datasize(dsample + end))];
+                datasize = [datasize(1 : dsample), prod(datasize(dsample : end))];
             % CASE: data without TAXIS and unit has
             elseif not(taxis) && obj.parent.taxis
                 datasize = [datasize(1 : dsample), 1, datasize(dsample + 1 : end)];
@@ -192,7 +197,6 @@ classdef UnitAP < AccessPoint
         datarcdlen % length of data records, default 1
     end
     properties (SetAccess = protected)
-        cache      % a queue containing all unprocessed packages
         datarcd    % a stack containing copy of data proccessed by host Unit
     end
     methods

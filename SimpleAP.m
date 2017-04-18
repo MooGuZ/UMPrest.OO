@@ -1,44 +1,31 @@
 classdef SimpleAP < AccessPoint
     methods
-        function send(obj, package)
-            send@AccessPoint(obj, package);
-            obj.packagercd = package;
-        end
-        
-        function package = pop(obj)
-            package = pop@AccessPoint(obj);
-            obj.packagercd = package;
-        end
-        
-        function package = pull(obj)
-            package = pull@AccessPoint(obj);
-            obj.packagercd = package;
-        end
-    end
-    
-    methods
-        function obj = SimpleAP(parent, capacity)
+        function obj = SimpleAP(parent, varargin)
             obj.parent = parent;
-            if exist('capacity', 'var')
+            % analyze input arguments
+            conf = Config(varargin);
+            capacity = conf.pop('capacity', 0);
+            nomerge  = conf.pop('nomerge', false);
+            % build cache container
+            if capacity && nomerge
                 obj.cache = Container(capacity);
-            else
+            elseif capacity
+                obj.cache = PackageContainer(capacity);
+            elseif nomerge
                 obj.cache = Container();
+            else
+                obj.cache = PackageContainer();
             end
         end
     end
     
     properties (SetAccess = protected)
-        parent, cache
+        parent
     end
     methods
-        function set.parent(obj, value)
-            assert(isa(value, 'Unit'), 'ILLEGAL ASSIGNMENT');
-            obj.parent = value;
-        end
-        
-        function set.cache(obj, value)
-            assert(isa(value, 'Container'), 'ILLEGAL ASSIGNMENT');
-            obj.cache = value;
-        end
+        % function set.parent(obj, value)
+        %     assert(isa(value, 'Unit'), 'ILLEGAL ASSIGNMENT');
+        %     obj.parent = value;
+        % end
     end
 end

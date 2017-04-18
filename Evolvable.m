@@ -9,13 +9,13 @@ classdef Evolvable < handle
     % NOTE: implementation of following methods is for SimpleUnit. Rewriting is needed to
     %       them work properly in CompoundUnit and Model.
     methods
-        function datamat = dump(obj)
-            hpcell  = obj.hparam();
-            datamat = cell(1, numel(hpcell));
+        function unitdump = dump(obj)
+            hpcell = obj.hparam();
+            unitdump = cell(1, numel(hpcell));
             for i = 1 : numel(hpcell)
-                datamat{i+1} = hpcell{i}.getcpu();
+                unitdump{i+1} = hpcell{i}.getcpu();
             end
-            datamat{1} = class(obj);
+            unitdump{1} = class(obj);
         end
         
         function rawdata = dumpraw(obj)
@@ -51,13 +51,20 @@ classdef Evolvable < handle
     
     methods (Static)
         function unit = loaddump(unitdump)
-            for i = 2 : numel(unitdump)
-                element = unitdump{i};
-                if iscell(element)
-                    unitdump{i} = Evolvable.loaddump(element);
+            switch unitdump{1}
+              case {'Model', 'RecurrentUnit'}
+                unit = unitdump{2};
+                assert(isa(unit, unitdump{1}), 'BUG HERE');
+                
+              otherwise
+                for i = 2 : numel(unitdump)
+                    element = unitdump{i};
+                    if iscell(element)
+                        unitdump{i} = Evolvable.loaddump(element);
+                    end
                 end
+                unit = feval(unitdump{:});
             end
-            unit = feval(unitdump{:});
         end
     end
 end
