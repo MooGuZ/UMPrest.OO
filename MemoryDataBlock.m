@@ -7,13 +7,13 @@ classdef MemoryDataBlock < DataBlock
     end
     
     methods
-        function enableStatistics(obj, collector)
+        function obj = enableStatistics(obj, statdim)
             obj.stat = struct( ...
-                'status', true, ...
-                'collector', collector);
+                'status',    true, ...
+                'collector', StatisticCollector(statdim));
         end
         
-        function disableStatistics(obj)
+        function obj = disableStatistics(obj)
             obj.stat = struct('status', false);
         end
     end
@@ -23,9 +23,10 @@ classdef MemoryDataBlock < DataBlock
         %   data : cell array or numerical matrix. In the latter case, this
         %          program would assuming the last dimension of matrix
         %          corresponds to sample index and no label for each sample
-        % [OPTIONAL]
-        %   scollector : statistic collector
-        function obj = MemoryDataBlock(data, scollector)
+        % [KEY-VALUE PAIRS]
+        %   ('stat', STATDIM) create statistic collector with statistical dimension STATDIM
+        function obj = MemoryDataBlock(data, varargin)
+            conf = Config(varargin);
             if iscell(data)
                 if all(cellfun(@isstruct, data)) && ...
                         all(cellfun(@(s) isfield(s, {'data', 'label'}), data))
@@ -42,8 +43,8 @@ classdef MemoryDataBlock < DataBlock
             end
             obj.icache = 0;
             % initialize statistic structure
-            if exist('scollector', 'var') && isa(scollector, 'StatisticCollector')
-                obj.enableStatistics(scollector);
+            if conf.exist('stat')
+                obj.enableStatistics(conf.pop('stat'));
                 if obj.islablled
                     cellfun(@(s) obj.stat.collector.commit(s.data), obj.cache);
                 else

@@ -97,25 +97,15 @@ classdef FileDataBlock < DataBlock
         end
     end
       
-    properties (SetAccess = protected)
-        stat % control structure of statistical collector
-    end
     methods
-        function set.stat(obj, value)
-            if value.status
-                assert(isa(value.collector, 'StatisticCollector'));
-            end
-            obj.stat = value;
-        end
-        
-        function enableStatistics(obj, sc)
+        function obj = enableStatistics(obj, dim)
             obj.stat = struct( ...
                 'status',    true, ...
-                'collector', sc, ...
+                'collector', StatisticCollector(dim), ...
                 'tag',       false(1, obj.volumn));
         end
         
-        function disableStatistics(obj)
+        function obj = disableStatistics(obj)
             obj.stat = struct('status', false);
         end
     end

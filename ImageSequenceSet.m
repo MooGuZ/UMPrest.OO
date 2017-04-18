@@ -105,12 +105,13 @@ classdef ImageSequenceSet < Dataset
             if iscell(dbsource) || ischar(dbsource)
                 % interpret properties list
                 dataReadFcn = conf.pop('dataReadFcn', @videoread);
-                dataExt     = conf.pop('dataExt', '.gif');
-                stat        = conf.pop('stat', StatisticCollector(obj.dsample));
-                others      = conf.expand();
+                dataExt = conf.pop('dataExt', '.gif');
+                if conf.exist('stat')
+                    conf.update('stat', obj.dsample);
+                end
+                others = conf.expand();
                 % build file data block
-                obj.db = FileDataBlock( ...
-                    dbsource, dataReadFcn, dataExt, 'stat', stat, others{:});
+                obj.db = FileDataBlock(dbsource, dataReadFcn, dataExt, others{:});
             elseif isa(dbsource, 'DataBlock')
                 obj.db = dbsource;
             else
@@ -134,6 +135,7 @@ classdef ImageSequenceSet < Dataset
         islabelled
         dataPerSample
         hideTAxis % option for hiding temporal axis in output data package
+        stat
     end
     methods
         function value = get.volumn(obj)
@@ -160,6 +162,14 @@ classdef ImageSequenceSet < Dataset
         
         function set.hideTAxis(obj, value)
             obj.data.hideTAxis = value;
+        end
+        
+        function value = get.stat(obj)
+            if obj.db.stat.status
+                value = obj.db.stat.collector;
+            else
+                value = [];
+            end
         end
     end
 end

@@ -6,6 +6,11 @@ classdef DataBlock < handle
         refresh(obj) % reload data from source to cache
     end
     
+    methods (Abstract)
+        obj = enableStatistics(obj, statdim)
+        obj = disableStatistics(obj)
+    end
+    
     methods
         function data = fetch(obj, n)
             data = cell(1, n);
@@ -39,6 +44,7 @@ classdef DataBlock < handle
         cache  % cell array containing data loaded in the memeory
         icache % index of cache indicating fetching progress (pointing to last readed unit)
         islabelled % (T/F) indicating whether or not data comes with label
+        stat % control structure of statistical collector
     end
     methods
         function set.cache(obj, value)
