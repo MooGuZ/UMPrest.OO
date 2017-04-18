@@ -57,7 +57,6 @@ classdef DatasetAP < AccessPoint
         parent  % handle of a SimpleUnit, the host of this AccessPoint
         dsample % dimension of data pass through this AccessPoint
         taxis   % indicator of temporal axes
-        cache   % a queue containing all unprocessed packages
     end
     properties
         hideTAxis = false % option for hide temporal axis when output
