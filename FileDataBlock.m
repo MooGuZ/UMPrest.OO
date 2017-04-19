@@ -1,13 +1,20 @@
 classdef FileDataBlock < DataBlock
     methods
         function refresh(obj)
-            if not(obj.autoload.status) || obj.autoload.iid >= obj.volumn
+            if not(obj.autoload.status)
+                obj.shuffle();
+                return
+            elseif obj.autoload.iid >= numel(obj.order)
+                if not(isempty(obj.autoload.ifailed))
+                    obj.deleteFiles(obj.order(obj.autoload.ifailed));
+                    obj.autoload.ifailed = [];
+                end
                 obj.shuffle();
                 return
             end
             % initialize variables
             i = 1;
-            n = min(obj.volumn - obj.autoload.iid, obj.capacity);
+            n = min(numel(obj.order) - obj.autoload.iid, obj.capacity);
             obj.cache = cell(1, n);
             % initialize output information
             if usejava('desktop')
@@ -20,8 +27,8 @@ classdef FileDataBlock < DataBlock
             while i <= n
                 obj.autoload.iid = obj.autoload.iid + 1;
                 % CASE: files have been traversed
-                if obj.autoload.iid > obj.volumn
-                    obj.autoload.iid = obj.volumn;
+                if obj.autoload.iid > numel(obj.order)
+                    obj.autoload.iid = numel(obj.order);
                     obj.cache = obj.cache(1:i-1);
                     break
                 end
@@ -38,7 +45,7 @@ classdef FileDataBlock < DataBlock
                     i = i + 1;
                 catch ME % CASE: file reading failed
                     warning('NOT LOAD: %s\n [INFO] %s', obj.ftree.get(index), ME.message);
-                    obj.autoload.ifailed(end + 1) = index;
+                    obj.autoload.ifailed(end + 1) = obj.autoload.iid;
                 end
             end
             if usejava('desktop')
@@ -50,23 +57,34 @@ classdef FileDataBlock < DataBlock
             obj.icache = 0;
         end
         
+        function deleteFiles(obj, index)
+            % index = unique(index); % this is necessary for public use
+            obj.ftree.delete(index);
+            % remove tags in statistic controller
+            if obj.stat.status
+                obj.stat.tag(index) = [];
+            end
+            % update order list
+            pos = true(1, numel(obj.order));
+            pos(index) = false;
+            map = zeros(1, numel(obj.order));
+            map(pos) = 1 : numel(obj.order) - numel(index);
+            obj.order = map(obj.order);
+            obj.order(obj.order == 0) = [];
+        end
+        
         function shuffle(obj)
             if obj.autoload.status
-                % remove bad files from file tree
-                if not(isempty(obj.autoload.ifailed))
-                    arrayfun(@obj.ftree.delete, ...
-                        sort(obj.autoload.ifailed, 'descent'));
-                    obj.stat.tag(obj.autoload.ifailed) = [];
-                    obj.autoload.ifailed = [];
-                end
                 % get new random order
                 obj.order = randperm(obj.volumn);
                 % reset file index
                 obj.autoload.iid = 0;
                 % initialize cache in new order
-                obj.refresh();
+                if obj.volumn
+                    obj.refresh();
+                end
                 % CASE: cache capacity is sufficient for whole data
-                if obj.autoload.iid >= obj.volumn
+                if obj.autoload.iid >= numel(obj.order)
                     obj.disableAutoload();
                 end
             else
@@ -96,7 +114,65 @@ classdef FileDataBlock < DataBlock
             end
         end
     end
-      
+    
+    methods
+        function mdb = subset(obj, n)
+        % create a MemoryDataBlock containing subset of this FileDataBlock's files. And
+        % remove these file from this DB.
+            assert(n < obj.volumn && n > 0 && MathLib.isinteger(n) && isscalar(n), ...
+                'ILLEGAL OPERATION');
+            
+            if obj.autoload.status
+                count = 0;
+                dcell = cell(1, n);
+                while count < n
+                    ndata   = numel(obj.cache);
+                    ndelete = min(n - count, ndata);
+                    % fill update data cell
+                    dcell(count + (1 : ndelete)) = obj.cache(ndata + (1 - ndelete : 0));
+                    % note all these files as to-be-deleted
+                    if isempty(obj.autoload.ifailed)
+                        obj.autoload.ifailed = obj.autoload.iid + (1 - ndelete : 0);
+                    else
+                        dist = diff([0, obj.autoload.ifailed, obj.autoload.iid + 1]) - 1;
+                        dcum = cumsum(dist(end : -1 : 1));
+                        index = find(ndelete <= dcum, 1, 'first');
+                        if index <= 1
+                            obj.autoload.ifailed = ...
+                                [obj.autoload.ifailed, obj.autoload.iid + (1 - ndelete : 0)];
+                        else
+                            start = obj.autoload.ifailed(numel(dcum) - index + 1) ...
+                                    - (ndelete - dcum(index - 1));
+                            obj.autoload.ifailed = [obj.autoload.ifailed(1 : numel(dcum) - index), ...
+                                start : obj.autoload.iid];
+                        end
+                    end
+                    % update count
+                    count = count + ndelete;
+                    % refresh cache
+                    obj.refresh();
+                    % CASE : autoload is turned off
+                    if not(obj.autoload.status) && n > count
+                        index = randperm(obj.volumn, n - count);
+                        dcell(count + 1 : n) = obj.cache(index);
+                        obj.deleteFiles(obj.order(index));
+                        break
+                    end
+                end
+            else
+                index = randperm(obj.volumn, n);
+                dcell = obj.cache(index);
+                obj.deleteFiles(obj.order(index));
+            end
+            % build a MemoryDataBlock
+            if obj.stat.status
+                mdb = MemoryDataBlock(dcell, 'stat', obj.stat.collector.dsample);
+            else
+                mdb = MemoryDataBlock(dcell);
+            end
+        end
+    end
+    
     methods
         function obj = enableStatistics(obj, dim)
             obj.stat = struct( ...
@@ -119,6 +195,9 @@ classdef FileDataBlock < DataBlock
         end
         
         function disableAutoload(obj)
+            if not(isempty(obj.autoload.ifailed))
+                obj.deleteFiles(obj.order(obj.autoload.ifailed));
+            end
             obj.autoload = struct('status', false);
         end
     end
@@ -187,8 +266,9 @@ classdef FileDataBlock < DataBlock
         end
     end
     
-    properties
-        capacity = UMPrest.parameter.get('datasetCapacity');
+    properties (Constant)
+        % capacity = UMPrest.parameter.get('datasetCapacity');
+        capacity = 7;
     end
     
     properties (SetAccess = protected)
@@ -205,6 +285,9 @@ classdef FileDataBlock < DataBlock
     methods
         function value = get.volumn(obj)
             value = obj.ftree.volumn;
+            if obj.autoload.status
+                value = value - numel(obj.autoload.ifailed);
+            end
         end
     end
 end

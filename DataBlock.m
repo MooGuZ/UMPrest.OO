@@ -4,6 +4,7 @@
 classdef DataBlock < handle
     methods (Abstract)
         refresh(obj) % reload data from source to cache
+        db = subset(obj, n)
     end
     
     methods (Abstract)

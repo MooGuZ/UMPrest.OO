@@ -20,15 +20,12 @@ classdef FileTree < handle
         end
         
         function delete(obj, index)
-            assert(0 < index && index <= obj.volumn);
-            if index <= numel(obj.subfile)
-                obj.subfile(index) = [];
-                obj.refresh();
+            if isempty(index)
+                return
+            elseif isscalar(index)
+                obj.deleteSingle(index);
             else
-                nfile = cumsum([numel(obj.subfile), ...
-                    cellfun(@(tree) tree.volumn, obj.subfolder)]);
-                ifolder = find(index <= nfile, 1, 'first') - 1;
-                obj.subfolder{ifolder}.delete(index - nfile(ifolder));
+                obj.deleteBatch(sort(index, 'ascend'));
             end
         end
         
@@ -70,6 +67,43 @@ classdef FileTree < handle
             % propagate information to upper level
             if not(isempty(obj.parent))
                 obj.parent.refresh();
+            end
+        end
+    end
+    
+    methods (Access = private)
+        function deleteBatch(obj, indexes)
+            nfile = cumsum([numel(obj.subfile), ...
+                cellfun(@(tree) tree.volumn, obj.subfolder)]);
+            % delete files under current folder
+            index = indexes(0 < indexes & indexes <= nfile(1));
+            obj.subfile(index) = [];
+            % delete files under subfolders
+            for i = 1 : numel(obj.subfolder)
+                index = indexes(nfile(i) < indexes & indexes <= nfile(i+1));
+                if not(isempty(index))
+                    obj.subfolder{i}.deleteBatch(index - nfile(i));
+                end
+            end
+            % update volumn
+            obj.calculateVolumn();
+        end
+        
+        function n = calculateVolumn(obj)
+            obj.volumn = sum(cellfun(@calculateVolumn, obj.subfolder)) + numel(obj.subfile);
+            n = obj.volumn;
+        end
+        
+        function deleteSingle(obj, index)
+            assert(0 < index && index <= obj.volumn, 'ILLEGAL OPERATION');
+            if index <= numel(obj.subfile)
+                obj.subfile(index) = [];
+                obj.refresh();
+            else
+                nfile = cumsum([numel(obj.subfile), ...
+                    cellfun(@(tree) tree.volumn, obj.subfolder)]);
+                ifolder = find(index <= nfile, 1, 'first') - 1;
+                obj.subfolder{ifolder}.deleteSingle(index - nfile(ifolder));
             end
         end
     end

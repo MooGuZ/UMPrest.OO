@@ -4,6 +4,16 @@ classdef MemoryDataBlock < DataBlock
             obj.cache  = obj.cache(randperm(numel(obj.cache)));
             obj.icache = 0;
         end
+        
+        function mdb = subset(obj, n)
+            index = randperm(obj.volumn, n);
+            if obj.stat.status
+                mdb = MemoryDataBlock(obj.cache(index), 'stat', obj.stat.collector.dsample);
+            else
+                mdb = MemoryDataBlock(obj.cache(index));
+            end
+            obj.cache(index) = [];
+        end
     end
     
     methods
