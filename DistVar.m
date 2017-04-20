@@ -7,6 +7,9 @@ classdef DistVar < Objective
             mu = mean(exp(data), 2);
             n  = size(data, 2);
             value = obj.scale * sum(vec(bsxfun(@minus, exp(data), mu).^2)) / n;
+            if isa(value, 'gpuArray')
+                value = double(gather(value));
+            end
         end
         
         function d = delta(obj, data)

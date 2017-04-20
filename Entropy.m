@@ -11,6 +11,9 @@ classdef Entropy < Objective
             end
             data = vec(data, dim);
             value = obj.scale * log(det(data * data'));
+            if isa(value, 'gpuArray')
+                value = double(gather(value));
+            end
         end
         
         function d = delta(obj, data)
