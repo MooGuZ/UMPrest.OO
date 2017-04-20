@@ -5,7 +5,7 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
             for i = 1 : numel(p)
                 p(i) = x(:, i)' * obj.invC{l(i)} * x(:, i) / 2;
             end
-            p = p + log(obj.detC(l));
+            p = p + log([obj.detC{l}]);
         end
         
         function [dx, dl] = deltaproc(obj, dp)
@@ -62,11 +62,11 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
             y = exp(obj.catcord);
             obj.C = cell(1, obj.ncategory);
             obj.invC = cell(1, obj.ncategory);
-            obj.detC = zeros(1, obj.ncategory);
+            obj.detC = cell(1, obj.ncategory);
             for i = 1 : obj.ncategory
                 obj.C{i} = b * diag(y(:, i)) * b';
                 obj.invC{i} = inv(obj.C{i});
-                obj.detC(i) = det(obj.C{i});
+                obj.detC{i} = det(obj.C{i});
             end
         end
     end
