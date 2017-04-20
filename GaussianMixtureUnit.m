@@ -2,10 +2,13 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
     methods
         function p = dataproc(obj, x, l)
             p = zeros(1, numel(l));
+            if obj.enableGPU
+                p = gpuArray(single(p));
+            end
             for i = 1 : numel(p)
                 p(i) = x(:, i)' * obj.invC{l(i)} * x(:, i) / 2;
             end
-            p = p + log([obj.detC{l}]);
+            p = p + log(obj.detC(l));
         end
         
         function [dx, dl] = deltaproc(obj, dp)
@@ -20,6 +23,13 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
             dy = zeros(size(y));
             dl = zeros(size(l));
             dx = zeros(size(x));
+            % enable GPU
+            if obj.enableGPU
+                db = gpuArray(single(db));
+                dy = gpuArray(single(dy));
+                dl = gpuArray(single(dl));
+                dx = gpuArray(single(dx));
+            end
             % calculate gradient category by category
             for i = 1 : obj.ncategory
                 index = (l == i);
@@ -62,11 +72,14 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
             y = exp(obj.catcord);
             obj.C = cell(1, obj.ncategory);
             obj.invC = cell(1, obj.ncategory);
-            obj.detC = cell(1, obj.ncategory);
+            obj.detC = zeros(1, obj.ncategory);
+            if obj.enableGPU
+                obj.detC = gpuArray(single(obj.detC));
+            end
             for i = 1 : obj.ncategory
                 obj.C{i} = b * diag(y(:, i)) * b';
                 obj.invC{i} = inv(obj.C{i});
-                obj.detC{i} = det(obj.C{i});
+                obj.detC(i) = det(obj.C{i});
             end
         end
     end
@@ -109,6 +122,7 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
     
     properties (Constant)
         taxis = false
+        enableGPU = logical(gpuDeviceCount)
     end
     
     properties (SetAccess = private)
