@@ -25,6 +25,10 @@ classdef HyperParamOptimizer < handle
                 verbose = false;
             end
             
+            if isa(value, 'gpuArray')
+                value = double(gather(value));
+            end
+            
             if obj.rcdmode.status
                 factor = value / min(obj.rcdmode.value);
                 if verbose
