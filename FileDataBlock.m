@@ -252,7 +252,7 @@ classdef FileDataBlock < DataBlock
             obj.enableAutoload();
             % setup statistic collecter
             if conf.exist('stat')
-                obj.enableStatistics(conf.pop('stat'))
+                obj.enableStatistics(conf.pop('stat'));
             else
                 obj.disableStatistics();
             end
