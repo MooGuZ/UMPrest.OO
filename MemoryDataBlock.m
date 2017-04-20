@@ -39,7 +39,7 @@ classdef MemoryDataBlock < DataBlock
             conf = Config(varargin);
             if iscell(data)
                 if all(cellfun(@isstruct, data)) && ...
-                        all(cellfun(@(s) isfield(s, {'data', 'label'}), data))
+                        all(cellfun(@(s) all(isfield(s, {'data', 'label'})), data))
                     obj.islabelled = true;
                 else
                     assert(all(cellfun(@isnumeric, data)), 'ILLEGAL ARGUMENT');

@@ -165,13 +165,15 @@ classdef Model < Interface & Evolvable
                 noPrevUnit = true;
                 for j = 1 : numel(unit.I{i}.links)
                     prevAP = unit.I{i}.links{j};
-                    prevID = prevAP.parent.id;
-                    if obj.id2ind.isKey(prevID)
-                        noPrevUnit = false;
-                        prevIndex = obj.id2ind(prevID);
-                        obj.edges{prevIndex} = unique([obj.edges{prevIndex}, index]);
-                        % remove this AP from OBJ.O
-                        obj.O(cellfun(@prevAP.compare, obj.O)) = [];
+                    if isa(prevAP.parent, 'Unit')
+                        prevID = prevAP.parent.id;
+                        if obj.id2ind.isKey(prevID)
+                            noPrevUnit = false;
+                            prevIndex = obj.id2ind(prevID);
+                            obj.edges{prevIndex} = unique([obj.edges{prevIndex}, index]);
+                            % remove this AP from OBJ.O
+                            obj.O(cellfun(@prevAP.compare, obj.O)) = [];
+                        end
                     end
                 end
                 if noPrevUnit
@@ -183,13 +185,15 @@ classdef Model < Interface & Evolvable
                 noPostUnit = true;
                 for j = 1 : numel(unit.O{i}.links)
                     postAP = unit.O{i}.links{j};
-                    postID = postAP.parent.id;
-                    if obj.id2ind.isKey(postID)
-                        noPostUnit = false;
-                        postIndex = obj.id2ind(postID);
-                        obj.edges{index} = unique([obj.edges{index}, postIndex]);
-                        % remove this AP from OBJ.I
-                        obj.I(cellfun(@postAP.compare, obj.I)) = [];
+                    if isa(postAP.parent, 'Unit')
+                        postID = postAP.parent.id;
+                        if obj.id2ind.isKey(postID)
+                            noPostUnit = false;
+                            postIndex = obj.id2ind(postID);
+                            obj.edges{index} = unique([obj.edges{index}, postIndex]);
+                            % remove this AP from OBJ.I
+                            obj.I(cellfun(@postAP.compare, obj.I)) = [];
+                        end
                     end
                 end
                 if noPostUnit

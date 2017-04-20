@@ -74,6 +74,18 @@ classdef ImageSequenceSet < Dataset
             obj.slicemode = struct('status', false);
         end
     end
+    
+    properties
+        subsets
+    end
+    methods
+        function subset(obj, name, n)
+            if exist('n', 'var')
+                obj.subsets.(name) = obj.subsets.main.subset(n);
+            end
+            obj.db = obj.subsets.(name);
+        end
+    end
 
     methods
         function obj = ImageSequenceSet(dbsource, varargin)
@@ -117,6 +129,8 @@ classdef ImageSequenceSet < Dataset
             else
                 error('ILLEGAL FIRST ARGUMENT');
             end
+            % initialize subsets.main
+            obj.subsets = struct('main', obj.db);
         end
     end
     

@@ -152,17 +152,20 @@ classdef FileDataBlock < DataBlock
                     % refresh cache
                     obj.refresh();
                     % CASE : autoload is turned off
-                    if not(obj.autoload.status) && n > count
-                        index = randperm(obj.volumn, n - count);
-                        dcell(count + 1 : n) = obj.cache(index);
-                        obj.deleteFiles(obj.order(index));
+                    if not(obj.autoload.status) && count < n
+                        assert(obj.volumn > n - count, 'DATA IS NOT ENOUGH');
+                        index = randperm(obj.volumn);
+                        dcell(count + 1 : n) = obj.cache(index(1 : n - count));
+                        obj.cache = obj.cache(index(n - count + 1 : end));
+                        obj.deleteFiles(obj.order(index(1 : n - count)));
                         break
                     end
                 end
             else
-                index = randperm(obj.volumn, n);
-                dcell = obj.cache(index);
-                obj.deleteFiles(obj.order(index));
+                index = randperm(obj.volumn);
+                dcell = obj.cache(index(1 : n));
+                obj.cache = obj.cache(index(n+1 : end));
+                obj.deleteFiles(obj.order(index(1 : n)));
             end
             % build a MemoryDataBlock
             if obj.stat.status
@@ -245,14 +248,14 @@ classdef FileDataBlock < DataBlock
             end
             % setup data read function handle
             obj.dataReadFcn = dataReadFcn;
+            % setup autoload feature
+            obj.enableAutoload();
             % setup statistic collecter
             if conf.exist('stat')
                 obj.enableStatistics(conf.pop('stat'))
             else
                 obj.disableStatistics();
             end
-            % setup autoload feature
-            obj.enableAutoload();
             % setup label mode
             if conf.exist('labelReadFcn')
                 obj.enableLabel( ...
@@ -267,8 +270,7 @@ classdef FileDataBlock < DataBlock
     end
     
     properties (Constant)
-        % capacity = UMPrest.parameter.get('datasetCapacity');
-        capacity = 7;
+        capacity = UMPrest.parameter.get('datasetCapacity');
     end
     
     properties (SetAccess = protected)
