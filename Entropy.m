@@ -1,21 +1,37 @@
-classdef DistVar < Objective
+classdef Entropy < Objective
     methods
         function value = evaluate(obj, data)
             if not(exist('data', 'var'))
                 data = obj.getdata();
             end
-            mu = mean(exp(data), 2);
-            n  = size(data, 2);
-            value = obj.scale * sum(vec(bsxfun(@minus, exp(data), mu).^2)) / n;
+            if obj.host.expandable
+                dim = obj.host.dsample + obj.host.parent.pkginfo.dexpand;
+            else
+                dim = obj.host.dsample;
+            end
+            data = vec(data, dim);
+            value = obj.scale * log(det(data * data'));
         end
         
         function d = delta(obj, data)
             if not(exist('data', 'var'))
                 data = obj.getdata();
             end
-            mu = mean(exp(data), 2);
-            n  = size(data, 2);
-            d  = 2 * obj.scale * (n - 1) / n * bsxfun(@minus, exp(data), mu) .* exp(data);
+            % vectorize sample of data
+            datasize = size(data);
+            if obj.host.expandable
+                dim = obj.host.dsample + obj.host.parent.pkginfo.dexpand;
+            else
+                dim = obj.host.dsample;
+            end
+            data = vec(data, dim);
+            C = data * data';
+            if rcond(C) > 1e-10
+                d = 2 * obj.scale * ((data * data') \ data);
+                d = reshape(d, datasize);
+            else
+                d = 0;
+            end
         end
     end
     
@@ -33,13 +49,13 @@ classdef DistVar < Objective
     end
     
     methods
-        function obj = DistVar(host)
+        function obj = Entropy(host)
             obj.host = host;
         end
     end
     
     properties
-        host, scale = 1
+        host, scale = -1
     end
     methods
         function set.host(obj, value)

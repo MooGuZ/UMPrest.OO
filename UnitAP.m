@@ -47,6 +47,10 @@ classdef UnitAP < AccessPoint
                 else
                     data = package.data;
                 end
+                % apply prior to gradient
+                if not(isempty(obj.prior))
+                    data = data + obj.prior.delta();
+                end
                                 
               case {'SizePackage'}
                 data = datashape;
@@ -186,6 +190,9 @@ classdef UnitAP < AccessPoint
     end
     
     % ======================= DATA STRUCTURE =======================
+    properties
+        prior
+    end
     properties (SetAccess = protected)
         parent     % handle of a SimpleUnit, the host of this AccessPoint
         dsample    % dimension of data pass through this AccessPoint
