@@ -84,6 +84,11 @@ classdef UnitAP < AccessPoint
                 if needReshape
                     data = reshape(data, datashape);
                 end
+                % apply prior to gradient
+                if not(isempty(obj.prior))
+                    data = data + obj.prior.delta();
+                end
+                % compose error package
                 package = ErrorPackage(data, dim, taxis);
                 
               case {'SizePackage'}

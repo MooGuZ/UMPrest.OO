@@ -1,81 +1,67 @@
 classdef Prior < Objective
     methods
         function value = evaluate(obj, data)
-        % value = sum(obj.evalFunction(data(:), obj.mu, obj.sigma)) / numel(data);
-            value = obj.scale * sum(vec(obj.evalFunction(data, obj.mu, obj.sigma)));
+            if not(exist('data', 'var'))
+                data = obj.getdata();
+            end
+            value = obj.scale * obj.evalproc(data);
+            if isa(value, 'gpuArray')
+                value = double(gather(value));
+            end
         end
         
         function d = delta(obj, data)
-        % d = obj.deltaFunction(data, obj.mu, obj.sigma) / numel(data);
-            d = obj.scale * obj.deltaFunction(data, obj.mu, obj.sigma);
+            if not(exist('data', 'var'))
+                data = obj.getdata();
+            end
+            d = obj.scale * obj.deltaproc(data);
+        end
+    end
+    
+    methods (Abstract)
+        value = evalproc(obj, data)
+        d = deltaproc(obj, data)
+    end
+    
+    methods
+        function data = getdata(obj)
+            switch class(obj.host)
+              case {'UnitAP'}
+                data = obj.host.datarcd.fetch(-1);
+              case {'HyperParam'}
+                data = obj.host.get();
+              otherwise
+                error('BUG HERE');
+            end
         end
     end
     
     methods
-        function obj = Prior(type, scale, mu, sigma)
-            switch lower(type)
-              case {'gaussian'}
-                obj.evalFunction  = @MathLib.negLogGauss;
-                obj.deltaFunction = @MathLib.negLogGaussGradient;
-                
-              case {'laplace'}
-                obj.evalFunction  = @MathLib.negLogLaplace;
-                obj.deltaFunction = @MathLib.negLogLaplaceGradient;
-                
-              case {'cauchy'}
-                obj.evalFunction  = @MathLib.negLogCauchy;
-                obj.deltaFunction = @MathLib.negLogCauchyGradient;
-                
-              case {'vonmise'}
-                obj.evalFunction  = @MathLib.negLogVonMise;
-                obj.deltaFunction = @MathLib.negLogVonMiseGradient;
-                
-              case {'slow'}
-                obj.evalFunction  = @MathLib.slow;
-                obj.deltaFunction = @MathLib.slowGradient;
-                
-              otherwise
-                error('UMPrest:ArgumentError', 'Unrecognized prior : %s', upper(type));
-            end
-            if exist('scale', 'var')
-                obj.scale = scale;
-            end
-            if exist('mu', 'var')
-                obj.mu = mu;
-            end
-            if exist('sigma', 'var')
-                obj.sigma = sigma;
-            end
+        function obj = Prior(host, varargin)
+            obj.host  = host;
+            conf      = Config(varargin);
+            obj.scale = conf.pop('scale', 1);
         end
     end
     
     properties
-        scale = 1, mu = 0, sigma = 1
+        host, scale
     end
     methods
-        function set.mu(obj, value)
-            assert(isreal(value));
-            obj.mu = value;
-        end
-        
-        function set.sigma(obj, value)
-            assert(isreal(value) && value > 0);
-            obj.sigma = value;
-        end
-    end
-    
-    properties (Access = private)
-        evalFunction, deltaFunction
-    end
-    methods
-        function set.evalFunction(obj, fhandle)
-            assert(isa(fhandle, 'function_handle'));
-            obj.evalFunction = fhandle;
-        end
-        
-        function set.deltaFunction(obj, fhandle)
-            assert(isa(fhandle, 'function_handle'));
-            obj.deltaFunction = fhandle;
+        function set.host(obj, value)
+            switch class(value)
+              case {'HyperParam'}
+                obj.host = value;
+                obj.host.prior = obj;
+                
+              case {'UnitAP'}
+                obj.host = value;
+                obj.host.prior = obj;
+                obj.host.recdata = true;
+                
+              otherwise
+                error('ILLEGAL ASSIGNMENT');
+            end
         end
     end
 end
