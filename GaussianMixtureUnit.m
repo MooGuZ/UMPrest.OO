@@ -136,7 +136,7 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
     
     methods (Static)
         function obj = randinit(ncategory, nbasis, datadim)
-            obj = GaussianMixtureModel(randn(nbasis, ncategory), ...
+            obj = GaussianMixtureUnit(randn(nbasis, ncategory), ...
                 2 * rand(datadim, nbasis) - 1);
         end
     end
