@@ -4,22 +4,47 @@ classdef DataGenerator < handle
             if not(exist('n', 'var'))
                 n = 1;
             end
-            % generate data package
+            % generate data
             if obj.tmode.status
                 datasize = [obj.unitsize, obj.tmode.nframe, n];
-                datapkg = DataPackage(obj.datagen(datasize), obj.unitdim, true);
             else
                 datasize = [obj.unitsize, n];
-                datapkg  = DataPackage(obj.datagen(datasize), obj.unitdim, false);
             end
+            data = obj.datagen(datasize);
+            % transform to fit covariance matrix
+            if obj.covmat.status
+                data = obj.covmat.T * vec(data, obj.unitdim, 'both');
+                data = reshape(data, datasize);
+            end
+            % create data package
+            datapkg = DataPackage(data, obj.unitdim, obj.tmode.status);
         end
-        
-        function obj = enableTAxis(obj, n)
+    end
+    
+    properties (SetAccess = protected)
+        tmode, covmat
+    end
+    methods
+        function obj = enableTmode(obj, n)
             obj.tmode = struct('status', true, 'nframe', n);
         end
-        
-        function obj = disableTAxis(obj)
+        function obj = disableTmode(obj)
             obj.tmode = struct('status', false);
+        end
+        
+        function obj = enableCovmat(obj, C)
+            assert(all(size(C) == prod(obj.unitsize) * [1, 1]), ...
+                'COVARIANCE MATRIX MISMATCH');
+            assert(all(vec(C == C')), 'ILLEGAL COVARIANCE MATRIX');
+            [u, v] = eig(C);
+            assert(all(diag(v) > 0), 'ILLEGAL COVARIANCE MATRIX');
+            obj.covmat = struct( ...
+                'status', true, ...
+                'C', C, ...
+                'T', u * sqrt(v));
+        end
+        function obj = disableCovmat(obj)
+            obj.covmat = struct('status', false);
         end
     end
     
@@ -45,9 +70,14 @@ classdef DataGenerator < handle
             end
             obj.unitsize = unitsize;
             if conf.exist('tmode')
-                obj.enableTAxis(conf.pop('tmode'));
+                obj.enableTmode(conf.pop('tmode'));
             else
-                obj.disableTAxis();
+                obj.disableTmode();
+            end
+            if conf.exist('covmat')
+                obj.enableCovmat(conf.pop('covmat'));
+            else
+                obj.disableCovmat();
             end
         end
     end
@@ -56,7 +86,7 @@ classdef DataGenerator < handle
         datagen
     end
     properties (SetAccess = protected)
-        unitsize, tmode
+        unitsize
     end
     properties (Dependent)
         unitdim

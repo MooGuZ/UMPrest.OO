@@ -36,6 +36,13 @@ classdef HyperParam < Tensor
     end
     
     methods
+        function obj = normalize(obj, dim)
+            mat = obj.data;
+            obj.data = bsxfun(@rdivide, mat, sqrt(sum(mat.^2, dim)));
+        end
+    end
+    
+    methods
         function grad = gradcalc(obj, conf)
             switch conf.mode
               case {'basic', 'sgd'}

@@ -8,7 +8,7 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
             for i = 1 : numel(p)
                 p(i) = x(:, i)' * obj.invC{l(i)} * x(:, i) / 2;
             end
-            p = p + log(obj.detC(l));
+            % p = p + log(obj.detC(l));
         end
         
         function [dx, dl] = deltaproc(obj, dp)
@@ -45,13 +45,19 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
                     % gradient weight of each sample
                     Ws = dp(index);
                     % gradient of category cordinates
-                    for j = 1 : size(b, 2)
-                        dy(j, i) = b(:, j)' * obj.invC{i} * b(:, j);
-                    end
-                    dy(:, i) = sum(Ws) * dy(:, i) ...
-                        - 0.5 * sum(bsxfun(@times, (b' * Xt).^2, Ws), 2);
+%                     % [branch A] with DET term
+%                     for j = 1 : size(b, 2)
+%                         dy(j, i) = b(:, j)' * obj.invC{i} * b(:, j);
+%                     end
+%                     dy(:, i) = sum(Ws) * dy(:, i) ...
+%                         - 0.5 * sum(bsxfun(@times, (b' * Xt).^2, Ws), 2);
+                    % [Branch B] without DET term
+                    dy(:, i) = -sum(bsxfun(@times, (b' * Xt).^2, Ws), 2) / 2;
                     % gradient of category basis
-                    db = db - Xt * diag(Ws) *  Xt' * Bl + 2 * sum(Ws) * obj.invC{i} * Bl;
+%                     % [Branch A] with DET term
+%                     db = db - Xt * diag(Ws) *  Xt' * Bl + 2 * sum(Ws) * obj.invC{i} * Bl;
+                    % [Branch B]
+                    db = db - Xt * diag(Ws) * Xt' * Bl;
                     % gradient of input date
                     dx(:, index) = 2 * bsxfun(@times, Xt, Ws);
                 end
@@ -64,6 +70,13 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
         function update(obj)
             obj.A.update();
             obj.B.update();
+            % normalization of Y, which is exp(A)
+            y = exp(obj.A.get());
+            y = bsxfun(@rdivide, y, sum(y.^2, 1));
+            obj.A.set(log(y));
+            % normalize basis B
+            obj.B.normalize(1);
+            % update convariance matrix
             obj.updateCovMatrix();
         end
         
@@ -102,13 +115,14 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
     end
     
     methods
-        function obj = GaussianMixtureUnit(ncategory, nbasis, datadim)
-            obj.ncategory = ncategory;
-            obj.nbasis    = nbasis;
-            obj.datadim   = datadim;
+        function obj = GaussianMixtureUnit(catcord, catbasis)
+            obj.ncategory = size(catcord, 2);
+            obj.nbasis    = size(catcord, 1);
+            obj.datadim   = size(catbasis, 1);
+            assert(size(catbasis, 2) == obj.nbasis, 'ILLEGAL ASSIGNMENT');
             % setup hyper-parameters
-            obj.A = HyperParam(randn(nbasis, ncategory));
-            obj.B = HyperParam(2 * rand(datadim, nbasis) - 1);
+            obj.A = HyperParam(catcord);
+            obj.B = HyperParam(catbasis);
             % setup access points
             obj.apdata  = UnitAP(obj, 1, '-recdata');
             obj.aplabel = UnitAP(obj, 1, '-recdata');
@@ -117,6 +131,13 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
             obj.O = {obj.approb};
             % initialization
             obj.updateCovMatrix();
+        end
+    end
+    
+    methods (Static)
+        function obj = randinit(ncategory, nbasis, datadim)
+            obj = GaussianMixtureModel(randn(nbasis, ncategory), ...
+                2 * rand(datadim, nbasis) - 1);
         end
     end
     

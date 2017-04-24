@@ -1,6 +1,6 @@
 classdef CustomTask < Task
     methods
-        function modeldump = run(obj, nepoch, batchPerEpoch, batchsize, validsize)
+        function run(obj, nepoch, batchPerEpoch, batchsize, validsize)
             startIter = obj.iteration;
             % setup optimizer
             opt = HyperParam.getOptimizer();
@@ -46,14 +46,18 @@ classdef CustomTask < Task
                 fprintf('[%s] Objective Value after [%04d] iterations : %.2e\n', ...
                     datestr(now), obj.iteration, objval);
                 opt.record(objval, false);
-                modeldump = obj.model.dump();
-                save(fullfile(obj.savedir, sprintf(obj.namePattern, obj.iteration)), ...
-                    'modeldump', '-v7.3');
+                if not(obj.nosave)
+                    modeldump = obj.model.dump();
+                    save(fullfile(obj.savedir, sprintf(obj.namePattern, obj.iteration)), ...
+                        'modeldump', '-v7.3');
+                end
             end
             % delete temporary saves
-            for epoch = 1 : nepoch - 1
-                niter = startIter + epoch * batchPerEpoch;
-                delete(fullfile(obj.dir, sprintf(obj.namePattern, niter)));
+            if not(obj.nosave)
+                for epoch = 1 : nepoch - 1
+                    niter = startIter + epoch * batchPerEpoch;
+                    delete(fullfile(obj.savedir, sprintf(obj.namePattern, niter)));
+                end
             end
         end
     end
@@ -69,12 +73,16 @@ classdef CustomTask < Task
             obj.objective = objective;
             obj.priors    = priors;
             obj.iteration = conf.pop('iteration', 0);
+            obj.nosave    = conf.pop('nosave', false);
             % setup dependent properties
             obj.savedir = fullfile(obj.dir, 'records');
             obj.namePattern = [obj.id, '-ITER%d-DUMP.mat'];
         end
     end
     
+    properties
+        nosave
+    end
     properties (SetAccess = protected)
         id, iteration, dir, savedir, namePattern, priors
     end
@@ -108,6 +116,11 @@ classdef CustomTask < Task
                 assert(iscell(value), 'ILLEGAL ASSIGNMENT');
                 obj.priors = value;
             end
+        end
+        
+        function set.nosave(obj, value)
+            assert(islogical(value), 'ILLEGAL ASSIGNMENT');
+            obj.nosave = value;
         end
     end
 end

@@ -37,6 +37,18 @@ classdef Prior < Objective
     end
     
     methods
+        function [data, shape] = format(obj, data)
+            shape = size(data);
+            if obj.host.expandable
+                dim = obj.host.dsample + obj.host.parent.pkginfo.dexpand;
+            else
+                dim = obj.host.dsample;
+            end
+            data = vec(data, dim, 'both');
+        end
+    end
+    
+    methods
         function obj = Prior(host, varargin)
             obj.host  = host;
             conf      = Config(varargin);

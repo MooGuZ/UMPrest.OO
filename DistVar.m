@@ -1,15 +1,16 @@
 classdef DistVar < Prior
     methods
         function value = evalproc(~, data)
-            mu    = mean(exp(data), 2);
+            data  = exp(data);
             n     = size(data, 2);
-            value = sum(vec(bsxfun(@minus, exp(data), mu).^2)) / n;
+            m     = bsxfun(@minus, data, mean(data, 2));
+            value = m(:)' * m(:) / n;
         end
         
         function d = deltaproc(~, data)
-            mu = mean(exp(data), 2);
-            n  = size(data, 2);
-            d  = 2 * (n - 1) / n * bsxfun(@minus, exp(data), mu) .* exp(data);
+            data = exp(data);
+            n = size(data, 2);
+            d = 2 / n * data .* bsxfun(@minus, data, mean(data, 2));
         end
     end
     

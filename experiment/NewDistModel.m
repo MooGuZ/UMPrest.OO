@@ -1,5 +1,8 @@
-taskid  = 'NEWDISTMODEL';
-taskdir = fileparts(mfilename('fullpath'));
+% warning('off', 'MATLAB:singularMatrix');
+
+taskid  = 'DISTMODEL';
+% taskdir = fileparts(mfilename('fullpath'));
+taskdir = abspath('~/Desktop/experiment');
 savedir = fullfile(taskdir, 'records');
 istart  = 0;
 namept  = [taskid, '-ITER%d-DUMP.mat'];
@@ -14,10 +17,11 @@ nbasis  = ceil(sizeout * 1.2);
 % create/load units and model
 if istart == 0
     cunit   = ConvNet.randinit(nfrmin, [2 * nfrmin, 4 * nfrmin, nfrmout], ...
-        'poolsize', psize, 'OutputLayerActType', 'Sigmoid');
-    gunit   = GaussianMixtureUnit(ncat, nbasis, sizeout);
-    dshaper = Reshaper().appendto(cunit).aheadof(gunit.apdata);
-    model   = Model(cunit, dshaper, gunit);
+        'poolsize', psize, 'OutputLayerActType', 'tanh', 'HiddenLayerActType', 'tanh');
+    gunit   = GaussianMixtureUnit.randinit(ncat, nbasis, sizeout);
+    % dshaper = Reshaper().appendto(cunit).aheadof(gunit.apdata);
+    % model   = Model(cunit, dshaper, gunit);
+    model = DDModel(cunit, gunit);
 else
     load(fullfile(savedir, sprintf(namept, istart)));
     model = Evolvable.loaddump(modeldump);
@@ -25,19 +29,22 @@ end
 % create objectives
 prob = ObjSum();
 % load dataset
-nplab3d = ImageSequenceSet('~/Desktop/testset/', 'LabelReadFcn', @nplab3dLabelRead);
+% nplab3d = ImageSequenceSet('~/Desktop/testset/', 'LabelReadFcn', @nplab3dLabelRead);
+load('~/Desktop/NPLab3DMotion-WithLabel.mat');
 nplab3d.enableSliceMode(nfrmin);
 nplab3d.hideTAxis = true;
 % connect units to dataset and objective
-nplab3d.data.connect(cunit.I{1});
-nplab3d.label.connect(gunit.aplabel);
-gunit.approb.connect(prob.x);
+nplab3d.data.connect(model.I{1});
+nplab3d.label.connect(model.I{2});
+model.O{1}.connect(prob.x);
+% get energy estimate of dataset
+statinfo  = nplab3d.stat.fetch();
+energyEst = sum(statinfo.std(:).^2);
 % create priors
-distinguish = DistVar(gunit.A);
-distinguish.scale = -1e-2;
-entropy = Entropy(cunit.O{1});
-entropy.scale = -1;
+distinguish = DistVar(model.distUnit.A, 'scale', -0.01);
+% entropy = Entropy(model.transUnit.O{1}, 'scale', 1);
+keepenergy = KeepEnergy(model.transUnit.O{1}, energyEst, 'scale', 1);
 % create task
-task = CustomTask(taskid, taskdir, model, nplab3d, prob, {distinguish, entropy});
+task = CustomTask(taskid, taskdir, model, nplab3d, prob, {distinguish, keepenergy}, '-nosave');
 % run task
-task.run(10, 10, 64, 64);
+task.run(10, 10, 16, 64);
