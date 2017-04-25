@@ -1,30 +1,14 @@
 classdef CustomTask < Task
     methods
         function run(obj, nepoch, batchPerEpoch, batchsize, validsize)
-            startIter = obj.iteration;
-            % setup optimizer
-            opt = HyperParam.getOptimizer();
-            opt.gradmode('basic');
-            opt.stepmode('adapt', 'estimatedChange', 1e-2);
-            opt.enableRcdmode(3);
             % create validate set
-            % [validset.data, validset.label] = obj.dataset.next(validsize);
             if obj.dataset.islabelled
                 [validset.data, validset.label] = obj.dataset.next(validsize);
             else
                 validset = obj.dataset.next(validsize);
             end
             % run model on all samples of validset and display objective value
-            if obj.dataset.islabelled
-                obj.dataset.data.send(validset.data);
-                obj.dataset.label.send(validset.label);
-            else
-                obj.dataset.data.send(validset);
-            end
-            obj.model.forward();
-            objval = obj.objective.evaluate() + sum(cellfun(@evaluate, obj.priors));
-            fprintf('[%s] Initial objective value : %.2e\n', datestr(now), objval);
-            opt.record(objval, false);
+            obj.validate(validset);
             % main loop
             for epoch = 1 : nepoch
                 for i = 1 : batchPerEpoch
@@ -35,29 +19,42 @@ classdef CustomTask < Task
                     obj.model.update();
                 end
                 obj.iteration = obj.iteration + batchPerEpoch;
-                if obj.dataset.islabelled
-                    obj.dataset.data.send(validset.data);
-                    obj.dataset.label.send(validset.label);
-                else
-                    obj.dataset.data.send(validset);
-                end
-                obj.model.forward();
-                objval = obj.objective.evaluate() + sum(cellfun(@evaluate, obj.priors));
-                fprintf('[%s] Objective Value after [%04d] iterations : %.2e\n', ...
-                    datestr(now), obj.iteration, objval);
-                opt.record(objval, false);
-                if not(obj.nosave)
-                    modeldump = obj.model.dump();
-                    save(fullfile(obj.savedir, sprintf(obj.namePattern, obj.iteration)), ...
-                        'modeldump', '-v7.3');
-                end
+                obj.validate(validset);
+                obj.save();
             end
-            % delete temporary saves
+            % keep the last save
+            obj.latestSave = [];
+        end
+        
+        function modeldump = save(obj)
             if not(obj.nosave)
-                for epoch = 1 : nepoch - 1
-                    niter = startIter + epoch * batchPerEpoch;
-                    delete(fullfile(obj.savedir, sprintf(obj.namePattern, niter)));
+                modeldump = obj.model.dump();
+                savefile  = fullfile(obj.savedir, sprintf(obj.namePattern, obj.iteration));
+                save(savefile, 'modeldump', '-v7.3');
+                % delete latest save
+                if not(isempty(obj.latestSave))
+                    delete(obj.latestSave);
                 end
+                % records current save as latest save
+                obj.latestSave = savefile;
+            end
+        end
+        
+        function value = validate(obj, validset)
+            if isstruct(validset)
+                obj.dataset.data.send(validset.data);
+                obj.dataset.label.send(validset.label);
+            else
+                obj.dataset.data.send(validset);
+            end
+            obj.model.forward();
+            value = obj.objective.evaluate() + sum(cellfun(@evaluate, obj.priors));
+            if obj.verbose
+                fprintf('[%s] Objective Value after [%04d] iterations : %.2e\n', ...
+                    datestr(now), obj.iteration, value);
+            end
+            if obj.optimizer.rcdmode.status
+                obj.optimizer.record(value);
             end
         end
     end
@@ -67,24 +64,33 @@ classdef CustomTask < Task
             conf = Config(varargin);
             % setup fundamental properties
             obj.id        = taskid;
-            obj.dir       = taskdir;
+            obj.dir       = abspath(taskdir);
             obj.model     = model;
             obj.dataset   = dataset;
             obj.objective = objective;
             obj.priors    = priors;
             obj.iteration = conf.pop('iteration', 0);
             obj.nosave    = conf.pop('nosave', false);
+            obj.verbose   = conf.pop('verbose', true);
             % setup dependent properties
-            obj.savedir = fullfile(obj.dir, 'records');
+            obj.savedir     = fullfile(obj.dir, 'records');
             obj.namePattern = [obj.id, '-ITER%d-DUMP.mat'];
+            % other parameters
+            obj.latestSave  = [];
         end
     end
     
     properties
-        nosave
+        nosave, verbose
+    end
+    properties (SetAccess = protected, Hidden)
+        lastSave
     end
     properties (SetAccess = protected)
         id, iteration, dir, savedir, namePattern, priors
+    end
+    properties (Constant)
+        optimizer = HyperParam.getOptimizer()
     end
     methods
         function set.id(obj, value)
@@ -121,6 +127,11 @@ classdef CustomTask < Task
         function set.nosave(obj, value)
             assert(islogical(value), 'ILLEGAL ASSIGNMENT');
             obj.nosave = value;
+        end
+        
+        function set.verbose(obj, value)
+            assert(islogical(value), 'ILLEGAL ASSIGNMENT');
+            obj.verbose = value;
         end
     end
 end
