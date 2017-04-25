@@ -55,7 +55,7 @@ classdef MemoryDataBlock < DataBlock
             % initialize statistic structure
             if conf.exist('stat')
                 obj.enableStatistics(conf.pop('stat'));
-                if obj.islablled
+                if obj.islabelled
                     cellfun(@(s) obj.stat.collector.commit(s.data), obj.cache);
                 else
                     cellfun(@(d) obj.stat.collector.commit(d), obj.cache);
