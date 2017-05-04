@@ -65,9 +65,7 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
     
     methods (Static)
         function obj = randinit(sizein, sizeout)
-            obj = LinearTransform( ...
-                (rand(sizeout, sizein) - 0.5) * (2 / sqrt(sizein)), ...
-                zeros(sizeout, 1));
+            obj = LinearTransform(HyperParam.randlt(sizeout, sizein), zeros(sizeout, 1));
         end
     end
     

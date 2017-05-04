@@ -297,6 +297,25 @@ classdef RecurrentUnit < Unit & Evolvable
     end
     
     methods (Static)
+        function debugtask()
+            datasize  = 16;
+            statesize = 16;
+            nframe  = 1;
+            nvalid  = 100;
+            batchsize = 8;
+            % create model and its reference
+            refer = LSTM.randinit(datasize, statesize);
+            model = LSTM.randinit(datasize, statesize);
+            % create dataset
+            dataset = DataGenerator('normal', datasize).enableTmode(nframe);
+            % create objectives
+            objective = Likelihood('mse');
+            % initialize task
+            task = SimulationTest(model, refer, dataset, objective);
+            % run task
+            task.run(300, batchsize, nvalid);
+        end
+        
         function [refer, aprox] = debug()
             datasize  = 16;
             statesize = 16;

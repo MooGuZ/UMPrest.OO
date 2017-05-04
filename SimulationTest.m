@@ -16,7 +16,7 @@ classdef SimulationTest < Task
             objval = obj.objective.evaluate(obj.model.forward(validset.data{:}), validset.label);
             distinfo(abs(obj.ref.dumpraw() - obj.model.dumpraw()), 'HPARAM ERROR', false);
             disp(repmat('=', 1, 100));
-            fprintf('Initial objective value : %.2f\n', objval);
+            fprintf('Initial objective value : %.2e\n', objval);
             opt.record(objval, false);
             % start simulation process
             for i = 1 : iteration
@@ -30,7 +30,7 @@ classdef SimulationTest < Task
                 obj.model.backward(obj.objective.delta(odata, label));
                 obj.model.update();
                 objval = obj.objective.evaluate(obj.model.forward(validset.data{:}), validset.label);
-                fprintf('Objective Value after [%04d] turns: %.2f\n', i, objval);
+                fprintf('Objective Value after [%04d] turns: %.2e\n', i, objval);
                 if mod(i, 10)
                     opt.record(objval, false);
                 end

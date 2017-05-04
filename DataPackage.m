@@ -56,6 +56,12 @@ classdef DataPackage < Package
             end
         end
         
+        function obj = treverse(obj)
+            if obj.taxis
+                obj.data = sltondim(obj.data, obj.dsample + 1, obj.nframe : -1 : 1);
+            end
+        end
+        
         function obj = tselectRandom(obj, n)
             if obj.taxis && obj.nframe >= n
                 obj.data = sltondim(obj.data, obj.dsample + 1, randi(obj.nframe - n, 1) + (1:n));

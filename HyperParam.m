@@ -131,4 +131,11 @@ classdef HyperParam < Tensor
             opt = cache;
         end
     end
+    
+    % randomly initialization methods
+    methods (Static)
+        function M = randlt(row, col)
+            M = (rand(row, col) - 0.5) * (2 / sqrt(col));
+        end
+    end
 end

@@ -3,18 +3,18 @@ classdef LSTM < RecurrentUnit
         function obj = LSTM(stateSelect, updateExtract, updateSelect, outputSelect)
             inputMixer = ConcateUnit(1).aheadof(stateSelect).aheadof(...
                 updateSelect).aheadof(updateExtract).aheadof(outputSelect);
-            stateGate  = GateUnit(); stateGate.appendto([], stateSelect);
+            stateGate  = DataSelector().appendto([], stateSelect);
             updateAct  = Activation('tanh'); updateAct.appendto(updateExtract);
-            updateGate = GateUnit(); updateGate.appendto(updateAct, updateSelect);
+            updateGate = DataSelector().appendto(updateAct, updateSelect);
             stateMixer = PlusUnit().appendto(stateGate, updateGate);
             outputProc = Activation('tanh'); outputProc.appendto(stateMixer);
-            outputGate = GateUnit(); outputGate.appendto(outputProc, outputSelect);
+            outputGate = DataSelector().appendto(outputProc, outputSelect);
             % build recurrent unit
             obj@RecurrentUnit(Model( ...
                 inputMixer, stateSelect, stateGate, updateExtract, updateSelect, updateAct,...
                 updateGate, stateMixer, outputSelect, outputProc, outputGate), ...
-                {stateMixer.O{1}, stateGate.I{1}, stateSelect.smpsize('out')}, ...
-                {outputGate.O{1}, inputMixer.I{2}, outputSelect.smpsize('out')});
+                {stateMixer.O{1}, stateGate.datain, stateSelect.smpsize('out')}, ...
+                {outputGate.dataout, inputMixer.I{2}, outputSelect.smpsize('out')});
             % assign properties
             obj.stateSelect   = stateSelect;
             obj.updateExtract = updateExtract;
