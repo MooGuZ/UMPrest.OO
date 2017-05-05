@@ -3,9 +3,9 @@ classdef RecurrentUnit < Unit & Evolvable
         % NOTE: current implementation doesn't take into consideration the
         %       case that output interface don't connect with a recurrent
         %       link. In this case, if only require selfeed frames by next
-        %       unit, it is necessary to distinguish subnet of
-        %       input-to-state with the whole network. And both FORWARD and
-        %       BACKWARD operations should be modified correspondingly.
+        %       unit, it is necessary to distinguish state-cycle subnet of
+        %       the entire network. And both FORWARD and BACKWARD operations 
+        %       should be modified correspondingly.
         % NOTE: currently, FORWARD operation is specified for DataPackage,
         %       while BACKWARD for ErrorPackage.
         function varargout = forward(obj, varargin)

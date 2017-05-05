@@ -13,6 +13,7 @@ classdef BilinearTransform < MISOUnit & FeedforwardOperation & Evolvable
         end
         
         function hpcell = hparam(obj)
+        % just test the temporary file
             hpcell = {obj.WA, obj.WB, obj.B};
         end
         
@@ -56,8 +57,8 @@ classdef BilinearTransform < MISOUnit & FeedforwardOperation & Evolvable
     
     methods (Static)
         function obj = randinit(sizeA, sizeB, sizeO)
-            wa = (rand(sizeO, sizeA) - 0.5) * (2 / sqrt(sizeA));
-            wb = (rand(sizeO, sizeB) - 0.5) * (2 / sqrt(sizeB));
+            wa = HyperParam.randlt(sizeO, sizeA);
+            wb = HyperParam.randlt(SizeO, sizeB);
             b  = zeros(sizeO, 1);
             obj = BilinearTransform(wa, wb, b);
         end

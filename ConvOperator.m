@@ -1,7 +1,7 @@
 classdef ConvOperator < MISOUnit & FeedforwardOperation
     methods
         function y = dataproc(~, x, f)
-            y = MathLib.nnconv(x, f, zeros(1, size(f, 4)), 'same');
+            y = MathLib.nnconv(x, f, zeros(1, size(f, 4), 'like', x), 'same');
         end
         
         function [dX, dF] = deltaproc(obj, dY)

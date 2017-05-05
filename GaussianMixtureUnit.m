@@ -1,10 +1,7 @@
 classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
     methods
         function p = dataproc(obj, x, l)
-            p = zeros(1, numel(l));
-            if obj.enableGPU
-                p = gpuArray(single(p));
-            end
+            p = zeros(1, numel(l), 'like', x);
             for i = 1 : numel(p)
                 p(i) = x(:, i)' * obj.invC{l(i)} * x(:, i) / 2;
             end
@@ -19,17 +16,10 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
             b = obj.catbasis;
             y = exp(obj.catcord);
             % initialize gradients
-            db = zeros(size(b));
-            dy = zeros(size(y));
-            dl = zeros(size(l));
-            dx = zeros(size(x));
-            % enable GPU
-            if obj.enableGPU
-                db = gpuArray(single(db));
-                dy = gpuArray(single(dy));
-                dl = gpuArray(single(dl));
-                dx = gpuArray(single(dx));
-            end
+            db = zeros(size(b), 'like', dp);
+            dy = zeros(size(y), 'like', dp);
+            dl = zeros(size(l), 'like', dp);
+            dx = zeros(size(x), 'like', dp);
             % calculate gradient category by category
             for i = 1 : obj.ncategory
                 index = (l == i);
@@ -85,10 +75,7 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
             y = exp(obj.catcord);
             obj.C = cell(1, obj.ncategory);
             obj.invC = cell(1, obj.ncategory);
-            obj.detC = zeros(1, obj.ncategory);
-            if obj.enableGPU
-                obj.detC = gpuArray(single(obj.detC));
-            end
+            obj.detC = zeros(1, obj.ncategory, 'like', b);
             for i = 1 : obj.ncategory
                 obj.C{i} = b * diag(y(:, i)) * b';
                 obj.invC{i} = inv(obj.C{i});
@@ -143,7 +130,6 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
     
     properties (Constant)
         taxis = false
-        enableGPU = logical(gpuDeviceCount)
     end
     
     properties (SetAccess = private)
