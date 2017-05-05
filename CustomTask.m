@@ -14,6 +14,9 @@ classdef CustomTask < Task
                 for i = 1 : batchPerEpoch
                     obj.dataset.next(batchsize);
                     obj.model.forward();
+                    if not(isempty(obj.sidepath))
+                        obj.sidepath.forward();
+                    end
                     obj.objective.delta();
                     obj.model.backward();
                     obj.model.update();
@@ -48,6 +51,9 @@ classdef CustomTask < Task
                 obj.dataset.data.send(validset);
             end
             obj.model.forward();
+            if not(isempty(obj.sidepath))
+                obj.sidepath.forward();
+            end
             value = obj.objective.evaluate() + sum(cellfun(@evaluate, obj.priors));
             if obj.verbose
                 fprintf('[%s] Objective Value after [%04d] iterations : %.2e\n', ...
@@ -76,6 +82,7 @@ classdef CustomTask < Task
             obj.savedir     = fullfile(obj.dir, 'records');
             obj.namePattern = [obj.id, '-ITER%d-DUMP.mat'];
             % other parameters
+            obj.sidepath    = conf.pop('sidepath', []);
             obj.latestSave  = [];
         end
     end
@@ -84,10 +91,10 @@ classdef CustomTask < Task
         nosave, verbose
     end
     properties (SetAccess = protected, Hidden)
-        lastSave
+        latestSave
     end
     properties (SetAccess = protected)
-        id, iteration, dir, savedir, namePattern, priors
+        id, iteration, dir, savedir, namePattern, priors, sidepath
     end
     properties (Constant)
         optimizer = HyperParam.getOptimizer()

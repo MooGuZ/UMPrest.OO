@@ -107,16 +107,24 @@ classdef RecurrentAP < AccessPoint
             end
         end
         
-        function package = compress(obj)
+        function package = compress(obj, lastonly)
             frames = cell(1, obj.hostio.cache.count);
             for i = 1 : numel(frames)
                 frames{i} = obj.hostio.pull();
             end
-            package = obj.packup(frames);
+            if exist('lastonly', 'var') && lastonly
+                package = obj.packup(frames(end));
+            else
+                package = obj.packup(frames);
+            end
         end
         
         function sendFrame(obj)
-            obj.hostio.send(obj.hostio.pull());
+            try
+                obj.hostio.send(obj.hostio.pull());
+            catch
+                % do nothing, should be empty
+            end
         end
     end
     

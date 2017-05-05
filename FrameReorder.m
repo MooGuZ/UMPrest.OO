@@ -39,7 +39,7 @@ classdef FrameReorder < PackageProcessor
     end
     
     properties (SetAccess = protected)
-        mode
+        I, O, mode
     end
     properties (Constant, Hidden)
         modeset = {'reverse'}
@@ -54,6 +54,8 @@ classdef FrameReorder < PackageProcessor
     methods
         function obj = FrameReorder(mode)
             obj.mode = mode;
+            obj.I = {SimpleAP(obj)};
+            obj.O = {SimpleAP(obj)};
         end
     end
 end

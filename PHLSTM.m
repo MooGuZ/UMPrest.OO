@@ -57,6 +57,9 @@ classdef PHLSTM < RecurrentUnit
             % create model and its reference
             refer = PHLSTM.randinit(sizein, sizeout);
             model = PHLSTM.randinit(sizein, sizeout);
+            % set as last-frame mode
+            refer.setupOutputMode('last');
+            model.setupOutputMode('last');
             % create dataset
             dataset = DataGenerator('normal', sizein).enableTmode(nframes);
             % create objectives
@@ -64,7 +67,7 @@ classdef PHLSTM < RecurrentUnit
             % initialize task
             task = SimulationTest(model, refer, dataset, objective);
             % run simulation test
-            task.run(1000, 16, 64);
+            task.run(300, 16, 64);
         end
     end
 end

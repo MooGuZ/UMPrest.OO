@@ -36,7 +36,7 @@ classdef Likelihood < Objective
                 end
                 d = ErrorPackage(d, x.dsample, x.taxis);
                 if nargout == 0
-                    obj.x.push(d);
+                    obj.x.send(d);
                 end
             else
                 if isempty(obj.weight)

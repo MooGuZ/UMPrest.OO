@@ -56,7 +56,18 @@ classdef RecurrentUnit < Unit & Evolvable
                 end
             end
             % collect frames into package
-            varargout = cellfun(@compress, obj.O, 'UniformOutput', false);
+            switch obj.outputMode.mode
+              case {'normal'}
+                varargout = cellfun(@compress, obj.O, 'UniformOutput', false);
+                  
+              case {'lastframe'}
+                varargout = cellfun(@(ap) ap.compress(true), obj.O, 'UniformOutput', false);
+                obj.outputMode.nframe = obj.pkginfo.nframe;
+                
+              otherwise
+                error('UNSUPPORTED');
+            end
+            % send output package if necessary
             if nargout == 0
                 for i = 1 : numel(obj.O)
                     obj.O{i}.send(varargout{i});
@@ -104,8 +115,19 @@ classdef RecurrentUnit < Unit & Evolvable
                 % update frame quantity
                 obj.pkginfo.nframe = obj.pkginfo.nframe - obj.selfeed.numSelfeedFrames;
             end
+            % determine number of iteration
+            switch obj.outputMode.mode
+              case {'normal'}
+                niteration = obj.pkginfo.nframe;
+                
+              case {'lastframe'}
+                niteration = obj.outputMode.nframe;
+                
+              otherwise
+                error('UNSUPPORTED');
+            end
             % process ordinary frames
-            for t = 1 : obj.pkginfo.nframe
+            for t = 1 : niteration
                 % send frame to kernel
                 for i = 1 : numel(obj.O)
                     obj.O{i}.sendFrame();
@@ -218,6 +240,26 @@ classdef RecurrentUnit < Unit & Evolvable
         end
     end
     
+    properties
+        outputMode
+    end
+    methods
+        function obj = setupOutputMode(obj, mode)
+            switch lower(mode)
+              case {'normal', 'default'}
+                obj.outputMode = struct('mode', 'normal');
+                
+              case {'last', 'lastframe'}
+                obj.outputMode = struct( ...
+                    'mode',   'lastframe', ...
+                    'nframe', []);
+                
+              otherwise
+                error('UNSUPPORTED');
+            end
+        end
+    end
+    
     methods
         function obj = RecurrentUnit(kernel, varargin)
             obj.kernel = kernel.recrtmode(obj.memoryLength).seal();
@@ -242,6 +284,8 @@ classdef RecurrentUnit < Unit & Evolvable
             obj.disableSelfeed();
             % get hyper-parameter list
             obj.hpcache = obj.kernel.hparam();
+            % setup output mode
+            obj.setupOutputMode('default');
         end
     end
     
