@@ -1,26 +1,31 @@
-%% BEGIN
+% MODEL : LSTM ENCODER-DECODER MODEL on NPLAB3D
+% CODE  : https://github.com/MooGuZ/UMPrest.OO/commit/5bf1b0676235820300760dfda9d435135d3d6721
+%% load package to MATLAB search path
+% addpath('/home/hxz244'); pathLoader('umpoo');
+%% environment parameters
+istart  = 60;
 taskid  = 'LSTMCODEC';
-taskdir = abspath('~/Desktop/experiment');
+taskdir = fileparts(mfilename('fullpath'));
 savedir = fullfile(taskdir, 'records');
 datadir = fullfile(taskdir, 'data');
-istart  = 0;
 namept  = [taskid, '-ITER%d-DUMP.mat'];
 %% model parameters
 sizein  = 1024;
 sizeout = 1024;
-nframes = 30;
+nframes = 7;
 %% create/load units and model
 if istart == 0
     encoder = PHLSTM.randinit(sizein, sizeout);
     decoder = PHLSTM.randinit(sizein, sizeout);
-    encoder.setupOutputMode('last');
-    decoder.enableSelfeed(nframes - 1);
-    encoder.aheadof(decoder);
-    model = Model(encoder, decoder);
 else
     load(fullfile(savedir, sprintf(namept, istart)));
-    model = Evolvable.loaddump(modeldump);
+    encoder = Evolvable.loaddump(encoderdump);
+    decoder = Evolvable.loaddump(decoderdump);
 end
+encoder.setupOutputMode('last');
+decoder.enableSelfeed(nframes - 1);
+encoder.aheadof(decoder);
+model = Model(encoder, decoder);
 %% create side path
 reverser = FrameReorder('reverse');
 reshaper = Reshaper().appendto(reverser);
@@ -37,6 +42,22 @@ objective.x.connect(model.O{1});
 objective.ref.connect(sidepath.O{1});
 %% create task
 task = CustomTask(taskid, taskdir, model, nplab3d, objective, {}, ...
-    'sidepath', sidepath, '-nosave');
+    'sidepath', sidepath, 'iteration', istart, '-nosave');
+%% setup optmizator
+opt = HyperParam.getOptimizer();
+opt.gradmode('basic');
+opt.stepmode('adapt', 'estimatedChange', 1e-2);            
+opt.enableRcdmode(3);
 %% run task
-task.run(10, 10, 16, 64);
+latestsave = [];
+for i = 1 : 3
+    task.run(2, 5, 16, 64);
+    encoderdump = encoder.dump();
+    decoderdump = decoder.dump();
+    save(fullfile(savedir, sprintf(namept, task.iteration)), ...
+        'encoderdump', 'decoderdump', '-v7.3');
+    if not(isempty(latestsave))
+        delete(latestsave);
+    end
+    latestsave = fullfile(savedir, sprintf(namept, task.iteration));
+end
