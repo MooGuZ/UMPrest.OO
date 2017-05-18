@@ -10,10 +10,10 @@ classdef RecurrentUnit < Unit & Evolvable
         %       while BACKWARD for ErrorPackage.
         function varargout = forward(obj, varargin)
             obj.pkginfo = RecurrentAP.initPackageInfo();
-            % clear hidden state
-            for i = 1 : numel(obj.S)
-                obj.S{i}.clear();
-            end
+            % % clear hidden state
+            % for i = 1 : numel(obj.S)
+            %     obj.S{i}.clear();
+            % end
             % extract frames from packages
             if isempty(varargin)
                 for i = 1 : numel(obj.I)
@@ -73,6 +73,10 @@ classdef RecurrentUnit < Unit & Evolvable
                     obj.O{i}.send(varargout{i});
                 end
             end
+            % forward state to connected unit
+            for i = 1 : numel(obj.S)
+                obj.S{i}.stateForward();
+            end
         end
         
         % TODO: add '-overwrite' option to data records and make warning
@@ -80,10 +84,10 @@ classdef RecurrentUnit < Unit & Evolvable
         %       process to specific depth.
         function varargout = backward(obj, varargin)
             obj.pkginfo = RecurrentAP.initPackageInfo();
-            % clear hidden state
-            for i = 1 : numel(obj.S)
-                obj.S{i}.clear();
-            end
+            % % clear hidden state
+            % for i = 1 : numel(obj.S)
+            %     obj.S{i}.clear();
+            % end
             % extract frames from packages
             if isempty(varargin)
                 for i = 1 : numel(obj.O)
@@ -145,6 +149,26 @@ classdef RecurrentUnit < Unit & Evolvable
                 for i = 1 : numel(obj.I)
                     obj.I{i}.send(varargout{i});
                 end
+            end
+            % pass state to connected unit
+            for i = 1 : numel(obj.S)
+                obj.S{i}.stateBackward();
+            end
+        end
+    end
+    
+    methods
+        function obj = stateAheadof(obj, runit)
+        % connection states with annother recurrent unit
+        % NOTE: implementation here assuming same structure of two connecting units
+            for i = 1 : numel(obj.S)
+                obj.S{i}.stateAheadof(runit.S{i});
+            end
+        end
+        
+        function obj = stateAppendto(obj, runit)
+            for i = 1 : numel(obj.S)
+                obj.S{i}.stateAppendto(runit.S{i});
             end
         end
     end

@@ -46,6 +46,33 @@ classdef RecurrentState < Unit
         end
     end
     
+    properties (Hidden)
+        SI, SO
+    end
+    methods
+        function stateAheadof(obj, runit)
+            obj.SO = runit;
+            runit.SI = obj;
+        end
+        
+        function stateAppendto(obj, runit)
+            obj.SI = runit;
+            runit.SO = obj;
+        end
+        
+        function stateForward(obj)
+            if not(obj.I{1}.isempty() || isempty(obj.SO))
+                obj.SO.I{1}.push(obj.I{1}.pull());
+            end
+        end
+        
+        function stateBackward(obj)
+            if not(obj.O{1}.isempty() || isempty(obj.SI))
+                obj.SI.O{1}.push(obj.O{1}.pull());
+            end
+        end
+    end
+    
     methods
         function package = defaultPackage(obj, type, batchsize)
             switch type
