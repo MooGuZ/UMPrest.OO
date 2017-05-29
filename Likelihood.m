@@ -21,6 +21,9 @@ classdef Likelihood < Objective
                     value = obj.evalFunction(x, ref, obj.weight);
                 end
             end
+            if isa(value, 'gpuArray')
+                value = double(gather(value));
+            end
         end
         
         function d = delta(obj, x, ref)
