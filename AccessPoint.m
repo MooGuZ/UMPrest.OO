@@ -12,11 +12,27 @@ classdef AccessPoint < handle
         end
         
         function package = pop(obj)
-            package = obj.cache.pop();
+            try
+                package = obj.cache.pop();
+            catch ME
+                if obj.absent
+                    package = [];
+                else
+                    throw(ME);
+                end
+            end
         end
         
         function package = pull(obj)
-            package = obj.cache.pull();
+            try
+                package = obj.cache.pull();
+            catch ME
+                if obj.absent
+                    package = [];
+                else
+                    throw(ME);
+                end
+            end
         end
         
         function package = fetch(obj, index)
@@ -91,7 +107,7 @@ classdef AccessPoint < handle
         idset = IDSet()
     end
     properties (SetAccess = protected)
-        id, cache, links = {}
+        id, cache, links = {}, absent = false
     end
     properties (Transient)
         packagercd = []

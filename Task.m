@@ -12,11 +12,11 @@ classdef Task < handle
             obj.model = value;
         end
         
-        function set.dataset(obj, value)
-            assert(iscell(value) || isa(value, 'Dataset') || isa(value, 'DataGenerator'), ...
-                'ILLEGAL ASSIGNMENT');
-            obj.dataset = value;
-        end
+%         function set.dataset(obj, value)
+%             assert(iscell(value) || isa(value, 'Dataset') || isa(value, 'DataGenerator'), ...
+%                 'ILLEGAL ASSIGNMENT');
+%             obj.dataset = value;
+%         end
         
         function set.objective(obj, value)
             assert(iscell(value) || isa(value, 'Objective'), 'ILLEGAL ASSIGNMENT');

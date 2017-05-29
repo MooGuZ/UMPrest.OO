@@ -180,6 +180,14 @@ classdef MathLib < handle
             % ref = MathLib.bound(ref, [eps, inf]);
             d = (log(x ./ ref) + 1) / (numel(x) / size(x, 1));
         end
+        
+        function v = crossEntropy(x, ref)
+            e = ref .* log(x) + (1 - ref) .* log(1 - x);
+            v = -sum(e(:)) / numel(e);
+        end
+        function d = crossEntropyGradient(x, ref)
+            d = ((1 - ref) ./ (1 - x) - ref ./ x) / numel(x);
+        end
     end
     
     % ======================= Calculation Operator =======================

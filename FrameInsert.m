@@ -1,47 +1,46 @@
-classdef FrameSlicer < PackageProcessor
+classdef FrameInsert < PackageProcessor
     methods
         function pkgout = forward(obj, pkgin)
-            % obtain input package from access-point
             if not(exist('pkgin', 'var'))
                 pkgin = obj.I{1}.pop();
             end
-            % slicing the package on temporal axes
             assert(pkgin.taxis, 'PACKAGE HAVE NO TEMPORAL AXES');
+            data = zeros([pkgin.smpsize, obj.n, pkgin.batchsize]);
             switch obj.loc
               case {'front'}
                 index = obj.offset;
                 
               case {'back'}
-                index = pkgin.nframe - obj.offset - obj.n;
-                
-              case {'random'}
-                if obj.nframe > obj.n
-                    index = randi(pkgin.nframe - obj.n);
-                else
-                    index = 0;
-                end
+                index = pkgin.nframe - obj.offset;
             end
-            pkgout = DataPackage( ...
-                sltondim(pkgin.data, pkgin.dsample + 1, index + (1 : obj.n)), ...
-                pkgin.dsample, true);
-            % send output package through access-point
+            if index <= 0
+                pkgout = DataPackage(cat(pkgin.dsample + 1, data, pkgin.data), ...
+                    pkgin.dsample, true);
+            elseif index >= pkgin.nframe
+                pkgout = DataPackage(cat(pkgin.dsample + 1, pkgin.data, data), ...
+                    pkgin.dsample, true);
+            else
+                [front, back] = sltondim(pkgin.data, pkgin.dsample + 1, 1 : index);
+                pkgout = DataPackage(cat(pkgin.dsample + 1, front, data, back), ...
+                    pkgin.dsample, true);
+            end
             if nargout == 0
                 obj.O{1}.send(pkgout);
             end
         end
         
         function backward(~, varargin)
-            error('ILLEGAL OPERATION');
+            error('ILLEGAL OPERATION');            
         end
     end
     
     methods
-        function obj = FrameSlicer(n, location, offset)
+        function obj = FrameInsert(n, location, offset)
             obj.n = n;
             if exist('location', 'var')
-                obj.loc = location; % FRONT/BACK/RANDOM
+                obj.loc = location; % FRONT/BACK
             else
-                obj.loc = 'random';
+                obj.loc = 'front';
             end
             if exist('offset', 'var')
                 obj.offset = offset;
@@ -54,7 +53,7 @@ classdef FrameSlicer < PackageProcessor
     end
     
     properties (Constant, Hidden)
-        locationSet = {'front', 'back', 'random'};
+        locationSet = {'front', 'back'};
     end
     
     properties (SetAccess = protected)

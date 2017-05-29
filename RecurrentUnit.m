@@ -10,27 +10,26 @@ classdef RecurrentUnit < Unit & Evolvable
         %       while BACKWARD for ErrorPackage.
         function varargout = forward(obj, varargin)
             obj.pkginfo = RecurrentAP.initPackageInfo();
-            % % clear hidden state
-            % for i = 1 : numel(obj.S)
-            %     obj.S{i}.clear();
-            % end
-            % extract frames from packages
             if isempty(varargin)
-                for i = 1 : numel(obj.I)
-                    obj.I{i}.extract();
+                for i = 1 : numel(obj.DI)
+                    obj.DI{i}.extract();
                 end
             else
-                for i = 1 : numel(obj.I)
-                    obj.I{i}.extract(varargin{i});
+                for i = 1 : numel(obj.DI)
+                    obj.DI{i}.extract(varargin{i});
                 end
+            end
+            % initialize states
+            for i = 1 : numel(obj.S)
+                obj.S{i}.initForwardState();
             end
             % process all input frames
             for t = 1 : obj.pkginfo.nframe
                 % send frame to kernel
-                for i = 1 : numel(obj.I)
-                    obj.I{i}.sendFrame();
+                for i = 1 : numel(obj.DI)
+                    obj.DI{i}.sendFrame();
                 end
-                % update state in kernel
+                % iterating states
                 for i = 1 : numel(obj.S)
                     obj.S{i}.forward();
                 end
@@ -58,10 +57,10 @@ classdef RecurrentUnit < Unit & Evolvable
             % collect frames into package
             switch obj.outputMode.mode
               case {'normal'}
-                varargout = cellfun(@compress, obj.O, 'UniformOutput', false);
+                varargout = cellfun(@compress, obj.DO, 'UniformOutput', false);
                   
               case {'lastframe'}
-                varargout = cellfun(@(ap) ap.compress(true), obj.O, 'UniformOutput', false);
+                varargout = cellfun(@(ap) ap.compress(true), obj.DO, 'UniformOutput', false);
                 obj.outputMode.nframe = obj.pkginfo.nframe;
                 
               otherwise
@@ -69,8 +68,8 @@ classdef RecurrentUnit < Unit & Evolvable
             end
             % send output package if necessary
             if nargout == 0
-                for i = 1 : numel(obj.O)
-                    obj.O{i}.send(varargout{i});
+                for i = 1 : numel(obj.DO)
+                    obj.DO{i}.send(varargout{i});
                 end
             end
             % forward state to connected unit
@@ -90,20 +89,24 @@ classdef RecurrentUnit < Unit & Evolvable
             % end
             % extract frames from packages
             if isempty(varargin)
-                for i = 1 : numel(obj.O)
-                    obj.O{i}.extract();
+                for i = 1 : numel(obj.DO)
+                    obj.DO{i}.extract();
                 end
             else
-                for i = 1 : numel(obj.O)
-                    obj.O{i}.extract(varargin{i});
+                for i = 1 : numel(obj.DO)
+                    obj.DO{i}.extract(varargin{i});
                 end
+            end
+            % initialize states
+            for i = 1 : numel(obj.S)
+                obj.S{i}.initBackwardState();
             end
             % process selfeed frames
             if obj.selfeed.status
                 for t = 1 : obj.selfeed.numSelfeedFrames
                     % send frame to kernel
-                    for i = 1 : numel(obj.O)
-                        obj.O{i}.sendFrame();
+                    for i = 1 : numel(obj.DO)
+                        obj.DO{i}.sendFrame();
                     end
                     % update state in kernel
                     for i = 1 : numel(obj.S)
@@ -133,8 +136,8 @@ classdef RecurrentUnit < Unit & Evolvable
             % process ordinary frames
             for t = 1 : niteration
                 % send frame to kernel
-                for i = 1 : numel(obj.O)
-                    obj.O{i}.sendFrame();
+                for i = 1 : numel(obj.DO)
+                    obj.DO{i}.sendFrame();
                 end
                 % update state in kernel
                 for i = 1 : numel(obj.S)
@@ -144,10 +147,10 @@ classdef RecurrentUnit < Unit & Evolvable
                 obj.kernel.backward();
             end
             % compress frames into package
-            varargout = cellfun(@compress, obj.I, 'UniformOutput', false);
+            varargout = cellfun(@compress, obj.DI, 'UniformOutput', false);
             if nargout == 0
-                for i = 1 : numel(obj.I)
-                    obj.I{i}.send(varargout{i});
+                for i = 1 : numel(obj.DI)
+                    obj.DI{i}.send(varargout{i});
                 end
             end
             % pass state to connected unit
@@ -159,20 +162,18 @@ classdef RecurrentUnit < Unit & Evolvable
     
     methods
         function obj = stateAheadof(obj, runit)
-        % connection states with annother recurrent unit
-        % NOTE: implementation here assuming same structure of two connecting units
             for i = 1 : numel(obj.S)
-                obj.S{i}.stateAheadof(runit.S{i});
+                obj.S{i}.SO.connect(runit.S{i}.SI);
             end
         end
         
         function obj = stateAppendto(obj, runit)
             for i = 1 : numel(obj.S)
-                obj.S{i}.stateAppendto(runit.S{i});
+                obj.S{i}.SI.connect(runit.S{i}.SO);
             end
         end
     end
-       
+    
     methods
         function hpcell = hparam(obj)
             hpcell = obj.hpcache;
@@ -183,28 +184,6 @@ classdef RecurrentUnit < Unit & Evolvable
             % data = obj.kernel.dump();
             % data{1} = class(obj);
         end
-        
-        % function rawdata = dumpraw(obj)
-        %     rawdata = obj.kernel.dumpraw();
-        % end
-        % 
-        % function update(obj)
-        %     obj.kernel.update();
-        %     % NOTE: following code would update initial value of hidden
-        %     %       state in optimization process. However, this part has
-        %     %       not been well examinated.
-        %     % for i = 1 : numel(obj.S)
-        %     %     obj.S{i}.update();
-        %     % end
-        % end
-        % 
-        % function freeze(obj)
-        %     obj.kernel.freeze();
-        % end
-        % 
-        % function unfreeze(obj)
-        %     obj.kernel.unfreeze();
-        % end
     end
     
     properties (SetAccess = protected)
@@ -217,20 +196,20 @@ classdef RecurrentUnit < Unit & Evolvable
             %       2. check provide links to cover all input
             % NOTE: this function require IO have been initialized to work properly
             if numel(varargin) == 0
-                assert(numel(obj.I) == numel(obj.O), 'SPECIFIC RECURRENT LINK REQUIRED');
-                if numel(obj.I) ~= 1
+                assert(numel(obj.DI) == numel(obj.DO), 'SPECIFIC RECURRENT LINK REQUIRED');
+                if numel(obj.DI) ~= 1
                     warning('CONNECTION ESTABLISHED AUTOMATICALLY WITHOUT SPECIFICATION');
                 end
-                rlinks = cell(1, numel(obj.I));
+                rlinks = cell(1, numel(obj.DI));
                 for i = 1 : numel(rlinks)
-                    rlinks{i} = {obj.O{i}.hostio.links{1}, obj.I{i}.hostio.links{1}};
+                    rlinks{i} = {obj.DO{i}.hostio.links{1}, obj.DI{i}.hostio.links{1}};
                 end
             else
                 inputTF = false(1, numel(obj.I));
                 for i = 1 : numel(varargin)
                     tprev = varargin{i}{2};
                     for j = 1 : numel(obj.I)
-                        if tprev.compare(obj.I{j}.hostio.links{1})
+                        if tprev.compare(obj.DI{j}.hostio.links{1})
                             inputTF(j) = true;
                             break
                         end
@@ -300,10 +279,13 @@ classdef RecurrentUnit < Unit & Evolvable
                 apin(cellfun(@tprev.compare, apin)) = [];
             end
             % create input/output access-points
-            obj.I = cellfun(@(ap) RecurrentAP(obj, ap), apin, ...
+            obj.DI = cellfun(@(ap) RecurrentAP(obj, ap), apin, ...
                 'UniformOutput', false);
-            obj.O = cellfun(@(ap) RecurrentAP(obj, ap), apout, ...
+            obj.DO = cellfun(@(ap) RecurrentAP(obj, ap), apout, ...
                 'UniformOutput', false);
+            % get all access-points
+            obj.I = [obj.DI, cellfun(@(s) s.SI, obj.S, 'UniformOutput', false)];
+            obj.O = [obj.DO, cellfun(@(s) s.SO, obj.S, 'UniformOutput', false)];
             % initially disable selfeed
             obj.disableSelfeed();
             % get hyper-parameter list
@@ -318,6 +300,8 @@ classdef RecurrentUnit < Unit & Evolvable
         I = {} % input access points set
         O = {} % output access points set
         S = {} % hidden states set
+        DI     % input access-points for data
+        DO     % output access-points for data
     end
     properties (Access = private)
         hpcache
@@ -329,7 +313,7 @@ classdef RecurrentUnit < Unit & Evolvable
         memoryLength = 40
     end
     methods
-        function set.I(obj, value)
+        function set.DI(obj, value)
             try
                 assert(iscell(value));
                 if isscalar(value)
@@ -340,13 +324,13 @@ classdef RecurrentUnit < Unit & Evolvable
                         value{i}.cooperate(i);
                     end
                 end
-                obj.I = value;
+                obj.DI = value;
             catch
                 error('ILLEGAL ASSIGNMENT');
             end
         end
         
-        function set.O(obj, value)
+        function set.DO(obj, value)
             try
                 assert(iscell(value));
                 if isscalar(value)
@@ -357,7 +341,7 @@ classdef RecurrentUnit < Unit & Evolvable
                         value{i}.cooperate(i);
                     end
                 end
-                obj.O = value;
+                obj.DO = value;
             catch
                 error('ILLEGAL ASSIGNMENT');
             end

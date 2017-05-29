@@ -1,7 +1,8 @@
 classdef PHLSTM < RecurrentUnit
 % LSTM with peephole connections
     methods
-        function obj = PHLSTM(stateControl, stateUpdate, updateControl, outputControl)
+        function obj = PHLSTM(stateControl, stateUpdate, updateControl, outputControl, ...
+                inputTransform, outputTransform)
             % create data-points for variables
             X = DataPoint();
             H = DataPoint();
@@ -17,55 +18,107 @@ classdef PHLSTM < RecurrentUnit
             outputControl.appendto(X, H, stateNew);
             outputAct = Activation('tanh'); outputAct.appendto(stateNew);
             output = DataSelector().appendto(outputAct, outputControl);
+            % create model
+            model = Model(X, H, C, updateControl, stateControl, stateUpdate, stateKeep, ...
+                updateAct, stateAddon, stateNew, outputControl, outputAct, output);
+            % add input transform
+            if not(isempty(inputTransform))
+                inputTransform.aheadof(X);
+                model.add(inputTransform);
+            end
+            % add output transform
+            if not(isempty(outputTransform))
+                outputTransform.appendto(output);
+                model.add(outputTransform);
+            end
             % build recurrent unit
-            obj@RecurrentUnit(Model(X, H, C, updateControl, stateControl, stateUpdate, stateKeep, ...
-                updateAct, stateAddon, stateNew, outputControl, outputAct, output), ...
+            obj@RecurrentUnit(model, ...
                 {stateNew.O{1}, C.I{1}, stateControl.smpsize('out')}, ...
                 {output.dataout, H.I{1}, outputControl.smpsize('out')});
             % highlight evolvable units
-            obj.stateControl  = stateControl;
-            obj.stateUpdate   = stateUpdate;
-            obj.updateControl = updateControl;
-            obj.outputControl = outputControl;
+            obj.stateControl    = stateControl;
+            obj.stateUpdate     = stateUpdate;
+            obj.updateControl   = updateControl;
+            obj.outputControl   = outputControl;
+            obj.inputTransform  = inputTransform;
+            obj.outputTransform = outputTransform;
         end
     end
     
     properties (SetAccess = protected)
-        stateControl, stateUpdate, updateControl, outputControl
+        stateControl, stateUpdate, updateControl, outputControl, inputTransform, outputTransform
     end
     
     methods
         function unitdump = dump(obj)
             unitdump = {'PHLSTM', obj.stateControl.dump(), obj.stateUpdate.dump(), ...
                 obj.updateControl.dump(), obj.outputControl.dump()};
+            % add input transform
+            if isempty(obj.inputTransform)
+                unitdump = [unitdump, {[]}];
+            else
+                unitdump = [unitdump, {obj.inputTransform.dump()}];
+            end
+            % add output transform
+            if isempty(obj.outputTransform)
+                unitdump = [unitdump, {[]}];
+            else
+                unitdump = [unitdump, {obj.outputTransform.dump()}];
+            end
         end
     end
     
     methods (Static)
-        function unit = randinit(sizein, sizeout)
+        function unit = randinit(nhidden, sizein, sizeout)
+            % create input transform
+            if exist('sizein', 'var') && not(isempty(sizein))
+                inputTransform = LinearTransform.randinit(sizein, nhidden);
+            else
+                inputTransform = [];
+            end
+            % create output transform
+            if exist('sizeout', 'var') && not(isempty(sizeout))
+                outputTransform = LinearTransform.randinit(nhidden, sizeout);
+            else
+                outputTransform = [];
+            end
+            % create peephole-LSTM
             unit = PHLSTM( ...
-                MultiLT.randinit(sizeout, sizein, sizeout, sizeout), ...
-                MultiLT.randinit(sizeout, sizein, sizeout), ...
-                MultiLT.randinit(sizeout, sizein, sizeout, sizeout), ...
-                MultiLT.randinit(sizeout, sizein, sizeout, sizeout));
+                MultiLT.randinit(nhidden, nhidden, nhidden, nhidden), ...
+                MultiLT.randinit(nhidden, nhidden, nhidden), ...
+                MultiLT.randinit(nhidden, nhidden, nhidden, nhidden), ...
+                MultiLT.randinit(nhidden, nhidden, nhidden, nhidden), ...
+                inputTransform, outputTransform);
         end
         
         function debug()
-            sizein  = 32;
-            sizeout = 16;
-            nframes = 3;
+            nhidden = 16;
+            sizein  = 8;
+            sizeout = 32;
+            nframes = 7;
+            % calculate data size
+            if isempty(sizein)
+                datasize = nhidden;
+            else
+                datasize = sizein;
+            end
             % create model and its reference
-            refer = PHLSTM.randinit(sizein, sizeout);
-            model = PHLSTM.randinit(sizein, sizeout);
-            % set as last-frame mode
-            refer.setupOutputMode('last');
-            model.setupOutputMode('last');
+            refer = PHLSTM.randinit(nhidden, sizein, sizeout);
+            model = PHLSTM.randinit(nhidden, sizein, sizeout);
+            % % set as last-frame mode
+            % refer.setupOutputMode('last');
+            % model.setupOutputMode('last');
             % create dataset
-            dataset = DataGenerator('normal', sizein).enableTmode(nframes);
+            dataset = DataGenerator('normal', datasize).enableTmode(nframes);
             % create objectives
             objective = Likelihood('mse');
             % initialize task
             task = SimulationTest(model, refer, dataset, objective);
+            % setup optimizer
+            opt = HyperParam.getOptimizer();
+            opt.gradmode('basic');
+            opt.stepmode('adapt', 'estimatedChange', 1e-2);
+            opt.enableRcdmode(3);
             % run simulation test
             task.run(300, 16, 64);
         end

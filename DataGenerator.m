@@ -10,14 +10,22 @@ classdef DataGenerator < handle
             else
                 datasize = [obj.unitsize, n];
             end
-            data = obj.datagen(datasize);
+            D = obj.datagen(datasize);
             % transform to fit covariance matrix
             if obj.covmat.status
-                data = obj.covmat.T * vec(data, obj.unitdim, 'both');
-                data = reshape(data, datasize);
+                D = obj.covmat.T * vec(D, obj.unitdim, 'both');
+                D = reshape(D, datasize);
             end
             % create data package
-            datapkg = DataPackage(data, obj.unitdim, obj.tmode.status);
+            if obj.errmode
+                datapkg = ErrorPackage(D, obj.unitdim, obj.tmode.status);
+            else
+                datapkg = DataPackage(D, obj.unitdim, obj.tmode.status);
+            end
+            % send package through access point
+            if nargout == 0
+                obj.data.send(datapkg);
+            end
         end
     end
     
@@ -64,6 +72,9 @@ classdef DataGenerator < handle
               case {'laplace'}
                 obj.datagen = @MathLib.randll;
                 
+              case {'zero'}
+                obj.datagen = @zeros;
+                
               otherwise
                     error('UMPrest:ArgumentError', ...
                         'Unrecognized distribution : %s', upper(type));
@@ -79,14 +90,19 @@ classdef DataGenerator < handle
             else
                 obj.disableCovmat();
             end
+            obj.errmode = conf.pop('errmode', false);
+            obj.data = SimpleAP(obj);
         end
     end
     
+    properties
+        errmode
+    end
     properties (Access = private)
         datagen
     end
     properties (SetAccess = protected)
-        unitsize
+        data, unitsize
     end
     properties (Dependent)
         unitdim

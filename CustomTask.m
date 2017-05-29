@@ -13,11 +13,22 @@ classdef CustomTask < Task
             for epoch = 1 : nepoch
                 for i = 1 : batchPerEpoch
                     obj.dataset.next(batchsize);
-                    obj.model.forward();
-                    if not(isempty(obj.sidepath))
-                        obj.sidepath.forward();
+                    if not(isempty(obj.prevnet))
+                        obj.prevnet.forward();
                     end
-                    obj.objective.delta();
+                    obj.model.forward();
+                    if not(isempty(obj.postnet))
+                        obj.postnet.forward();
+                    end
+                    for j = 1 : numel(obj.objective)
+                        obj.objective{j}.delta();
+                    end
+                    if not(isempty(obj.errgen))
+                        obj.errgen.next(batchsize);
+                    end
+                    if not(isempty(obj.postnet))
+                        obj.postnet.backward();
+                    end
                     obj.model.backward();
                     obj.model.update();
                 end
@@ -50,17 +61,23 @@ classdef CustomTask < Task
             else
                 obj.dataset.data.send(validset);
             end
-            obj.model.forward();
-            if not(isempty(obj.sidepath))
-                obj.sidepath.forward();
+            if not(isempty(obj.prevnet))
+                obj.prevnet.forward();
             end
-            value = obj.objective.evaluate() + sum(cellfun(@evaluate, obj.priors));
+            obj.model.forward();
+            if not(isempty(obj.postnet))
+                obj.postnet.forward();
+            end
+            value = sum(cellfun(@evaluate, obj.objective)) + sum(cellfun(@evaluate, obj.priors));
             if obj.verbose
-                fprintf('[%s] Objective Value after [%04d] iterations : %.2e\n', ...
+                fprintf('[%s] Objective Value after [%04d] iterations : %.2e ', ...
                     datestr(now), obj.iteration, value);
             end
             if obj.optimizer.rcdmode.status
                 obj.optimizer.record(value);
+                fprintf('[ESTCH : %.2e]\n', obj.optimizer.cache.stepmode.estch);
+            else
+                fprintf('\n');
             end
         end
     end
@@ -73,7 +90,11 @@ classdef CustomTask < Task
             obj.dir       = abspath(taskdir);
             obj.model     = model;
             obj.dataset   = dataset;
-            obj.objective = objective;
+            if iscell(objective)
+                obj.objective = objective;
+            else
+                obj.objective = {objective};
+            end
             obj.priors    = priors;
             obj.iteration = conf.pop('iteration', 0);
             obj.nosave    = conf.pop('nosave', false);
@@ -82,7 +103,9 @@ classdef CustomTask < Task
             obj.savedir     = fullfile(obj.dir, 'records');
             obj.namePattern = [obj.id, '-ITER%d-DUMP.mat'];
             % other parameters
-            obj.sidepath    = conf.pop('sidepath', []);
+            obj.prevnet     = conf.pop('prevnet', []);
+            obj.postnet     = conf.pop('postnet', []);
+            obj.errgen      = conf.pop('errgen', []);
             obj.latestSave  = [];
         end
     end
@@ -94,7 +117,8 @@ classdef CustomTask < Task
         latestSave
     end
     properties (SetAccess = protected)
-        id, iteration, dir, savedir, namePattern, priors, sidepath
+        id, iteration, dir, savedir, namePattern, priors, 
+        prevnet, postnet, errgen
     end
     properties (Constant)
         optimizer = HyperParam.getOptimizer()

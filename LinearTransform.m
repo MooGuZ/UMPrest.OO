@@ -71,14 +71,18 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
     
     methods (Static)
         function debug()
-            sizein  = 64;
+            sizein  = 16;
             sizeout = 16;
-            refer = LinearTransform(randn(sizeout, sizein), randn(sizeout, 1));
-            model = LinearTransform.randinit(sizein, sizeout);
+            refer  = LinearTransform(randn(sizeout, sizein), randn(sizeout, 1));
+            aprox = LinearTransform.randinit(sizein, sizeout);
             dataset = DataGenerator('normal', sizein);
             objective = Likelihood('mse');
-            task = SimulationTest(model, refer, dataset, objective);
-            task.run(300, 16, 64);
+            opt = HyperParam.getOptimizer();
+            opt.gradmode('basic');
+            opt.stepmode('adapt', 'estimatedChange', 1e-1);
+            opt.enableRcdmode(3);
+            task = SimulationTest(aprox, refer, dataset, objective);
+            task.run(3e2, 16, 64);
         end
     end
     

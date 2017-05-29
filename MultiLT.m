@@ -3,7 +3,9 @@ classdef MultiLT < MISOUnit & FeedforwardOperation & Evolvable
         function y = dataproc(obj, varargin)
             y = 0;
             for i = 1 : numel(varargin)
-                y = y + obj.W{i}.get() * varargin{i};
+                if not(isempty(varargin{i}))
+                    y = y + obj.W{i}.get() * varargin{i};
+                end
             end
             y = bsxfun(@plus, y, obj.B.get());
         end
@@ -11,7 +13,9 @@ classdef MultiLT < MISOUnit & FeedforwardOperation & Evolvable
         function varargout = deltaproc(obj, d)
             obj.B.addgrad(sum(d, 2));
             for i = 1 : numel(obj.W)
-                obj.W{i}.addgrad(d * obj.I{i}.datarcd.pop()');
+                if not(obj.I{i}.datarcd.isempty)
+                    obj.W{i}.addgrad(d * obj.I{i}.datarcd.pop()');
+                end
             end
             varargout = cellfun(@(w) w.get()' * d, obj.W, 'UniformOutput', false);
         end
@@ -49,8 +53,7 @@ classdef MultiLT < MISOUnit & FeedforwardOperation & Evolvable
     end
     
     properties (Constant)
-        taxis      = false;
-        expandable = false;
+        taxis = false;
     end
     properties
         W, B
@@ -63,8 +66,8 @@ classdef MultiLT < MISOUnit & FeedforwardOperation & Evolvable
             obj.W = cellfun(@HyperParam, varargin(1 : end-1), 'UniformOutput', false);
             obj.B = HyperParam(varargin{end});
             % initialize access-points
-            obj.I = arrayfun(@(n) UnitAP(obj, n, '-recdata'), ones(1, nargin - 1), ...
-                'UniformOutput', false);
+            obj.I = arrayfun(@(n) UnitAP(obj, n, '-recdata', '-absent'), ...
+                ones(1, nargin - 1), 'UniformOutput', false);
             obj.O = {UnitAP(obj, 1)};            
         end
     end
@@ -90,7 +93,10 @@ classdef MultiLT < MISOUnit & FeedforwardOperation & Evolvable
             dataset = cellfun(@(sz) DataGenerator('normal', sz), sizein, 'UniformOutput', false);
             objective = Likelihood('mse');
             task = SimulationTest(model, refer, dataset, objective);
-            task.run(1000, 16, 64);
+            opt = HyperParam.getOptimizer();
+            opt.gradmode('basic');
+            opt.stepmode('adapt', 'estimatedChange', 1e-2);
+            task.run(300, 16, 64);
         end
     end
 end

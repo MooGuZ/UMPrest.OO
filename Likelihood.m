@@ -87,6 +87,11 @@ classdef Likelihood < Objective
                     obj.evalFunction  = @MathLib.kldiv;
                     obj.deltaFunction = @MathLib.kldivGradient;
                     
+                case {'cross-entropy', 'cross'}
+                    obj.type          = 'Cross-Entropy';
+                    obj.evalFunction  = @MathLib.crossEntropy;
+                    obj.deltaFunction = @MathLib.crossEntropyGradient;
+                    
                 otherwise
                     error('UMPrest:ArgumentError', 'Unrecognized likelihood : %s', ...
                         upper(type));

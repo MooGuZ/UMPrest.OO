@@ -1,74 +1,56 @@
 classdef RecurrentState < Unit
     methods
         function forward(obj)
-            if obj.I{1}.isempty
-                package = obj.defaultPackage( ...
-                    obj.parent.pkginfo.class, ...
-                    obj.parent.pkginfo.batchsize);
-            else
-                package = obj.I{1}.pull();
-            end
-            obj.O{1}.send(package);
+            obj.O{1}.send(obj.I{1}.pull());
         end
         
         function backward(obj)
-            if obj.O{1}.isempty
-                package = obj.defaultPackage( ...
-                    obj.parent.pkginfo.class, ...
-                    obj.parent.pkginfo.batchsize);
-            else
-                package = obj.O{1}.pull();
-            end
-            obj.I{1}.send(package);
+            obj.I{1}.send(obj.O{1}.pull());
         end
-        
-        % function update(obj)
-        %     if not(obj.O{1}.isempty)
-        %         package = obj.O{1}.fetch(1);
-        %         if isa(package, 'ErrorPackage')
-        %             obj.S.addgrad(sum(package.data, obj.dstate + 1));
-        %             obj.S.update();
-        %             obj.O{1}.pull();
-        %         end
-        %     elseif not(obj.I{1}.isempty)
-        %         package = obj.I{1}.fetch(1);
-        %         if isa(package, 'ErrorPackage')
-        %             obj.S.addgrad(sum(package.data, obj.dstate + 1));
-        %             obj.S.update();
-        %             obj.I{1}.pull();
-        %         end
-        %     end
-        % end
         
         function clear(obj)
             obj.I{1}.reset();
             obj.O{1}.reset();
+            obj.SI.reset();
+            obj.SO.reset();
         end
     end
     
-    properties (Hidden)
+    properties (SetAccess = protected)
         SI, SO
     end
     methods
-        function stateAheadof(obj, runit)
-            obj.SO = runit;
-            runit.SI = obj;
+        function initForwardState(obj)
+            if obj.SI.isempty()
+                state = obj.defaultPackage( ...
+                    obj.parent.pkginfo.class, ...
+                    obj.parent.pkginfo.batchsize);
+            else
+                state = obj.SI.pull();
+            end
+            obj.I{1}.push(state);
         end
         
-        function stateAppendto(obj, runit)
-            obj.SI = runit;
-            runit.SO = obj;
+        function initBackwardState(obj)
+            if obj.SO.isempty()
+                state = obj.defaultPackage( ...
+                    obj.parent.pkginfo.class, ...
+                    obj.parent.pkginfo.batchsize);
+            else
+                state = obj.SO.pull();
+            end
+            obj.O{1}.push(state);
         end
         
         function stateForward(obj)
-            if not(obj.I{1}.isempty() || isempty(obj.SO))
-                obj.SO.I{1}.push(obj.I{1}.pull());
+            if not(obj.I{1}.isempty())
+                obj.SO.send(obj.I{1}.pull());
             end
         end
         
         function stateBackward(obj)
-            if not(obj.O{1}.isempty() || isempty(obj.SI))
-                obj.SI.O{1}.push(obj.O{1}.pull());
+            if not(obj.O{1}.isempty())
+                obj.SI.send(obj.O{1}.pull());
             end
         end
     end
@@ -102,6 +84,8 @@ classdef RecurrentState < Unit
             obj.I = {SimpleAP(obj).connect(apin)};
             obj.O = {SimpleAP(obj).connect(apout)};
             obj.S = HyperParam(zeros([statesize, 1]));
+            obj.SI = SimpleAP(parent);
+            obj.SO = SimpleAP(parent);
         end
     end
     

@@ -3,6 +3,10 @@ classdef UnitAP < AccessPoint
 % ======================= DATA PROCESSING =======================
     methods
         function data = unpack(obj, package)
+            if isempty(package)
+                data = [];
+                return
+            end
             if obj.no && not(isempty(obj.parent.pkginfo.class))
                 assert(strcmp(class(package), obj.parent.pkginfo.class));
                 assert(package.taxis == obj.parent.pkginfo.taxis);
@@ -25,6 +29,7 @@ classdef UnitAP < AccessPoint
                         obj.parent.pkginfo.dexpand = 0;
                     end
                 end
+                obj.parent.pkginfo.batchsize = package.batchsize;
             end
             % calculate desired shape of data
             [datashape, needReshape] = obj.sizeOut2In( ...
@@ -72,13 +77,13 @@ classdef UnitAP < AccessPoint
             [datashape, needReshape] = obj.sizeIn2Out(size(data), dim, taxis);
             switch obj.parent.pkginfo.class
               case {'DataPackage'}
+                if obj.recdata
+                    obj.datarcd.push(data);
+                end
                 if needReshape
                     data = reshape(data, datashape);
                 end
                 package = DataPackage(data, dim, taxis);
-                if obj.recdata
-                    obj.datarcd.push(data);
-                end
                 
               case {'ErrorPackage'}
                 if needReshape
@@ -111,7 +116,7 @@ classdef UnitAP < AccessPoint
             taxisFlag = true;
             % CASE: data with TAXIS and unit has not
             if taxis && not(obj.parent.taxis)
-                datasize = [datasize(1 : dsample), prod(datasize(dsample : end))];
+                datasize = [datasize(1 : dsample), prod(datasize(dsample + 1 : end))];
             % CASE: data without TAXIS and unit has
             elseif not(taxis) && obj.parent.taxis
                 datasize = [datasize(1 : dsample), 1, datasize(dsample + 1 : end)];
@@ -148,7 +153,9 @@ classdef UnitAP < AccessPoint
                 datasize = [datasize(1 : dsample), prod(datasize(dsample + 1 : end))];
             % CASE: unit doesn't deal with TAXIS, while data has
             elseif not(obj.parent.taxis) && taxis
-                datasize = [datasize(1 : dsample), 1, datasize(dsample + 1 : end)];
+                batchsize = obj.parent.pkginfo.batchsize;
+                nframes   = prod(datasize(dsample + 1 : end)) / batchsize;
+                datasize  = [datasize(1 : dsample), nframes, batchsize];
             else
                 flag = false;
             end
@@ -166,7 +173,8 @@ classdef UnitAP < AccessPoint
             pkginfo = struct( ...
                 'class',     [], ...
                 'taxis',     [], ...
-                'dexpand',   []);
+                'dexpand',   [], ...
+                'batchsize', []);
         end
     end
     
@@ -181,6 +189,7 @@ classdef UnitAP < AccessPoint
             obj.dsample    = dsample;
             obj.expandable = conf.pop('expandable', false);
             obj.recdata    = conf.pop('recdata', false);
+            obj.absent     = conf.pop('absent', false);
             
             if obj.recdata
                 obj.datarcdlen = conf.pop('dataRecordLength', 1);
