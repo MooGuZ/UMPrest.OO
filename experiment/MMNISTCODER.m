@@ -4,7 +4,7 @@
 % addpath('/home/hxz244'); pathLoader('umpoo');
 %% environment parameters
 istart  = 0;
-taskid  = 'MMNISTCODER';
+taskid  = 'UNCOND';
 taskdir = fileparts(mfilename('fullpath'));
 savedir = fullfile(taskdir, 'records');
 datadir = fullfile(taskdir, 'data');
@@ -35,15 +35,13 @@ mmnist.canvasSize = framesize;
 encoderInput = FrameSlicer(10, 'front', 0).appendto(mmnist.data).aheadof(encoder.DI{1});
 decoderRefer = FrameReorder('reverse').appendto(encoderInput);
 decoderReferFix = Reshaper().appendto(decoderRefer);
-decoderInput = FrameSlicer(9, 'front', 1).appendto(mmnist.data);
-decoderInputFixA = FrameReorder('reverse').appendto(decoderInput);
-decoderInputFixB = FrameInsert(1, 'front', 0).appendto(decoderInputFixA).aheadof(decoder.DI{1});
 predictRefer = FrameSlicer(10, 'back', 0).appendto(mmnist.data);
 predictReferFix = Reshaper().appendto(predictRefer);
-predictInput = FrameSlicer(9, 'back', 1).appendto(mmnist.data);
-predictInputFix = FrameInsert(1, 'front', 0).appendto(predictInput).aheadof(predict.DI{1});
-prevnet = Model(encoderInput, decoderRefer, decoderReferFix, decoderInput, decoderInputFixA, ...
-    decoderInputFixB, predictRefer, predictReferFix, predictInput, predictInputFix);
+prevnet = Model(encoderInput, decoderRefer, decoderReferFix, predictRefer, predictReferFix);
+%% create other data source
+zerogen = DataGenerator('zero', npixel, 'tmode', 10);
+zerogen.data.connect(decoder.DI{1});
+zerogen.data.connect(predict.DI{1});
 %% create postnet
 decoderAct = Activation('logistic'); decoderAct.appendto(decoder.DO{1});
 predictAct = Activation('logistic'); predictAct.appendto(predict.DO{1});
@@ -59,7 +57,7 @@ predictObj.ref.connect(predictReferFix.O{1});
 errgen = DataGenerator('zero', nhidunit, 'tmode', 10, '-errmode');
 errgen.data.connect(encoder.DO{1});
 %% create task
-task = CustomTask(taskid, taskdir, model, mmnist, {decoderObj, predictObj}, {}, ...
+task = CustomTask(taskid, taskdir, model, {mmnist, zerogen}, {decoderObj, predictObj}, {}, ...
     'prevnet', prevnet, 'postnet', postnet, 'errgen', errgen, ...
     'iteration', istart, '-nosave');
 %% setup optmizator

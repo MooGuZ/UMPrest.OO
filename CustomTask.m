@@ -1,18 +1,34 @@
 classdef CustomTask < Task
     methods
         function run(obj, nepoch, batchPerEpoch, batchsize, validsize)
-            % create validate set
-            if obj.dataset.islabelled
-                [validset.data, validset.label] = obj.dataset.next(validsize);
+            if iscell(obj.dataset)
+                validset = cell(1, numel(obj.dataset));
+                for i = 1 : numel(validset)
+                    if obj.dataset{i}.islabelled
+                        [validset{i}.data, validset{i}.label] = obj.dataset{i}.next(validsize);
+                    else
+                        validset{i} = obj.dataset{i}.next(validsize);
+                    end
+                end
             else
-                validset = obj.dataset.next(validsize);
+                if obj.dataset.islabelled
+                    [validset.data, validset.label] = obj.dataset.next(validsize);
+                else
+                    validset = obj.dataset.next(validsize);
+                end
             end
             % run model on all samples of validset and display objective value
             obj.validate(validset);
             % main loop
             for epoch = 1 : nepoch
                 for i = 1 : batchPerEpoch
-                    obj.dataset.next(batchsize);
+                    if iscell(obj.dataset)
+                        for j = 1 : numel(obj.dataset)
+                            obj.dataset{j}.next(batchsize);
+                        end
+                    else
+                        obj.dataset.next(batchsize);
+                    end
                     if not(isempty(obj.prevnet))
                         obj.prevnet.forward();
                     end
@@ -55,11 +71,22 @@ classdef CustomTask < Task
         end
         
         function value = validate(obj, validset)
-            if isstruct(validset)
-                obj.dataset.data.send(validset.data);
-                obj.dataset.label.send(validset.label);
+            if iscell(validset)
+                for i = 1 : numel(validset)
+                    if isstruct(validset{i})
+                        obj.dataset{i}.data.send(validset{i}.data);
+                        obj.dataset{i}.label.send(validset{i}.label);
+                    else
+                        obj.dataset{i}.data.send(validset{i});
+                    end
+                end
             else
-                obj.dataset.data.send(validset);
+                if isstruct(validset)
+                    obj.dataset.data.send(validset.data);
+                    obj.dataset.label.send(validset.label);
+                else
+                    obj.dataset.data.send(validset);
+                end
             end
             if not(isempty(obj.prevnet))
                 obj.prevnet.forward();

@@ -104,6 +104,9 @@ classdef DataGenerator < handle
     properties (SetAccess = protected)
         data, unitsize
     end
+    properties (Constant)
+        islabelled = false
+    end
     properties (Dependent)
         unitdim
     end
