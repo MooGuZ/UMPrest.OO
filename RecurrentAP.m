@@ -126,9 +126,7 @@ classdef RecurrentAP < AccessPoint
                 % do nothing, should be empty
             end
         end
-    end
-    
-    methods
+
         function obj = cooperate(obj, no)
             obj.no = no;
         end
@@ -136,6 +134,14 @@ classdef RecurrentAP < AccessPoint
         function obj = reset(obj)
             obj.cache.reset();
             obj.hostio.reset();
+        end
+        
+        function obj = recrtmode(obj, n)
+            if n == 1
+                obj.hostio.cache.simple();
+            else
+                obj.hostio.cache.init(n);
+            end
         end
     end
     

@@ -264,6 +264,19 @@ classdef RecurrentUnit < Unit & Evolvable
     end
     
     methods
+        function obj = recrtmode(obj, n)
+            for i = 1 : numel(obj.DI)
+                obj.DI{i}.recrtmode(n);
+            end
+            for i = 1 : numel(obj.DO)
+                obj.DO{i}.recrtmode(n);
+            end
+            obj.kernel.recrtmode(n);
+            obj.memoryLength = n;
+        end
+    end
+    
+    methods
         function obj = RecurrentUnit(kernel, varargin)
             obj.kernel = kernel.recrtmode(obj.memoryLength).seal();
             % initialize access-point list for input/output
@@ -309,7 +322,7 @@ classdef RecurrentUnit < Unit & Evolvable
     properties (Hidden)
         pkginfo
     end
-    properties (Constant)
+    properties (SetAccess = private)
         memoryLength = 40
     end
     methods
