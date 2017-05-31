@@ -362,11 +362,11 @@ classdef RecurrentUnit < Unit & Evolvable
     end
     
     methods (Static)
-        function debugtask()
+        function debug()
             datasize  = 16;
             statesize = 16;
-            nframe  = 1;
-            nvalid  = 100;
+            nframe    = 1;
+            nvalid    = 100;
             batchsize = 8;
             % create model and its reference
             refer = LSTM.randinit(datasize, statesize);
@@ -379,71 +379,6 @@ classdef RecurrentUnit < Unit & Evolvable
             task = SimulationTest(model, refer, dataset, objective);
             % run task
             task.run(300, batchsize, nvalid);
-        end
-        
-        function [refer, aprox] = debug()
-            datasize  = 16;
-            statesize = 16;
-            nframe  = 1;
-            nvalid  = 100;
-            batchsize = 8;
-            
-            % create referent model
-            refer = RecCO.randinit(datasize, statesize);
-            % refer = LSTM.randinit(datasize, statesize);
-            % refer = SimpleRNN.randinit(datasize, statesize, 'sigmoid');
-            % refer.enableSelfeed(1);
-            
-            % create estimate model
-            aprox = RecCO.randinit(datasize, statesize);
-            % aprox = LSTM.randinit(datasize, statesize);
-            % aprox = SimpleRNN.randinit(datasize, statesize, 'sigmoid');
-            % aprox.enableSelfeed(1);
-            
-            % create validate data
-            validsetInA = DataPackage(rand(datasize, nframe, nvalid), 1, true);
-            validsetOut = refer.forward(validsetInA);
-
-            % define likelihood as optimization objective
-            likelihood = Likelihood('mse');
-            
-            % display current status of estimation
-            objval = likelihood.evaluate(aprox.forward(validsetInA).data, validsetOut.data);
-            disp('[Initial Error Distribution]');
-            distinfo(abs(refer.dumpraw() - aprox.dumpraw()), 'WEIGHTS', true);
-            disp(repmat('=', 1, 100));
-            fprintf('Initial objective value : %.2e\n', objval);
-            
-            % optimize estimation by SGD
-            for i = 1 : UMPrest.parameter.get('iteration')
-                apkg = DataPackage(randn(datasize, nframe, batchsize), 1, true);
-                opkg = refer.forward(apkg);
-                ppkg = aprox.forward(apkg);
-%                 bpkg = DataPackage(randn(statesize, batchsize), 1, false);
-%                 cpkg = DataPackage(randn(statesize, batchsize), 1, false);
-%                 opkg = refer.forward(apkg, bpkg, cpkg);
-%                 ppkg = aprox.forward(apkg, bpkg, cpkg);
-                aprox.backward(likelihood.delta(ppkg, opkg));
-                aprox.update();
-                objval = likelihood.evaluate(aprox.forward(validsetInA).data, validsetOut.data);
-%                 objval = likelihood.evaluate( ...
-%                     aprox.forward(validsetInA, validsetInB, validsetInC).data, ...
-%                     validsetOut.data);
-                fprintf('Objective Value after [%04d] turns: %.2e\n', i, objval);
-%                 pause();
-            end
-%             objval = likelihood.evaluate( ...
-%                 aprox.model.forward(validsetInA, validsetInB).data, ...
-%                 validsetOut.data);
-%             fprintf('Objective Value after [%04d] turns: %.2e\n', i, objval);
-%             % show estimation error
-%             distinfo(abs(refer.blin.weightA - aprox.blin.weightA), 'WEIGHT IN A', false);
-%             distinfo(abs(refer.blin.weightB - aprox.blin.weightB), 'WEIGHT IN B', false);
-%             distinfo(abs(refer.blin.bias - aprox.blin.bias),  'BIAS IN', false);
-%             distinfo(abs(refer.lin.weight - aprox.lin.weight), 'WEIGHT HID', false);
-%             distinfo(abs(refer.lin.bias - aprox.lin.bias), 'BIAS HID', false);
-            % FOR LSTM
-            distinfo(abs(refer.dumpraw() - aprox.dumpraw()), 'WEIGHTS', true);
         end
     end
 end
