@@ -4,7 +4,7 @@
 % addpath('/home/hxz244'); pathLoader('umpoo');
 %% environment parameters
 istart  = 0;
-taskid  = 'UNCOND';
+taskid  = 'UNCOND2048';
 taskdir = fileparts(mfilename('fullpath'));
 savedir = fullfile(taskdir, 'records');
 datadir = fullfile(taskdir, 'data');
