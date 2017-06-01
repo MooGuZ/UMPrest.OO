@@ -1,4 +1,4 @@
-% MODEL : LSTM ENCODER-DECODER MODEL on NPLAB3D
+% MODEL : LSTM ENCODER-DECODER MODEL on Moving Dots
 % CODE  : https://github.com/MooGuZ/UMPrest.OO/commit/55a25c44f3c5bdd19ee94c63393e243845b8480d
 %% load package to MATLAB search path
 % addpath('/home/hxz244'); pathLoader('umpoo');

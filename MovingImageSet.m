@@ -26,7 +26,7 @@ classdef MovingImageSet < handle
             % pick a random moving speed
             spd = 2 * arrayfun(@randi, obj.maxSpeed) .* (randi(2, 1, 2) - 1.5);
             % calculate leagal area of img center
-            dist = floor(imsize / 2);
+            dist = ceil(imsize / 2);
             bottom = dist(1) + 1;
             top    = obj.canvasSize(1) - dist(1);
             left   = dist(2) + 1;
