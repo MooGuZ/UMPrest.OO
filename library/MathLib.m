@@ -350,16 +350,15 @@ classdef MathLib < handle
         end
         
         function c = pack2cell(x, dim)
-            orgsz = size(x);
+            xsize = size(x);
             if not(exist('dim', 'var'))
-                dim = numel(orgsz);
+                dim = numel(xsize);
             end
             x = vec(x, dim - 1, 'both');
             c = cell(1, size(x, 2));
             if dim > 2
-                unitsize = orgsz(1 : dim - 1);
                 for i = 1 : numel(c)
-                    c{i} = reshape(x(:, i), unitsize);
+                    c{i} = reshape(x(:, i), xsize(1 : dim-1));
                 end
             else
                 for i = 1 : numel(c)
@@ -571,14 +570,6 @@ classdef MathLib < handle
                 end
                 D = C(ind);
             end
-        end
-        
-        function C = matconcate(A, B)
-            dim = min(ndims(A), ndims(B));
-            unitsize = size(A);
-            unitsize = unitsize(1 : dim - 1);
-            C = [vec(A, dim - 1, 'both'), vec(B, dim - 1, 'both')];
-            C = reshape(C, [unitsize, size(C, 2)]);
         end
     end
 end

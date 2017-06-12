@@ -1,6 +1,29 @@
 classdef PHLSTM < RecurrentUnit
 % LSTM with peephole connections
     methods
+        function value = smpsize(obj, io)
+            switch lower(io)
+                case {'in', 'input'}
+                    if isempty(obj.inputTransform)
+                        value = obj.nhidunit;
+                    else
+                        value = obj.inputTransform.smpsize('in');
+                    end
+                    
+                case {'out', 'output'}
+                    if isempty(obj.outputTransform)
+                        value = obj.nhidunit;
+                    else
+                        value = obj.outputTransform.smpsize('out');
+                    end
+                    
+                otherwise
+                    error('UNSUPPORTED');
+            end
+        end
+    end
+    
+    methods
         function obj = PHLSTM(stateControl, stateUpdate, updateControl, outputControl, ...
                 inputTransform, outputTransform)
             % create data-points for variables
@@ -35,6 +58,9 @@ classdef PHLSTM < RecurrentUnit
             obj@RecurrentUnit(model, ...
                 {stateNew.O{1}, C.I{1}, stateControl.smpsize('out')}, ...
                 {output.dataout, H.I{1}, outputControl.smpsize('out')});
+            % get number of hidden units
+            obj.nhidunit = stateControl.smpsize('in');
+            obj.nhidunit = obj.nhidunit{1};
             % highlight evolvable units
             obj.stateControl    = stateControl;
             obj.stateUpdate     = stateUpdate;
@@ -42,11 +68,23 @@ classdef PHLSTM < RecurrentUnit
             obj.outputControl   = outputControl;
             obj.inputTransform  = inputTransform;
             obj.outputTransform = outputTransform;
+            % records other units
+            obj.stateKeep        = stateKeep.mix;
+            obj.stateControlAct  = stateKeep.act;
+            obj.updateAct        = updateAct;
+            obj.stateAddon       = stateAddon.mix;
+            obj.updateControlAct = stateAddon.act;
+            obj.stateNew         = stateNew;
+            obj.outputAct        = outputAct;
+            obj.output           = output.mix;
+            obj.outputControlAct = output.act;
         end
     end
     
     properties (SetAccess = protected)
         stateControl, stateUpdate, updateControl, outputControl, inputTransform, outputTransform
+        stateKeep, stateControlAct, updateAct, stateAddon, updateControlAct, stateNew, outputAct
+        output, outputControlAct, nhidunit
     end
     
     methods

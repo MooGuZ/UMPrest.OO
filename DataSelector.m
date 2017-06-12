@@ -8,10 +8,14 @@ classdef DataSelector < Model
             obj.control = act.I{1};
             obj.datain  = mix.I{1};
             obj.dataout = mix.O{1};
+            % record units
+            obj.act = act;
+            obj.mix = mix;
         end
     end
     
     properties (SetAccess = protected)
         control, datain, dataout
+        act, mix
     end
 end

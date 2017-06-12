@@ -5,7 +5,9 @@ classdef Listener < handle
             for i = 1 : numel(frames)
                 frames{i} = obj.rec.pull();
             end
-            if isscalar(frames)
+            if isempty(frames)
+                package = [];
+            elseif isscalar(frames)
                 package = frames{1};
                 package = DataPackage(splitdim(package.data, package.dsample + 1, 1), ...
                     package.dsample, true);
@@ -20,6 +22,10 @@ classdef Listener < handle
         
         function obj = detach(obj)
             obj.rec.isolate();
+        end
+        
+        function obj = clear(obj)
+            obj.rec.cache.reset();
         end
         
         function obj = recrtmode(obj, n)

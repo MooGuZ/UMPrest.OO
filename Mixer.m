@@ -49,9 +49,9 @@ classdef Mixer < PackageProcessor
             taxis = opackage.taxis;
             odata = vec(opackage.data, dsample + double(taxis), 'front');
             if taxis
-                unitsize = [opackage.smpsize, opackage.nframe];
+                seqsize = [opackage.smpsize, opackage.nframe];
             else
-                unitsize = opackage.smpsize;
+                seqsize = opackage.smpsize;
             end
             switch obj.mode
               case {'append'}
@@ -64,8 +64,8 @@ classdef Mixer < PackageProcessor
                 dataA = odata(:, order{1});
                 dataB = odata(:, order{2});
             end
-            dataA = reshape(dataA, [unitsize, size(dataA, 2)]);
-            dataB = reshape(dataB, [unitsize, size(dataB, 2)]);
+            dataA = reshape(dataA, [seqsize, size(dataA, 2)]);
+            dataB = reshape(dataB, [seqsize, size(dataB, 2)]);
             packageA = DataPackage(dataA, dsample, taxis);
             packageB = DataPackage(dataB, dsample, taxis);
             if nargout == 0

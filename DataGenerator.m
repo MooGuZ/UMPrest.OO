@@ -6,21 +6,21 @@ classdef DataGenerator < handle
             end
             % generate data
             if obj.tmode.status
-                datasize = [obj.unitsize, obj.tmode.nframe, n];
+                datasize = [obj.smpsize, obj.tmode.nframe, n];
             else
-                datasize = [obj.unitsize, n];
+                datasize = [obj.smpsize, n];
             end
             D = obj.datagen(datasize);
             % transform to fit covariance matrix
             if obj.covmat.status
-                D = obj.covmat.T * vec(D, obj.unitdim, 'both');
+                D = obj.covmat.T * vec(D, obj.dsample, 'both');
                 D = reshape(D, datasize);
             end
             % create data package
             if obj.errmode
-                datapkg = ErrorPackage(D, obj.unitdim, obj.tmode.status);
+                datapkg = ErrorPackage(D, obj.dsample, obj.tmode.status);
             else
-                datapkg = DataPackage(D, obj.unitdim, obj.tmode.status);
+                datapkg = DataPackage(D, obj.dsample, obj.tmode.status);
             end
             % send package through access point
             if nargout == 0
@@ -41,7 +41,7 @@ classdef DataGenerator < handle
         end
         
         function obj = enableCovmat(obj, C)
-            assert(all(size(C) == prod(obj.unitsize) * [1, 1]), ...
+            assert(all(size(C) == prod(obj.smpsize) * [1, 1]), ...
                 'COVARIANCE MATRIX MISMATCH');
             assert(all(vec(C == C')), 'ILLEGAL COVARIANCE MATRIX');
             [u, v] = eig(C);
@@ -57,7 +57,7 @@ classdef DataGenerator < handle
     end
     
     methods
-        function obj = DataGenerator(type, unitsize, varargin)
+        function obj = DataGenerator(type, smpsize, varargin)
             conf = Config(varargin);
             switch lower(type)
               case {'uniform'}
@@ -79,7 +79,7 @@ classdef DataGenerator < handle
                     error('UMPrest:ArgumentError', ...
                         'Unrecognized distribution : %s', upper(type));
             end
-            obj.unitsize = unitsize;
+            obj.smpsize = smpsize;
             if conf.exist('tmode')
                 obj.enableTmode(conf.pop('tmode'));
             else
@@ -102,22 +102,22 @@ classdef DataGenerator < handle
         datagen
     end
     properties (SetAccess = protected)
-        data, unitsize
+        data, smpsize
     end
     properties (Constant)
         islabelled = false
     end
     properties (Dependent)
-        unitdim
+        dsample
     end
     methods
-        function set.unitsize(obj, value)
+        function set.smpsize(obj, value)
             assert(all(MathLib.isinteger(value)));
-            obj.unitsize = value(:)';
+            obj.smpsize = value(:)';
         end
         
-        function value = get.unitdim(obj)
-            value = numel(obj.unitsize);
+        function value = get.dsample(obj)
+            value = numel(obj.smpsize);
         end
     end
 end
