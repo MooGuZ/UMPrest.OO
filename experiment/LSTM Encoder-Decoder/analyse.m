@@ -1,5 +1,6 @@
 %% load trained-model
 load records/UNCOND2048-ITER100000-DUMP.mat
+mcode = 'UNCOND';
 %% setup experiments
 nframes  = 20;
 ncdfrms  = 10;
@@ -8,6 +9,17 @@ encoder = Evolvable.loaddump(encoderdump);
 decoder = Evolvable.loaddump(decoderdump);
 predict = Evolvable.loaddump(predictdump);
 encoder.stateAheadof(decoder).stateAheadof(predict);
+%% build 2-layers model
+encoder1L = Evolvable.loaddump(encoder1ldump);                                        
+encoder2L = Evolvable.loaddump(encoder2ldump);                                        
+decoder1L = Evolvable.loaddump(decoder1ldump);                                        
+decoder2L = Evolvable.loaddump(decoder2ldump);                                        
+predict1L = Evolvable.loaddump(predict1ldump);                                        
+predict2L = Evolvable.loaddump(predict2ldump);
+encoder1L.DO{1}.connect(encoder2L.DI{1});                                                 
+encoder2L.stateAheadof(decoder1L).stateAheadof(predict1L);                                
+decoder1L.DO{1}.connect(decoder2L.DI{1});                                                 
+predict1L.DO{1}.connect(predict2L.DI{1});
 %% load Moving MNIST dataset
 load data/mmnist.mat
 dataset = mmnist;
@@ -56,7 +68,7 @@ decoderListeners = { ...
     'NewCellState',    Listener(decoder.stateNew.O{1}); ...
     'NewHiddenState',  Listener(decoder.output.O{1});};    
 %% sample counter
-t = 0;
+t = 66;
 %% Generate Sample
 sample = dataset.next();
 t = t + 1;
@@ -102,9 +114,24 @@ decoder.DI{1}.push(decoderInput);
 predict.DI{1}.push(predictInput);
 decoderOutput = reverse.forward(logact.forward(decoder.forward()));
 predictOutput = logact.forward(predict.forward());
+%% Unconditional Composite 2-Layer Model
+condString   = 'Unconditional';
+encoderInput = fslicer.forward(sample);
+predictRefer = bslicer.forward(sample);
+decoderInput = DataPackage(zeros(decoder1L.smpsize('in'), nframes - ncdfrms), 1, true);
+predictInput = DataPackage(zeros(predict1L.smpsize('in'), nframes - ncdfrms), 1, true);
+encoder1L.DI{1}.push(encoderInput);
+encoder1L.forward();
+encoder2L.forward();
+decoder1L.DI{1}.push(decoderInput);
+predict1L.DI{1}.push(predictInput);
+decoder1L.forward();
+decoderOutput = reverse.forward(logact.forward(decoder2L.forward()));
+predict1L.forward();
+predictOutput = logact.forward(predict2L.forward());
 %% define save file name pattern
 smpnmpt  = @(type, index) sprintf('fig/Sample-%02d-%s.gif', index, type);
-basenmpt = @(type, cond)  sprintf('fig/Base-%s-%s.png', cond, type);
+basenmpt = @(type, md, cond)  sprintf('fig/Base-%s-%s-%s.png', cond, md, type);
 %% save animations
 anim2gif(encoderInput.vectorize().data, smpnmpt('input', t), 'framerate', 12);
 anim2gif(decoderOutput.data, smpnmpt('decoded', t), 'framerate', 12);
@@ -114,13 +141,13 @@ anim2gif(predictRefer.vectorize().data,  smpnmpt('future', t), 'framerate', 12);
 decoderBase = decoder.outputTransform.weight;
 predictBase = predict.outputTransform.weight;
 [~, index]  = sort(sqrt(sum(decoderBase.^2)), 'descend');
-decoderPick = reshape(decoderBase(:, index(1 : 200)), 64, 64, 200);
+decoderPick = reshape(decoderBase(:, index(1 : 200)), [frmsize, 200]);
 [~, index]  = sort(sqrt(sum(predictBase.^2)), 'descend');
-predictPick = reshape(predictBase(:, index(1 : 200)), 64, 64, 200);
+predictPick = reshape(predictBase(:, index(1 : 200)), [frmsize, 200]);
 imwrite((MathLib.bound(imstackdraw(decoderPick, 'arrange', [10, 20]), ...
-    [-1, 1]) + 1) / 2, basenmpt('Decoder-OutputTransform', condString), 'png');
+    [-1, 1]) + 1) / 2, basenmpt('Decoder-OutputTransform', mcode, condString), 'png');
 imwrite((MathLib.bound(imstackdraw(predictPick, 'arrange', [10, 20]), ...
-    [-1, 1]) + 1) / 2, basenmpt('Predict-OutputTransform', condString), 'png');
+    [-1, 1]) + 1) / 2, basenmpt('Predict-OutputTransform', mcode, condString), 'png');
 %% collect dynamic data
 predictDynamic = cell(size(predictListeners, 1), 2);
 for j = 1 : size(predictDynamic, 1)
@@ -159,11 +186,11 @@ for j = 1 : size(decoderListeners, 1)
     decoderListeners{j, 2}.clear();
 end
 %% setup hidden state analysis
-data  = predictDynamic{7, 2}.data;
-unit  = predict.outputTransform;
+data  = decoderDynamic{7, 2}.data;
+unit  = decoder.outputTransform;
 nstep = 10;
-%% analyse specific frame structure
 nfrms = size(data, 2);
+%% analyse specific frame structure
 % initialization
 order  = cell(1, nfrms);
 evolve = cell(1, nfrms);
@@ -182,6 +209,46 @@ for i = 1 : size(data, 2)
         simdata(order{i}(index{i}(j) + 1 : end)) = 0;
         frame = logact.forward(unit.forward(DataPackage(simdata, 1, true)));
         evolve{i}(:, j) = frame.data;
+    end
+end
+%% recompose output by essential components
+active = false(size(data));
+for i = 1 : nfrms
+    active(order{i}(1 : index{i}(5)), i) = true;
+end
+esspack = DataPackage(data .* double(active), 1, true);
+recover = logact.forward(predict.outputTransform.forward(esspack));
+%% show transition between frames in essential element space
+nintp = 3;
+intdata = zeros(unit.smpsize('in'), nfrms + nintp * (nfrms - 1));
+intdata(:, 1) = data(:, 1);
+d = diff(data, 1, 2) / (nintp + 1);
+for i = 1 : nfrms - 1
+    for j = (i - 1) * (nintp + 1) + 2 : i * (nintp + 1) + 1
+        intdata(:, j) = intdata(:, j - 1) + d(:, i);
+    end
+end
+animintp = logact.forward(unit.forward(DataPackage(intdata, 1, true)));
+anim2gif(animintp.data, smpnmpt('decoder-interpolation', t), 'framerate', 12);
+%% draw histograms for inner states
+uname = 'Predict';
+dynm  = predictDynamic;
+%% settings for decoder
+uname = 'Decoder';
+dynm  = decoderDynamic;
+%% do drawing
+for i = 1 : size(dynm, 1)
+    name = dynm{i, 1};
+    data = dynm{i, 2};
+    % draw first frame
+    f = figure();
+    hist(data.data(:, 1), 100);
+    axrange = axis();
+    print(f, '-dpng', sprintf('fig/Sample-%02d-%s-%s-Histogram-F01', t, uname, name));
+    for j = 2 : data.nsample
+        hist(data.data(:, j), 100);
+        axis(axrange);
+        print(f, '-dpng', sprintf('fig/Sample-%02d-%s-%s-Histogram-F%02d', t, uname, name, j));
     end
 end
 % END
