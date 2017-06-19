@@ -48,23 +48,4 @@ classdef Evolvable < handle
             end
         end
     end
-    
-    methods (Static)
-        function unit = loaddump(unitdump)
-            switch unitdump{1}
-              case {'Model', 'RecurrentUnit'}
-                unit = unitdump{2};
-                assert(isa(unit, unitdump{1}), 'BUG HERE');
-                
-              otherwise
-                for i = 2 : numel(unitdump)
-                    element = unitdump{i};
-                    if iscell(element)
-                        unitdump{i} = Evolvable.loaddump(element);
-                    end
-                end
-                unit = feval(unitdump{:});
-            end
-        end
-    end
 end
