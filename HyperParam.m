@@ -40,6 +40,10 @@ classdef HyperParam < Tensor
             mat = obj.data;
             obj.data = bsxfun(@rdivide, mat, sqrt(sum(mat.^2, dim)));
         end
+        
+        function obj = cleanup(obj)
+            obj.gradient = 0;
+        end
     end
     
     methods
