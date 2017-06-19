@@ -1,89 +1,156 @@
 classdef SimpleAnimationGenerator < handle
     methods
-        function varargout = next(obj, n)
+        function varargout = next(self, n)
             if not(exist('n', 'var'))
                 n = 1;
             end
             % initialize cell array for animations
             anim = cell(1, n);
-            if obj.predmode.status
-                animTrans = cell(1, n);
-            end
+            % if self.predmode.status
+            %     animTrans = cell(1, n);
+            % end
             for i = 1 : n
-                object = obj.randObject();
-                motion = obj.randMotion();
-                anim{i} = obj.generate(object, motion);
-                if obj.predmode.status
-                    animTrans{i} = obj.transfilter(object, motion);
+                object  = self.getObject();
+                motion  = self.getMotion();
+                anim{i} = self.generate(object, motion);
+                % if self.predmode.status
+                %     animTrans{i} = self.transfilter(object, motion);
+                % end
+                for j = 2 : self.objPerSample
+                    object  = self.getObject();
+                    motion  = self.getMotion();
+                    anim{1} = self.combine(anim{1}, self.generate(object, motion));
                 end
             end
-            % split frames in prediction mode
-            if obj.predmode.status
-                animPred = cell(1, numel(anim));
-                for i = 1 : numel(anim)
-                    tdim = obj.dsample + 1;
-                    animPred{i} = sltondim(anim{i}, tdim, ...
-                        obj.nframes + (1 : obj.predmode.nframes));
-                    anim{i} = sltondim(anim{i}, tdim, 1 : obj.nframes);
-                end
-            end
-            % packup animation into data package
-            if obj.predmode.status
-                varargout = { ...
-                    obj.data.packup(anim), ...
-                    obj.label.packup(animPred), ...
-                    obj.transform.packup(animTrans), ...
-                    object, motion};
-            else
-                varargout = {obj.data.packup(anim), ...
-                    object, motion};
-            end
+            % % split frames in prediction mode
+            % if self.predmode.status
+            %     animPred = cell(1, numel(anim));
+            %     for i = 1 : numel(anim)
+            %         tdim = self.dsample + 1;
+            %         animPred{i} = sltondim(anim{i}, tdim, ...
+            %             self.nframes + (1 : self.predmode.nframes));
+            %         anim{i} = sltondim(anim{i}, tdim, 1 : self.nframes);
+            %     end
+            % end
+            % % packup animation into data package
+            % if self.predmode.status
+            %     varargout = { ...
+            %         self.data.packup(anim), ...
+            %         self.label.packup(animPred), ...
+            %         self.transform.packup(animTrans), ...
+            %         object, motion};
+            % else
+            varargout = {self.data.packup(anim), object, motion};
+            % end
             % send data packages if necessary
             if nargout == 0
-                obj.data.send(varargout{1});
-                if obj.predmode.status
-                    obj.label.send(varargout{2});
-                    obj.transform.send(varargout{3});
-                end
+                self.data.send(varargout{1});
+                % if self.predmode.status
+                %     self.label.send(varargout{2});
+                %     self.transform.send(varargout{3});
+                % end
             end
         end
     end
     
-    methods
+    methods (Access = private)
         function value = randval(~, minValue, maxValue)
             value = rand() * (maxValue - minValue) + minValue;
         end
         
-        function object = randObject(obj)
-            % TODO: currently don't generate RECTANGLE and POLYGON
-            % object.shape = obj.shapeSet{randi(numel(obj.shapeSet))};
-            object.shape = obj.shapeSet{randi(4)};
-            object.size  = ceil(min(obj.frameSize) / obj.randval(3, 7));
-            object.position = [obj.randval(-0.3, 0.3), obj.randval(-0.3, 0.3)];
-            object.orient = obj.randval(0, 2 * pi);
+        function anim = combine(~, anim, other)
+            anim = max(anim, other);
+        end
+    end
+    
+    methods
+        function self = objectMode(self, type, varargin)
+            switch lower(type)
+              case {'static', 'constant'}
+                self.objmode.type  = 'static';
+                self.objmode.cache = varargin{1};
+                
+              case {'random', 'rand'}
+                self.objmode.type  = 'random';
+                self.objmode.cache = [];
+                
+              otherwise
+                error('ILLEGAL ASSIGNMENT');
+            end
         end
         
-        function motion = randMotion(obj)
+        function self = motionMode(self, type, varargin)
+            switch lower(type)
+              case {'static', 'constant'}
+                self.mtmode.type  = 'static';
+                self.mtmode.cache = varargin{1};
+                
+              case {'rand', 'random'}
+                self.mtmode.type  = 'random';
+                self.mtmode.cache = [];
+                
+              otherwise
+                error('ILLEGAL ASSIGNMENT');
+            end
+        end
+    end
+        
+    methods
+        function object = getObject(self)
+            switch self.objmode.type
+              case {'random'}
+                object = self.randObject();
+                
+              case {'static'}
+                object = self.objmode.cache;
+            end
+        end
+        
+        function motion = getMotion(self)
+            switch self.mtmode.type
+              case {'random'}
+                motion = self.randMotion();
+            
+              case {'static'}
+                motion = self.mtmode.cache;
+            end
+        end   
+        
+        function object = randObject(self)
+            % TODO: currently don't generate RECTANGLE and POLYGON
+            object.shape = self.shapeSet{randi(numel(self.shapeSet))};
+            object.size  = ceil(min(self.frameSize) / self.randval(3, 7));
+            object.position = [self.randval(-0.3, 0.3), self.randval(-0.3, 0.3)];
+            object.orient = self.randval(0, 2 * pi);
+            if strcmpi(object.shape, 'polygon')
+                object.nedges = randi([3, 8]);
+                value = rand(1, object.nedges) + 2;
+                object.edgeOrient   = 2 * pi * cumsum(value / sum(value));
+                object.edgeDistance = (rand(1, object.nedges) + 3) / 3.5;
+            end
+        end
+        
+        function motion = randMotion(self)
             motion = struct();
-            if rand() < obj.onoff.translation
+            if rand() < self.onoff.translation
                 motion.translation = struct( ...
                     'status', true, ...
-                    'direction', obj.randval(0, 2 * pi), ...
-                    'speed', obj.randval(0.01, 0.07));
+                    'direction', self.randval(0, 2 * pi), ...
+                    'speed', self.randval(0.01, 0.07));
             else
                 motion.translation = struct('status', false);
             end
-            if rand() < obj.onoff.scaling
+            if rand() < self.onoff.scaling
                 motion.scaling = struct( ...
                     'status', true, ...
-                    'speed', obj.randval(0.8, 1.2));
+                    'speed', self.randval(0.1, 0.9));
             else
                 motion.scaling = struct('status', false);
             end
-            if rand() < obj.onoff.rotation
+            if rand() < self.onoff.rotation
                 motion.rotation = struct( ...
                     'status', true, ...
-                    'speed', obj.randval(pi / 32, pi / 4));
+                    'speed', self.randval(pi / 32, pi / 4));
             else
                 motion.rotation = struct('status', false);
             end  
@@ -91,13 +158,13 @@ classdef SimpleAnimationGenerator < handle
     end
     
     methods
-        function anim = generate(obj, object, motion)
+        function anim = generate(self, object, motion)
             % initialize coordinates
             [X,Y]  = meshgrid( ...
-                linspace(-0.5, 0.5, obj.frameSize(2)), ...
-                linspace(0.5, -0.5, obj.frameSize(1)));
-            xscale = (obj.frameSize(2) - 1) / object.size;
-            yscale = (obj.frameSize(1) - 1) / object.size;
+                linspace(-0.5, 0.5, self.frameSize(2)), ...
+                linspace(0.5, -0.5, self.frameSize(1)));
+            xscale = (self.frameSize(2) - 1) / object.size;
+            yscale = (self.frameSize(1) - 1) / object.size;
             Z      = complex(xscale * X, yscale * Y);
             % set start position for the object
             if ~isnan(object.position)
@@ -116,51 +183,49 @@ classdef SimpleAnimationGenerator < handle
             Z  = Z * exp(-1j*object.orient);
             
             % calculation number of frames
-            nfrms = obj.nframes;
-            if obj.predmode.status
-                nfrms = nfrms + obj.predmode.nframes;
-            end
+            nfrms = self.nframes;
+            % if self.predmode.status
+            %     nfrms = nfrms + self.predmode.nframes;
+            % end
             % initialize animation data
-            anim = zeros([obj.frameSize, nfrms]);
+            anim = zeros([self.frameSize, nfrms]);
             % calculate step size for each transformation
             if motion.translation.status
-                % mvstep = max(real(Z(:) * conj(mV))) / (obj.nframes - 1);
+                % mvstep = max(real(Z(:) * conj(mV))) / (self.nframes - 1);
                 mvstep = motion.translation.speed;
             end
             % TODO: redefine the scale of scaling and rotation
-            % rtstep = 2 * pi / obj.nframes;
+            % rtstep = 2 * pi / self.nframes;
             if motion.rotation.status
                 rtstep = motion.rotation.speed;
             end
-            % scstep = (max(abs(Z(:))))^(1/(obj.nframes-1));
+            % scstep = (max(abs(Z(:))))^(1/(self.nframes-1));
             if motion.scaling.status
-                scstep = motion.scaling.speed;
+                % speed in setting represent the end status of object
+                sizeEnd = min(self.frameSize) * motion.scaling.speed / 2;
+                scstep  = (sizeEnd / object.size) ^ (1 / (self.nframes - 1));
             end
             % initialize transition-zone width
-            tzwidth = obj.tzone;
+            tzwidth = self.tzone;
             % transforming frame by frame
             for f = 1 : nfrms
                 % generate current frame accordint to the shape
                 switch object.shape
                     case {'circle'}
-                        anim(:, :, f) = obj.circle(Z, tzwidth);
+                        anim(:, :, f) = self.circle(Z, tzwidth);
                         
                     case {'edge'}
-                        anim(:, :, f) = obj.edge(Z, tzwidth);
+                        anim(:, :, f) = self.edge(Z, tzwidth);
                         
                     case {'triangle'}
-                        anim(:, :, f) = obj.polygon(Z, 3, tzwidth);
+                        anim(:, :, f) = self.polygon(Z, 3, tzwidth);
                         
                     case {'square'}
-                        anim(:, :, f) = obj.polygon(Z, 4, tzwidth);
-                        
-                    case {'rectangle'}
-                        distance = [object.edgeDistance, object.edgeDistance];
-                        anim(:, :, f) = obj.polygon(Z, 4, tzwidth, [], distance);
+                        anim(:, :, f) = self.polygon(Z, 4, tzwidth);
                         
                     case {'polygon'}
-                        anim(:, :, f) = obj.polygon( ...
-                            Z, object.nedges, tzwidth, obj.edgeOrient, obj.edgeDistance);
+                        anim(:, :, f) = self.polygon( ...
+                            Z, object.nedges, tzwidth, object.edgeOrient, object.edgeDistance);
                         
                     otherwise
                         error('Shape does not defined!');
@@ -184,76 +249,31 @@ classdef SimpleAnimationGenerator < handle
                 end
             end
         end
-        
-        function tflt = transfilter(obj, object, motion)
-            % PRE-ASSUMPTION : motion pattern is translation only
-            if mod(obj.predmode.fltsize(2), 2) == 0
-                zpoint = obj.predmode.fltsize(2) / 2 + 1;
-                xrange = (1 - zpoint : zpoint - 2) / object.size;
-            else
-                zpoint = (obj.predmode.fltsize(2) + 1) / 2;
-                xrange = (1 - zpoint : zpoint - 1) / object.size;
-            end
-            if mod(obj.predmode.fltsize(1), 2) == 0
-                zpoint = obj.predmode.fltsize(1) / 2 + 1;
-                yrange = (zpoint - 1 : -1 : 2 - zpoint) / object.size;
-            else
-                zpoint = (obj.predmode.fltsize(2) + 1) / 2;
-                yrange = (zpoint - 1 : -1 : 1 - zpoint) / object.size;
-            end
-            [X, Y] = meshgrid(xrange, yrange);
-            Z = complex(X, Y);
-            % motion vector
-            if motion.translation.status
-                theta = motion.translation.direction;
-                alpha = motion.translation.speed;
-                mV = alpha * exp(1j*theta);
-            else
-                mV = complex(0, 0);
-            end
-            % constant sigma
-            sigma = 0.05;
-            % transform filter
-            fsize = [obj.predmode.fltsize, obj.nframes, obj.predmode.nframes];
-            tflt = zeros(fsize);
-            for i = 1 : obj.predmode.nframes
-                for j = 1 : obj.nframes
-                    tflt(:, :, j, i) = ...
-                        exp(-abs(Z - (obj.nframes + i - j) * mV).^2 / (2 * sigma^2));
-                    alpha = sum(sum(tflt(:, :, j, i)));
-                    tflt(:, :, j, i) = tflt(:, :, j, i) / (alpha * obj.nframes);
-                end
-            end
-            % normalization
-            % tflt = reshape(tflt, prod(fsize(1:3)), fsize(4));
-            % tflt = bsxfun(@rdivide, tflt, sum(tflt));
-            % tflt = reshape(tflt, fsize);
-        end
     end
     
-    methods
-        function obj = enablePredmode(obj, npredfrm, fltsize)
-            obj.predmode = struct( ...
-                'status', true, ...
-                'nframes', npredfrm, ...
-                'fltsize', fltsize);
-        end
-        
-        function obj = disablePredmode(obj)
-            obj.predmode = struct('status', false);
-        end
-    end
+    % methods
+    %     function self = enablePredmode(self, npredfrm, fltsize)
+    %         self.predmode = struct( ...
+    %             'status', true, ...
+    %             'nframes', npredfrm, ...
+    %             'fltsize', fltsize);
+    %     end
+    %     
+    %     function self = disablePredmode(self)
+    %         self.predmode = struct('status', false);
+    %     end
+    % end
     
     methods
-        function frame = circle(obj, Z, tzwidth)
-            frame = obj.boundaryFunction(abs(Z) - 1, tzwidth);
+        function frame = circle(self, Z, tzwidth)
+            frame = self.boundaryFunction(abs(Z) - 1, tzwidth);
         end
         
-        function frame = edge(obj, Z, tzwidth)
-            frame = obj.boundaryFunction(abs(real(Z)) - 1, tzwidth);
+        function frame = edge(self, Z, tzwidth)
+            frame = self.boundaryFunction(abs(real(Z)) - 1, tzwidth);
         end
         
-        function frame = polygon(obj, Z, n, tzwidth, orient, distance)
+        function frame = polygon(self, Z, n, tzwidth, orient, distance)
             % set orient and distance to center of polygen's each edge
             % by default, this method would generate equilateral polygon
             % with edge lenghth 1.
@@ -267,12 +287,12 @@ classdef SimpleAnimationGenerator < handle
             I = zeros([size(Z), n]);
             for i = 1 : n
                 normVec = complex(cos(orient(i)), sin(orient(i)));
-                I(:, :, i) = obj.boundaryFunction(real(Z * conj(normVec)) - distance(i), tzwidth);
+                I(:, :, i) = self.boundaryFunction(real(Z * conj(normVec)) - distance(i), tzwidth);
             end
             frame = min(I, [], 3);
         end
         
-        function frame = boundaryFunction(obj, M, tzwidth)
+        function frame = boundaryFunction(self, M, tzwidth)
             frame = zeros(size(M));
             % make background to be black
             % frame(M >= tzwidth) = 1;
@@ -280,34 +300,41 @@ classdef SimpleAnimationGenerator < handle
             frame(M <= -tzwidth) = 1;
             % setup transition zone
             tzindex = abs(M) < tzwidth;
-            if obj.tzone > 0
+            if self.tzone > 0
                 frame(tzindex) = 1 - (sin((pi * M(tzindex)) / (2 * tzwidth)) + 1) / 2;
             end
         end
     end
 
     methods
-        function obj = SimpleAnimationGenerator()
-            obj.data = DatasetAP(obj, obj.dsample);
-            obj.label = DatasetAP(obj, obj.dsample);
-            obj.transform = DatasetAP(obj, obj.dsample + 1);
-            obj.frameSize = [32, 32];
-            obj.nframes   = 3;
-            obj.disablePredmode();
+        function self = SimpleAnimationGenerator()
+            self.data  = DatasetAP(self, self.dsample, self.taxis);
+            self.label = DatasetAP(self, self.dsample, self.taxis);
+            % self.transform = DatasetAP(self, self.dsample + 1, false);
+            self.frameSize = [32, 32];
+            self.nframes   = 30;
+            self.tzone     = 0.2;
+            self.objPerSample = 1;
+            % self.disablePredmode();
+            self.objectMode('rand');
+            self.motionMode('rand');
+            self.onoff = struct('translation', 0.7, 'scaling', 0.7, 'rotation', 0.7);
         end
     end
 
     properties (Constant)
         taxis = true;
         dsample = 2;
-        shapeSet = {'circle', 'edge', 'triangle', 'square', 'rectangle', 'polygon'};
-        onoff = struct('translation', 1, 'scaling', 0, 'rotation', 0);
+        shapeSet = {'circle', 'edge', 'triangle', 'square', 'polygon'};
     end
     
     properties
-        data, label, transform
-        tzone = 0.2;
+        onoff
+        data, label, % transform
+        tzone
         frameSize, nframes
-        predmode
+        % predmode
+        objPerSample
+        objmode, mtmode
     end
 end
