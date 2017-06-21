@@ -4,7 +4,7 @@ classdef DataPoint < PackageProcessor
             if not(exist('ipackage', 'var'))
                 opackage = obj.I{1}.pop();
             else
-                opackage = ipackage
+                opackage = ipackage;
             end
             
             if nargout == 0
