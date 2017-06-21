@@ -21,6 +21,29 @@ classdef PHLSTM < RecurrentUnit
                     error('UNSUPPORTED');
             end
         end
+        
+        function unitdump = dump(obj)
+            unitdump = {'PHLSTM', obj.stateControl.dump(), obj.stateUpdate.dump(), ...
+                obj.updateControl.dump(), obj.outputControl.dump()};
+            % add input transform
+            if isempty(obj.inputTransform)
+                unitdump = [unitdump, {[]}];
+            else
+                unitdump = [unitdump, {obj.inputTransform.dump()}];
+            end
+            % add output transform
+            if isempty(obj.outputTransform)
+                unitdump = [unitdump, {[]}];
+            else
+                unitdump = [unitdump, {obj.outputTransform.dump()}];
+            end
+        end
+    end
+    
+    properties (SetAccess = protected)
+        stateControl, stateUpdate, updateControl, outputControl, inputTransform, outputTransform
+        stateKeep, stateControlAct, updateAct, stateAddon, updateControlAct, stateNew, outputAct
+        output, outputControlAct, nhidunit
     end
     
     methods
@@ -34,13 +57,13 @@ classdef PHLSTM < RecurrentUnit
             stateControl.appendto(X, H, C);
             stateUpdate.appendto(X, H);
             updateControl.appendto(X, H, C);
-            stateKeep = DataSelector().appendto(C, stateControl);
-            updateAct = Activation('tanh'); updateAct.appendto(stateUpdate);
+            stateKeep  = DataSelector().appendto(C, stateControl);
+            updateAct  = Activation('tanh'); updateAct.appendto(stateUpdate);
             stateAddon = DataSelector().appendto(updateAct, updateControl);
-            stateNew = PlusUnit().appendto(stateKeep, stateAddon);
+            stateNew   = PlusUnit().appendto(stateKeep, stateAddon);
             outputControl.appendto(X, H, stateNew);
-            outputAct = Activation('tanh'); outputAct.appendto(stateNew);
-            output = DataSelector().appendto(outputAct, outputControl);
+            outputAct  = Activation('tanh'); outputAct.appendto(stateNew);
+            output     = DataSelector().appendto(outputAct, outputControl);
             % create model
             model = Model(X, H, C, updateControl, stateControl, stateUpdate, stateKeep, ...
                 updateAct, stateAddon, stateNew, outputControl, outputAct, output);
@@ -78,31 +101,6 @@ classdef PHLSTM < RecurrentUnit
             obj.outputAct        = outputAct;
             obj.output           = output.mix;
             obj.outputControlAct = output.act;
-        end
-    end
-    
-    properties (SetAccess = protected)
-        stateControl, stateUpdate, updateControl, outputControl, inputTransform, outputTransform
-        stateKeep, stateControlAct, updateAct, stateAddon, updateControlAct, stateNew, outputAct
-        output, outputControlAct, nhidunit
-    end
-    
-    methods
-        function unitdump = dump(obj)
-            unitdump = {'PHLSTM', obj.stateControl.dump(), obj.stateUpdate.dump(), ...
-                obj.updateControl.dump(), obj.outputControl.dump()};
-            % add input transform
-            if isempty(obj.inputTransform)
-                unitdump = [unitdump, {[]}];
-            else
-                unitdump = [unitdump, {obj.inputTransform.dump()}];
-            end
-            % add output transform
-            if isempty(obj.outputTransform)
-                unitdump = [unitdump, {[]}];
-            else
-                unitdump = [unitdump, {obj.outputTransform.dump()}];
-            end
         end
     end
     
