@@ -18,7 +18,7 @@ namePattern = [taskcode, '-ITER%d-DUMP.mat'];
 % addpath('/home/hxz244/'); pathLoader('umpoo');
 % % initialize LSTM model
 % load(fullfile(savepath, sprintf(namePattern, startIter)));
-% model = Evolvable.loaddump(modeldump);
+% model = Interface.loaddump(modeldump);
 % create objective 
 likelihood = Likelihood('mse');
 % initialize dataset
@@ -30,8 +30,8 @@ smg.enablePredmode(nfrmout, fltsize);
 tfltsize = [fltsize, nfrmin, nfrmout];
 if startIter > 0
     load(fullfile(savepath, sprintf(namePattern, startIter)));
-    cunit = Evolvable.loaddump(cunitdump);
-    lunit = Evolvable.loaddump(lunitdump);
+    cunit = Interface.loaddump(cunitdump);
+    lunit = Interface.loaddump(lunitdump);
 else
     cunit = ConvNet.randinit(nfrmin, [nfrmin * 2, nfrmin * 4, nfrmin * nfrmout], ...
         'poolsize', [2,2], 'OutputLayerActType', 'ReLU');

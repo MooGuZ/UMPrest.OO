@@ -21,9 +21,9 @@ if istart == 0
     predict = PHLSTM.randinit(nhidunit, npixel, npixel);
 else
     load(fullfile(savedir, sprintf(namept, istart)));
-    encoder = Evolvable.loaddump(encoderdump);
-    decoder = Evolvable.loaddump(decoderdump);
-    predict = Evolvable.loaddump(predictdump);
+    encoder = Interface.loaddump(encoderdump);
+    decoder = Interface.loaddump(decoderdump);
+    predict = Interface.loaddump(predictdump);
 end
 encoder.stateAheadof(decoder).stateAheadof(predict);
 model = Model(encoder, decoder, predict);

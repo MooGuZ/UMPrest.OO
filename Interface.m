@@ -54,6 +54,31 @@ classdef Interface < handle
         varargout = backward(obj, varargin)
     end
     
+    methods (Abstract)
+        d = dump(obj)
+    end
+    
+    methods (Static)
+        function unit = loaddump(unitdump)
+            switch unitdump{1}
+              case {'Transparent'}
+                unit = unitdump{2};
+                if numel(unitdump) > 2
+                    warning('SOME INFORMATION IGNORED IN LOAD PROCESS');
+                end
+                
+              otherwise
+                for i = 2 : numel(unitdump)
+                    element = unitdump{i};
+                    if iscell(element)
+                        unitdump{i} = Interface.loaddump(element);
+                    end
+                end
+                unit = feval(unitdump{:});
+            end
+        end
+    end
+    
     properties (Abstract, SetAccess = protected)
         I, O % container of Input/Output AccessPoints
     end

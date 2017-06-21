@@ -27,8 +27,8 @@ smg.enablePredmode(nfrmout, fltsize);
 tfltsize = [fltsize, nfrmin, nfrmout];
 if startIter > 0
     load(fullfile(savepath, sprintf(namePattern, startIter)));
-    cunit = Evolvable.loaddump(cunitdump);
-    lunit = Evolvable.loaddump(lunitdump);
+    cunit = Interface.loaddump(cunitdump);
+    lunit = Interface.loaddump(lunitdump);
 else
     cunit = ConvNet.randinit(nfrmin, [nfrmin * 2, nfrmin * 4, nfrmin * nfrmout], ...
         'poolsize', [2,2], 'OutputLayerActType', 'ReLU');

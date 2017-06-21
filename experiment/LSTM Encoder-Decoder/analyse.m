@@ -5,17 +5,17 @@ mcode = 'UNCOND';
 nframes  = 20;
 ncdfrms  = 10;
 %% build model
-encoder = Evolvable.loaddump(encoderdump);
-decoder = Evolvable.loaddump(decoderdump);
-predict = Evolvable.loaddump(predictdump);
+encoder = Interface.loaddump(encoderdump);
+decoder = Interface.loaddump(decoderdump);
+predict = Interface.loaddump(predictdump);
 encoder.stateAheadof(decoder).stateAheadof(predict);
 %% build 2-layers model
-encoder1L = Evolvable.loaddump(encoder1ldump);                                        
-encoder2L = Evolvable.loaddump(encoder2ldump);                                        
-decoder1L = Evolvable.loaddump(decoder1ldump);                                        
-decoder2L = Evolvable.loaddump(decoder2ldump);                                        
-predict1L = Evolvable.loaddump(predict1ldump);                                        
-predict2L = Evolvable.loaddump(predict2ldump);
+encoder1L = Interface.loaddump(encoder1ldump);                                        
+encoder2L = Interface.loaddump(encoder2ldump);                                        
+decoder1L = Interface.loaddump(decoder1ldump);                                        
+decoder2L = Interface.loaddump(decoder2ldump);                                        
+predict1L = Interface.loaddump(predict1ldump);                                        
+predict2L = Interface.loaddump(predict2ldump);
 encoder1L.DO{1}.connect(encoder2L.DI{1});                                                 
 encoder2L.stateAheadof(decoder1L).stateAheadof(predict1L);                                
 decoder1L.DO{1}.connect(decoder2L.DI{1});                                                 

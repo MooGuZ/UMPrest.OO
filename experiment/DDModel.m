@@ -24,7 +24,7 @@ if istart == 0
     model = DDModel(cunit, gunit);
 else
     load(fullfile(savedir, sprintf(namept, istart)));
-    model = Evolvable.loaddump(modeldump);
+    model = Interface.loaddump(modeldump);
 end
 % create objectives
 prob = ObjSum();

@@ -26,8 +26,8 @@ target = ObjSum();
 % build/load model
 if startIter > 0
     load(fullfile(savepath, sprintf(namePattern, startIter)));
-    cunit = Evolvable.loaddump(cunitdump);
-    gunit = Evolvable.loaddump(gunitdump);
+    cunit = Interface.loaddump(cunitdump);
+    gunit = Interface.loaddump(gunitdump);
 else
     cunit = ConvNet.randinit(nfrmin, [2 * nfrmin, 4 * nfrmin, nfrmout], ...
         'poolsize', psize, 'OutputLayerActType', 'Sigmoid');
