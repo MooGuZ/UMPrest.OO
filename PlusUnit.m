@@ -16,6 +16,10 @@ classdef PlusUnit < MISOUnit & FeedforwardOperation
             sizeinA = sizeout;
             sizeinB = sizeout;
         end
+        
+        function unitdump = dump(~)
+            unitdump = {'PlusUnit'};
+        end
     end
     
     methods

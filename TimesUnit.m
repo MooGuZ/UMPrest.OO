@@ -16,15 +16,18 @@ classdef TimesUnit < MISOUnit & FeedforwardOperation
             sizeinA = sizeout;
             sizeinB = sizeout;
         end
+        
+        function unitdump = dump(~)
+            unitdump = {'TimesUnit'};
+        end
     end
     
     methods
-        function obj = TimesUnit(varargin)
+        function obj = TimesUnit()
             obj.IA = UnitAP(obj, 1, '-recdata');
             obj.IB = UnitAP(obj, 1, '-recdata');
             obj.O = {UnitAP(obj, 1)};
             obj.I = {obj.IA, obj.IB};
-            Config(varargin).apply(obj);
         end
     end
     

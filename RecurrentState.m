@@ -1,4 +1,4 @@
-classdef RecurrentState < Unit
+classdef RecurrentState < handle
     methods
         function forward(obj)
             obj.O{1}.send(obj.I{1}.pull());

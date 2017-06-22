@@ -40,32 +40,6 @@ classdef Model < Interface & Evolvable
         end
     end
     
-    % methods
-    %     function varargout = sizeIn2Out(obj, varargin)
-    %         assert(numel(varargin) == numel(obj.I), 'ILLEGAL ARGUMENT');
-    %         % load SIZEPACKAGE to each input ACCESSPOINT
-    %         arrayfun(@(i) obj.I(i).push(SizePackage(varargin{i})), varargin, ...
-    %                  'UniformOutput', false);
-    %         % pass SIZEPACKAGE through the model
-    %         obj.forward();
-    %         % collect output SIZE information
-    %         varargout = arrayfun(@(ap) ap.datarcd.pop(), obj.O, ...
-    %                              'UniformOutput', false);
-    %     end
-    %     
-    %     function varargout = sizeOut2In(obj, varargin)
-    %         assert(numel(varargin) == numel(obj.O), 'ILLEGAL ARGUMENT');
-    %         % load SIZEPACKAGE to each input ACCESSPOINT
-    %         arrayfun(@(i) obj.O(i).push(SizePackage(varargin{i})), varargin, ...
-    %                  'UniformOutput', false);
-    %         % pass SIZEPACKAGE through the model
-    %         obj.backward();
-    %         % collect output SIZE information
-    %         varargout = arrayfun(@(ap) ap.datarcd.pop(), obj.I, ...
-    %                              'UniformOutput', false);
-    %     end
-    % end
-    
     methods
         function hpcell = hparam(obj)
             % hpcell = cell(1, numel(obj.evolvable));
@@ -76,20 +50,54 @@ classdef Model < Interface & Evolvable
             hpcell = cat(2, hpcell{:});
         end
         
-        function modeldump = dump(obj)
-            % IMPLEMENT A:
-            % modeldump = cell(1, numel(obj.evolvable));
-            % for i = 1 : numel(modeldump)
-            %     modeldump{i} = obj.evolvable{i}.dump();
-            % end
-            % IMPLEMENT B:
-            % modeldump = [{'Model'}, cellfun(@dump, obj.evolvable, 'UniformOutput', false)];
-            modeldump = {'Model', obj}; 
+        % function modeldump = dump(obj)
+        %     % IMPLEMENT A:
+        %     % modeldump = cell(1, numel(obj.evolvable));
+        %     % for i = 1 : numel(modeldump)
+        %     %     modeldump{i} = obj.evolvable{i}.dump();
+        %     % end
+        %     % IMPLEMENT B:
+        %     % modeldump = [{'Model'}, cellfun(@dump, obj.evolvable, 'UniformOutput', false)];
+        %     modeldump = {'Model', obj}; 
+        % end
+        % 
+        % function rawdata = dumpraw(obj)
+        %     rawdata = cellfun(@dumpraw, obj.evolvable, 'UniformOutput', false);
+        %     rawdata = cat(1, rawdata{:});
+        % end
+        
+        function edgedump = dumpedges(self)
+            edgedump = cell(1, numel(self.edges));
+            for i = 1 : numel(edgedump)
+                edgedump{i} = cell(1, numel(self.edges{i}));
+                for j = 1 : numel(edgedump{i})
+                    edgedump{i}{j} = dumpconnection(self, i, self.edges{i}(j));
+                end
+                edgedump{i} = cat(2, edgedump{i}{:});
+            end
+            edgedump = cat(2, edgedump{:});
         end
         
-        function rawdata = dumpraw(obj)
-            rawdata = cellfun(@dumpraw, obj.evolvable, 'UniformOutput', false);
-            rawdata = cat(1, rawdata{:});
+        function cdump = dumpconnection(self, ifrom, ito)
+            unitFrom = self.nodes{ifrom};
+            % get access-point's id of second unit
+            idApTo = cellfun(@(ap) ap.id, self.nodes{ito}.I, 'UniformOutput', false);
+            % check each connection from first unit's output access-point
+            buffer = cell(1, numel(unitFrom.O));
+            for i = 1 : numel(unitFrom.O)
+                idLink = cellfun(@(ap) ap.id, unitFrom.O{i}.links, 'UniformOutput', false);
+                [~, ~, iApTo] = intersect(idLink, idApTo);
+                buffer{i} = arrayfun(@(index) [ifrom, i, ito, index], iApTo, ...
+                    'UniformOutput', false);                
+            end
+            cdump = cat(2, buffer{:});
+        end
+        
+        function modeldump = dump(self)
+            unitdump = cellfun(@dump, self.nodes, 'UniformOutput', false);
+            % according to specific condition add extra settings as key-value pairs
+            % such as specific input (set by setAsInput)
+            modeldump = {'Model.loaddump', {'Transparent', unitdump}, {'Transparent', self.dumpedges()}};
         end
         
         function update(obj)
@@ -108,6 +116,18 @@ classdef Model < Interface & Evolvable
             for i = 1 : numel(obj.evolvable)
                 obj.evolvable{i}.unfreeze();
             end
+        end
+    end
+    
+    methods (Static)
+        function self = loaddump(unitdump, edgedump, varargin)
+            unitset = cellfun(@Interface.loaddump, unitdump, 'UniformOutput', false);
+            % connect units according to edgedump
+            for i = 1 : numel(edgedump)
+                unitset{edgedump{i}(1)}.O{edgedump{i}(2)}.connect( ...
+                    unitset{edgedump{i}(3)}.I{edgedump{i}(4)});
+            end
+            self = Model(unitset{:});
         end
     end
 
@@ -206,7 +226,7 @@ classdef Model < Interface & Evolvable
             states = false(1, numel(obj.nodes));
             order  = zeros(1, numel(obj.nodes));
             index  = numel(obj.nodes);
-            starts = obj.startNodes;
+            starts = obj.startNodes(end : -1 : 1);
             for i = 1 : numel(starts)
                 [states, order, index] = obj.visit(starts(i), states, order, index);
             end
@@ -304,7 +324,7 @@ classdef Model < Interface & Evolvable
     methods
         function value = get.startNodes(obj)
             value = cellfun(@(id) obj.id2ind(id), unique( ...
-                cellfun(@(ap) ap.parent.id, obj.I, 'UniformOutput', false)));
+                cellfun(@(ap) ap.parent.id, obj.I, 'UniformOutput', false), 'stable'));
         end
     end
 end

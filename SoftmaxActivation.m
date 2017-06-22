@@ -24,6 +24,12 @@ classdef SoftmaxActivation < SISOUnit & FeedforwardOperation
     end
     
     methods
+        function unitdump = dump(~)
+            unitdump = {'SoftmaxActivation'};
+        end
+    end
+    
+    methods
         function obj = SoftmaxActivation()
             obj.I = {UnitAP(obj, 0, '-expandable')};
             obj.O = {UnitAP(obj, 0, '-expandable', '-recdata')};

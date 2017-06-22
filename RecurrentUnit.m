@@ -179,10 +179,35 @@ classdef RecurrentUnit < Unit & Evolvable
             hpcell = obj.hpcache;
         end
         
-        function unitdump = dump(obj)
-            unitdump = {'RecurrentUnit', obj};
-            % data = obj.kernel.dump();
-            % data{1} = class(obj);
+        function unitdump = dump(self)
+            modeldump = self.kernel.dump();
+            statedump = cell(1, numel(self.S));
+            for i = 1 : numel(statedump)
+                apin  = self.S{i}.I{1}.links{1};
+                apout = self.S{i}.O{1}.links{1};
+                iUnitIn  = self.kernel.id2ind(apin.parent.id);
+                iUnitOut = self.kernel.id2ind(apout.parent.id);
+                iApIn  = find(cellfun(@apin.compare, apin.parent.O));
+                iApOut = find(cellfun(@apout.compare, apout.parent.I));
+                statedump{i} = { ...
+                    [iUnitIn, iApIn, iUnitOut, iApOut], ...
+                    self.S{i}.statesize};
+            end
+            unitdump = {'RecurrentUnit.loaddump', modeldump, {'Transparent', statedump}};
+        end
+    end
+    methods (Static)
+        function self = loaddump(model, statedump)
+            state = cell(1, numel(statedump));
+            for i = 1 : numel(statedump)
+                link  = statedump{i}{1};
+                shape = statedump{i}{2};
+                state{i} = { ...
+                    model.nodes{link(1)}.O{link(2)}, ...
+                    model.nodes{link(3)}.I{link(4)}, ...
+                    shape};
+            end
+            self = RecurrentUnit(model, state{:});
         end
     end
     

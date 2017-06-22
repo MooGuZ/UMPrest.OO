@@ -30,6 +30,12 @@ classdef SimpleActivation < SISOUnit & ElementwiseOperation
         end
     end
     
+    methods
+        function unitdump = dump(obj)
+            unitdump = {'SimpleActivation', obj.type};
+        end
+    end
+    
     properties (SetAccess = protected)
         type
     end
