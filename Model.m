@@ -42,29 +42,9 @@ classdef Model < Interface & Evolvable
     
     methods
         function hpcell = hparam(obj)
-            % hpcell = cell(1, numel(obj.evolvable));
-            % for i = 1 : numel(hpcell)
-            %     hpcell{i} = obj.evolvable{i}.hparam();
-            % end
             hpcell = cellfun(@hparam, obj.evolvable, 'UniformOutput', false);
             hpcell = cat(2, hpcell{:});
         end
-        
-        % function modeldump = dump(obj)
-        %     % IMPLEMENT A:
-        %     % modeldump = cell(1, numel(obj.evolvable));
-        %     % for i = 1 : numel(modeldump)
-        %     %     modeldump{i} = obj.evolvable{i}.dump();
-        %     % end
-        %     % IMPLEMENT B:
-        %     % modeldump = [{'Model'}, cellfun(@dump, obj.evolvable, 'UniformOutput', false)];
-        %     modeldump = {'Model', obj}; 
-        % end
-        % 
-        % function rawdata = dumpraw(obj)
-        %     rawdata = cellfun(@dumpraw, obj.evolvable, 'UniformOutput', false);
-        %     rawdata = cat(1, rawdata{:});
-        % end
         
         function edgedump = dumpedges(self)
             edgedump = cell(1, numel(self.edges));
@@ -73,7 +53,11 @@ classdef Model < Interface & Evolvable
                 for j = 1 : numel(edgedump{i})
                     edgedump{i}{j} = dumpconnection(self, i, self.edges{i}(j));
                 end
-                edgedump{i} = cat(2, edgedump{i}{:});
+                try
+                    edgedump{i} = cat(2, edgedump{i}{:});
+                catch
+                    error('EDGE DISAPPEARED, MODEL IS BROKEN');
+                end
             end
             edgedump = cat(2, edgedump{:});
         end
@@ -94,10 +78,13 @@ classdef Model < Interface & Evolvable
         end
         
         function modeldump = dump(self)
+            self.prepare();
+            % dump each units
             unitdump = cellfun(@dump, self.nodes, 'UniformOutput', false);
             % according to specific condition add extra settings as key-value pairs
             % such as specific input (set by setAsInput)
-            modeldump = {'Model.loaddump', {'Transparent', unitdump}, {'Transparent', self.dumpedges()}};
+            modeldump = {'Model.loaddump', {'Transparent', unitdump}, ...
+                {'Transparent', self.dumpedges()}};
         end
         
         function update(obj)
@@ -223,13 +210,24 @@ classdef Model < Interface & Evolvable
         end
         
         function topologicalSort(obj)
+        % TOPOLOGICALSORT reorder nodes by topological sort (implemented by 
+        % depth-first search). Tree search are started from units those own 
+        % input access-points, while in the inverse order of their position
+        % node list. This is necessary fot keeping their relative order after
+        % topological sort. Besides, units contains output access-points would
+        % be rearranged to match their order in node list before sort. This 
+        % rearrangement would not break topological order, because they are not
+        % dependence for any other units in the model.
             states = false(1, numel(obj.nodes));
             order  = zeros(1, numel(obj.nodes));
             index  = numel(obj.nodes);
             starts = obj.startNodes(end : -1 : 1);
+            endInd = unique(cellfun(@(ap) obj.id2ind(ap.parent.id), obj.O), 'stable');
             for i = 1 : numel(starts)
                 [states, order, index] = obj.visit(starts(i), states, order, index);
             end
+            % adjust order of nodes who have output access-point
+            order(endInd) = sort(order(endInd), 'ascend');
             % reordering
             obj.nodes(order) = obj.nodes(:);
             for i = 1 : numel(obj.nodes)
@@ -246,9 +244,11 @@ classdef Model < Interface & Evolvable
         function [states, order, index] = visit(obj, root, states, order, index)
             if not(states(root))
                 states(root) = true;
+                % get inverse list for stable sort
+                edgelist = sort(obj.edges{root}, 'descend');
                 % visit all children
-                for i = 1 : numel(obj.edges{root})
-                    child = obj.edges{root}(i);
+                for i = 1 : numel(edgelist)
+                    child = edgelist(i);
                     if not(states(child))
                         [states, order, index] = obj.visit(child, states, order, index);
                     end
@@ -289,6 +289,7 @@ classdef Model < Interface & Evolvable
         % RECRTMODE extends containers in each units to specific capacity.
         % This methods calls RECRTMODE method of class SIMPLEUNIT to
         % complete this operation.
+        % PRM: Is SimpleUnit the only class to be called here?
         function obj = recrtmode(obj, n)
             for i = 1 : numel(obj.nodes)
                 unit = obj.nodes{i};
@@ -306,6 +307,8 @@ classdef Model < Interface & Evolvable
             obj.sorted   = true;
             % initialize model with given components
             obj.add(varargin{:});
+            % keep model legal and sorted
+            obj.prepare();
         end
     end
     
