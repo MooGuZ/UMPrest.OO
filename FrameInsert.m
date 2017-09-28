@@ -5,24 +5,35 @@ classdef FrameInsert < PackageProcessor
                 pkgin = obj.I{1}.pop();
             end
             assert(pkgin.taxis, 'PACKAGE HAVE NO TEMPORAL AXES');
-            data = zeros([pkgin.smpsize, obj.n, pkgin.batchsize]);
-            switch obj.loc
-              case {'front'}
-                index = obj.offset;
+            switch class(pkgin)
+              case {'DataPackage', 'ErrorPackage'}
+                data = zeros([pkgin.smpsize, obj.n, pkgin.batchsize]);
+                switch obj.loc
+                  case {'front'}
+                    index = obj.offset;
+                    
+                  case {'back'}
+                    index = pkgin.nframe - obj.offset;
+                end
+                if index <= 0
+                    pkgout = DataPackage(cat(pkgin.dsample + 1, data, pkgin.data), ...
+                        pkgin.dsample, true);
+                elseif index >= pkgin.nframe
+                    pkgout = DataPackage(cat(pkgin.dsample + 1, pkgin.data, data), ...
+                        pkgin.dsample, true);
+                else
+                    [front, back] = sltondim(pkgin.data, pkgin.dsample + 1, 1 : index);
+                    pkgout = DataPackage(cat(pkgin.dsample + 1, front, data, back), ...
+                        pkgin.dsample, true);
+                end
                 
-              case {'back'}
-                index = pkgin.nframe - obj.offset;
-            end
-            if index <= 0
-                pkgout = DataPackage(cat(pkgin.dsample + 1, data, pkgin.data), ...
-                    pkgin.dsample, true);
-            elseif index >= pkgin.nframe
-                pkgout = DataPackage(cat(pkgin.dsample + 1, pkgin.data, data), ...
-                    pkgin.dsample, true);
-            else
-                [front, back] = sltondim(pkgin.data, pkgin.dsample + 1, 1 : index);
-                pkgout = DataPackage(cat(pkgin.dsample + 1, front, data, back), ...
-                    pkgin.dsample, true);
+              case {'SizePackage'}
+                datasize = pkgin.datasize;
+                datasize(pkgin.dsample + 1) = datasize(pkgin.dsample + 1) + 1;
+                pkgout = SizePackage(datasize, pkgin.dsample, true);
+                
+              otherwise
+                error('ILLEGAL PACKAGE');
             end
             if nargout == 0
                 obj.O{1}.send(pkgout);
