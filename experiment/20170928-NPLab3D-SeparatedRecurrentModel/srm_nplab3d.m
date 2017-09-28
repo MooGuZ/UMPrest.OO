@@ -1,5 +1,5 @@
 % MODEL : Separated Recurrent Model on NPLab3D dataset
-% CODE  : <LEAVE BLANK INTENSIONALLY>
+% CODE  : https://github.com/MooGuZ/UMPrest.OO/commit/ed6f503953393fe8a17cb3ac6ecd6d79f59944c6
 %% check environment
 ishpc = isunix && not(ismac);
 %% load package to MATLAB search path
@@ -29,7 +29,7 @@ nbases = 1024;
 nframeEncoder = 15;
 nframePredict = 15;
 %% environment parameters
-istart  = 63;
+istart  = 0;
 taskid  = ['SRM', num2str(nhidunit)];
 savedir = fullfile(taskdir, 'records');
 datadir = fullfile(taskdir, 'data');
