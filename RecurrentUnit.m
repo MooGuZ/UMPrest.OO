@@ -37,7 +37,7 @@ classdef RecurrentUnit < Unit & Evolvable
                 obj.kernel.forward();
             end
             % do selfeed cycle if necessary
-            if obj.selfeed.status
+            if obj.selfeed.status && not(strcmpi(obj.pkginfo.class, 'SizePackage'))
                 % update prelead-frames quantity record
                 obj.selfeed.numPreleadFrames = obj.pkginfo.nframe;
                 % slefeed cycle

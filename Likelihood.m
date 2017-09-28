@@ -37,7 +37,7 @@ classdef Likelihood < Objective
                 else
                     d = obj.deltaFunction(x.data, ref.data, obj.weight);
                 end
-                d = ErrorPackage(d, x.dsample, x.taxis);
+                d = ErrorPackage(d, x.dsample, x.taxis, true);
                 if nargout == 0
                     obj.x.send(d);
                 end

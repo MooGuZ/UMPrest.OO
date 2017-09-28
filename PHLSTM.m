@@ -128,8 +128,8 @@ classdef PHLSTM < RecurrentUnit
         end
         
         function debug()
-            nhidden = 16;
-            sizein  = 8;
+            nhidden = 32;
+            sizein  = 32;
             sizeout = 32;
             nframes = 7;
             % calculate data size
@@ -155,8 +155,12 @@ classdef PHLSTM < RecurrentUnit
             opt.gradmode('basic');
             opt.stepmode('adapt', 'estimatedChange', 1e-2);
             opt.enableRcdmode(3);
+            % opt.stepmode('static', 'step', 1e-3);
+            % opt.gradmode('rmsprop', 'decay2ndOrder', 0.999);
+            % opt.gradmode('adam', 'decay1stOrder', 0.9, 'decay2ndOrder', 0.999);
+            % opt.gradmode('basic');
             % run simulation test
-            task.run(300, 16, 64);
+            task.run(3e2, 16, 128);
         end
     end
 end

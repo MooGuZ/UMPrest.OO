@@ -29,6 +29,7 @@ classdef Listener < handle
         end
         
         function obj = recrtmode(obj, n)
+        % PRB: this function maynot called by others
             if n == 1
                 obj.rec.cache.simple();
             else

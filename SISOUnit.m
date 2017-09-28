@@ -1,26 +1,5 @@
 classdef SISOUnit < SimpleUnit
     methods
-%         function opackage = propagate(obj, apin, apout, proc, ipackage)
-%             obj.pkginfo = UnitAP.initPackageInfo();
-%             % get input/output access point
-%             apin  = apin{1};
-%             apout = apout{1};
-%             % get input package
-%             if not(exist('ipackage', 'var'))
-%                 ipackage = apin.pop();
-%             end
-%             % unpack input data from package
-%             idata = apin.unpack(ipackage);
-%             % process the data
-%             odata = proc(obj.pkginfo.class, idata);
-%             % get output package
-%             opackage = apout.packup(odata);
-%             % send package when no output argument given
-%             if nargout == 0
-%                 apout.send(opackage);
-%             end
-%         end
-
         function pkgout = forward(obj, pkgin)
             obj.pkginfo = UnitAP.initPackageInfo();
             % get input package from cache

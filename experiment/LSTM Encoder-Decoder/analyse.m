@@ -68,7 +68,7 @@ decoderListeners = { ...
     'NewCellState',    Listener(decoder.stateNew.O{1}); ...
     'NewHiddenState',  Listener(decoder.output.O{1});};    
 %% sample counter
-t = 66;
+t = 67;
 %% Generate Sample
 sample = dataset.next();
 t = t + 1;
@@ -138,12 +138,17 @@ anim2gif(decoderOutput.data, smpnmpt('decoded', t), 'framerate', 12);
 anim2gif(predictOutput.data, smpnmpt('predict', t), 'framerate', 12);
 anim2gif(predictRefer.vectorize().data,  smpnmpt('future', t), 'framerate', 12);
 %% draw bases of decoder and predict
+encoderBase = encoder.inputTransform.weight;
 decoderBase = decoder.outputTransform.weight;
 predictBase = predict.outputTransform.weight;
+[~, index]  = sort(sqrt(sum(encoderBase'.^2)), 'descend');
+encoderPick = reshape(encoderBase(index(1 : 200), :)', [frmsize, 200]);
 [~, index]  = sort(sqrt(sum(decoderBase.^2)), 'descend');
 decoderPick = reshape(decoderBase(:, index(1 : 200)), [frmsize, 200]);
 [~, index]  = sort(sqrt(sum(predictBase.^2)), 'descend');
 predictPick = reshape(predictBase(:, index(1 : 200)), [frmsize, 200]);
+imwrite((MathLib.bound(imstackdraw(encoderPick, 'arrange', [10, 20]), ...
+    [-1, 1]) + 1) / 2, basenmpt('Encoder-InputTransform', mcode, condString), 'png');
 imwrite((MathLib.bound(imstackdraw(decoderPick, 'arrange', [10, 20]), ...
     [-1, 1]) + 1) / 2, basenmpt('Decoder-OutputTransform', mcode, condString), 'png');
 imwrite((MathLib.bound(imstackdraw(predictPick, 'arrange', [10, 20]), ...

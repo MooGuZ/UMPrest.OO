@@ -156,9 +156,13 @@ classdef LSTM < RecurrentUnit
             task = SimulationTest(model, refer, dataset, objective);
             % setup optimizer
             opt = HyperParam.getOptimizer();
-            opt.gradmode('basic');
-            opt.stepmode('adapt', 'estimatedChange', 1e-2);
-            opt.enableRcdmode(3);
+            % opt.gradmode('basic');
+            % opt.stepmode('adapt', 'estimatedChange', 1e-2);
+            % opt.enableRcdmode(3);
+            % opt.gradmode('rmsprop', 'decay2ndOrder', 0.999);
+            opt.gradmode('adam', 'decay1stOrder', 0.9, 'decay2ndOrder', 0.999);
+            % opt.gradmode('basic');
+            opt.stepmode('static', 'step', 1e-3);
             % run simulation test
             task.run(300, 16, 64);
         end

@@ -8,6 +8,7 @@
 - **DESIGN**
 	- ID System: automatically register/deregister an ID in construction/destruction.
 	- [*packagercd*]: record packages only in method *send*.
+	- *no*: series number in multiple access-point case.
 
 ## SimpleAP
 - **IMPLEMENTATION**
@@ -22,3 +23,11 @@
 
 ## Data Size
 - **Sample** is the fundamental unit dealed in the system. If data containing temporal axis, **sample** only conver spatial dimensions of it, while, its fundamental units is called as a **sequence**. Besides, **batch** is a collection of **sample** or **sequence** that feed to system at one time.
+
+## Package
+- **DESIGN**
+  - constructors of PACKAGE class donnot include process of converting to GPU memory
+  - standardize data shape in construction
+### SizePackage
+- **TEST**
+  - **PASS** : Linear Transformation, Model in PHLSTM
