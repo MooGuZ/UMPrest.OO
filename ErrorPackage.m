@@ -10,13 +10,28 @@ classdef ErrorPackage < DataPackage
         end
         
         function clone = copy(obj)
-            clone = ErrorPackage(obj.data, obj.dsample, obj.taxis);
+            clone = ErrorPackage(obj.data, obj.dsample, obj.taxis, obj.updateHParam);
         end
     end
     
     methods
-        function obj = ErrorPackage(varargin)
-            obj = obj@DataPackage(varargin{:});
+        function obj = ErrorPackage(error, dsample, taxis, updateHParam)
+            obj = obj@DataPackage(error, dsample, taxis);
+            if exist('updateHParam', 'var')
+                obj.updateHParam = updateHParam;
+            else
+                obj.updateHParam = true;
+            end
+        end
+    end
+    
+    properties
+        updateHParam
+    end
+    methods
+        function set.updateHParam(self, value)
+            assert(islogical(value), 'ILLEGAL ASSIGNMENT');
+            self.updateHParam = value;
         end
     end
 end
