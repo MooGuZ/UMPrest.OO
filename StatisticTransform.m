@@ -105,9 +105,7 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
                     
                 case {'whiten'}
                     kernel = obj.getKernel();
-                    numelSample = prod(kernel.sizein(1 : obj.dsample));
-                    assert(sizeout(1) == ceil(obj.whitenCompressRatio * numelSample), ...
-                        'UNKNOWN');
+                    assert(sizeout(1) == kernel.sizeout, 'ILLEGAL DATA SHAPE');
                     sizein = [kernel.sizein, sizeout(2 : end)];
                     
                 otherwise
@@ -178,6 +176,9 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
             % - balance for performance and storage sufficience.
             cumval = cumsum(val);
             kernel.sizeout = sum((cumval / cumval(end)) < obj.whitenCutoffRatio);
+            % >>> Method use quantity ratio
+            % kernel.sizeout = ceil(prod(kernel.sizein(1 : obj.dsample)) ...
+            %     * obj.whitenCompressRatio);
             dim = kernel.sizeout;
             rodim = sum(val > pixelvar * obj.whitenRolloffFactor);
             kernel.pixelweight = ...
@@ -216,6 +217,10 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
             end
             obj = Config(varargin).apply(obj);
         end
+        
+        function unitdump = dump(self)
+            unitdump = {'StatisticTransform', self.mode, self.stat};
+        end
     end
     
     properties
@@ -229,7 +234,7 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
         function set.updateInterval(obj, value)
             assert(MathLib.isinteger(value) && value > 0, 'ArgumentError', ...
                 'Interval of update should be a positive integer.');
-            obj.updateInterval = value;            
+            obj.updateInterval = value;
         end
     end
     
