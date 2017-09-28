@@ -7,17 +7,16 @@ classdef SimulationTest < Task
                 validset.data = {obj.dataset.next(validsize)};
             end
             validset.label = obj.ref.forward(validset.data{:});
-            % setup optimizer
+            % get optimizer
             opt = HyperParam.getOptimizer();
-            opt.gradmode('basic');
-            opt.stepmode('adapt', 'estimatedChange', 1e-1);
-            opt.enableRcdmode(3);
             % check objective value of current state
             objval = obj.objective.evaluate(obj.model.forward(validset.data{:}), validset.label);
             distinfo(abs(obj.ref.dumpraw() - obj.model.dumpraw()), 'HPARAM ERROR', false);
             disp(repmat('=', 1, 100));
             fprintf('Initial objective value : %.2e\n', objval);
-            opt.record(objval, false);
+            if opt.rcdmode.status
+                opt.record(objval, false);
+            end
             % start simulation process
             for i = 1 : iteration
                 if iscell(obj.dataset)
@@ -31,7 +30,7 @@ classdef SimulationTest < Task
                 obj.model.update();
                 objval = obj.objective.evaluate(obj.model.forward(validset.data{:}), validset.label);
                 fprintf('Objective Value after [%04d] turns: %.2e\n', i, objval);
-                if mod(i, 10)
+                if mod(i, 10) && opt.rcdmode.status
                     opt.record(objval, false);
                 end
             end
