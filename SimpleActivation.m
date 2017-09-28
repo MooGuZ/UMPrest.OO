@@ -40,8 +40,7 @@ classdef SimpleActivation < SISOUnit & ElementwiseOperation
         type
     end
     properties (Constant, Hidden)
-        taxis      = false;
-        expandable = true;
+        taxis = false
     end
     properties (SetAccess = protected, Hidden)
         dataproc, datainvp, gradient

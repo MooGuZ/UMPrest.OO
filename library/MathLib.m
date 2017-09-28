@@ -153,8 +153,9 @@ classdef MathLib < handle
             if exist('weight', 'var')
                 d = 2 * bsxfun(@times, x - ref, weight);
             else
-                d = 2 * (x - ref) / numel(x);
+                d = 2 * (x - ref);
             end
+            d = d / numel(x);
         end
         
         function v = tmse(x, ref, n)

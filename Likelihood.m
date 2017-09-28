@@ -100,9 +100,9 @@ classdef Likelihood < Objective
                         upper(type));
             end
             % TODO: more comprehensive setup of Weight Mechanism
-            % if exist('weight', 'var')
-            %     obj.weight = weight;
-            % end
+            if exist('weight', 'var')
+                obj.weight = weight;
+            end
             % initialize access-points
             obj.x   = SimpleAP(obj);
             obj.ref = SimpleAP(obj);

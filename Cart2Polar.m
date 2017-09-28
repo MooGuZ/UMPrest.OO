@@ -37,6 +37,10 @@ classdef Cart2Polar < MIMOUnit & FeedforwardOperation
             szx = szr;
             szy = sztheta;
         end
+        
+        function dumpunit = dump(~)
+            dumpunit = {'Cart2Polar'};
+        end        
     end
     
     methods
