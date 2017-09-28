@@ -10,8 +10,8 @@ classdef CommonPrior < Prior
     end
     
     methods
-        function obj = CommonPrior(host, type, varargin)
-            obj@Prior(host, varargin{:});
+        function obj = CommonPrior(type, varargin)
+            obj@Prior(varargin{:});
             % get extra configuration
             conf = Config(varargin);
             % setup operating methods
