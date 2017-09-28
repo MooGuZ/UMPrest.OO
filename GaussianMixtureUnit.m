@@ -34,27 +34,31 @@ classdef GaussianMixtureUnit < MISOUnit & FeedforwardOperation & Evolvable
                     Xt = obj.invC{i} * Xl;
                     % gradient weight of each sample
                     Ws = dp(index);
-                    % gradient of category cordinates
-%                     % [branch A] with DET term
-%                     for j = 1 : size(b, 2)
-%                         dy(j, i) = b(:, j)' * obj.invC{i} * b(:, j);
-%                     end
-%                     dy(:, i) = sum(Ws) * dy(:, i) ...
-%                         - 0.5 * sum(bsxfun(@times, (b' * Xt).^2, Ws), 2);
-                    % [Branch B] without DET term
-                    dy(:, i) = -sum(bsxfun(@times, (b' * Xt).^2, Ws), 2) / 2;
-                    % gradient of category basis
-%                     % [Branch A] with DET term
-%                     db = db - Xt * diag(Ws) *  Xt' * Bl + 2 * sum(Ws) * obj.invC{i} * Bl;
-                    % [Branch B]
-                    db = db - Xt * diag(Ws) * Xt' * Bl;
+                    if obj.pkginfo.updateHParam
+                        % gradient of category cordinates
+                        % [branch A] with DET term
+                        % for j = 1 : size(b, 2)
+                        %     dy(j, i) = b(:, j)' * obj.invC{i} * b(:, j);
+                        % end
+                        % dy(:, i) = sum(Ws) * dy(:, i) ...
+                        %     - 0.5 * sum(bsxfun(@times, (b' * Xt).^2, Ws), 2);
+                        % [Branch B] without DET term
+                        dy(:, i) = -sum(bsxfun(@times, (b' * Xt).^2, Ws), 2) / 2;
+                        % gradient of category basis
+                        % % [Branch A] with DET term
+                        % db = db - Xt * diag(Ws) *  Xt' * Bl + 2 * sum(Ws) * obj.invC{i} * Bl;
+                        % [Branch B]
+                        db = db - Xt * diag(Ws) * Xt' * Bl;
+                    end
                     % gradient of input date
                     dx(:, index) = 2 * bsxfun(@times, Xt, Ws);
                 end
             end
             % record gradients for hyper-parameters
-            obj.A.addgrad(dy .* y); % NOTE: y = exp(a)
-            obj.B.addgrad(db);
+            if obj.pkginfo.updateHParam
+                obj.A.addgrad(dy .* y); % NOTE: y = exp(a)
+                obj.B.addgrad(db);
+            end
         end
         
         function update(obj)

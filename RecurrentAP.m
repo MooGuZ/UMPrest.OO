@@ -7,11 +7,17 @@ classdef RecurrentAP < AccessPoint
                 assert(package.taxis == obj.parent.pkginfo.taxis);
                 assert(package.nframe == obj.parent.pkginfo.nframe);
                 assert(package.batchsize == obj.parent.pkginfo.batchsize);
+                if isa(package, 'ErrorPackage')
+                    assert(package.updateHParam == obj.parent.pkginfo.updateHParam);
+                end
             else
                 obj.parent.pkginfo.class     = class(package);
                 obj.parent.pkginfo.taxis     = package.taxis;
                 obj.parent.pkginfo.nframe    = package.nframe;
                 obj.parent.pkginfo.batchsize = package.batchsize;
+                if isa(package, 'ErrorPackage')
+                    obj.parent.pkginfo.updateHParam = package.updateHParam;
+                end
             end
             % expand frames along time-axis
             if package.taxis
@@ -33,7 +39,8 @@ classdef RecurrentAP < AccessPoint
                     % expand time-axis into packages
                     frames = pack2cell(data, package.dsample + 1);
                     for i = 1 : numel(frames)
-                        frames{i} = ErrorPackage(frames{i}, package.dsample, false);
+                        frames{i} = ErrorPackage( frames{i}, package.dsample, ...
+                            false, obj.parent.pkginfo.updateHParam);
                     end
                     frames = frames(end : -1 : 1);                    
                     
@@ -71,14 +78,14 @@ classdef RecurrentAP < AccessPoint
                     package = frames{1};
                     if obj.parent.pkginfo.taxis
                         package = ErrorPackage(splitdim(package.data, package.dsample + 1, 1), ...
-                            package.dsample, true);
+                            package.dsample, true, obj.parent.pkginfo.updateHParam);
                     end
                 else
                     dsample = frames{1}.dsample;
                     frames  = [frames{end : -1 : 1}];
                     data = cat(dsample + 2, frames.data);
                     data = permute(data, [1 : dsample, dsample + [2, 1]]);
-                    package = ErrorPackage(data, dsample, true);
+                    package = ErrorPackage(data, dsample, true, obj.parent.pkginfo.updateHParam);
                 end
                 
               case {'SizePackage'}
@@ -148,10 +155,11 @@ classdef RecurrentAP < AccessPoint
     methods (Static)
         function pkginfo = initPackageInfo()
             pkginfo = struct( ...
-                'class',     [], ...
-                'taxis',     [], ...
-                'nframe',    [], ...
-                'batchsize', []);
+                'class',        [], ...
+                'taxis',        [], ...
+                'nframe',       [], ...
+                'batchsize',    [], ...
+                'updateHParam', []);
         end
     end
     
@@ -159,14 +167,12 @@ classdef RecurrentAP < AccessPoint
         function obj = RecurrentAP(parent, host, varargin)
             conf = Config(varargin);
             
-            obj.no = 0;
-            
             obj.parent = parent;
             obj.hostio = SimpleAP(obj.parent, '-nomerge', ...
                 'capacity', obj.parent.memoryLength).connect(host);
                         
             if conf.exist('capacity')
-                obj.cache  = PackageContainer(conf.pop('capacity'), '-overwrite');
+                obj.cache = PackageContainer(conf.pop('capacity'), '-overwrite');
             else
                 obj.cache = PackageContainer();
             end
@@ -176,7 +182,7 @@ classdef RecurrentAP < AccessPoint
     properties (SetAccess = protected)
         parent % handle of a SimpleUnit, the host of this AccessPoint
         hostio % IO interface to kernel access points
-        no     % series number, 0 represent independent, otherwise in cooperate mode
+        no = 0 % series number, 0 represent independent, otherwise in cooperate mode
     end
     methods
         function set.parent(obj, value)

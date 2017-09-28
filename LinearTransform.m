@@ -1,3 +1,6 @@
+% UPDATE LOG:
+%  2017SEP06: add assertion for SIZEIN2OUT and SIZEOUT2IN
+
 classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
     methods
         function y = dataproc(obj, x)
@@ -5,20 +8,12 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
         end
         
         function d = deltaproc(obj, d)
-            obj.B.addgrad(sum(d, 2));
-            obj.W.addgrad(d * obj.I{1}.datarcd.pop()');
+            if obj.pkginfo.updateHParam
+                obj.B.addgrad(sum(d, 2));            
+                obj.W.addgrad(d * obj.I{1}.datarcd.pop()');
+            end
             d = obj.weight' * d;
         end
-        
-        % function update(obj, stepsize)
-        %     if exist('stepsize', 'var')
-        %         obj.W.update(stepsize);
-        %         obj.B.update(stepsize);
-        %     else
-        %         obj.W.update();
-        %         obj.B.update();
-        %     end
-        % end
     end
     
     methods
@@ -30,10 +25,12 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
     % ======================= SIZE DESCRIPTION =======================
     methods
         function sizeinfo  = sizeIn2Out(obj, sizeinfo)
+            assert(sizeinfo(1) == size(obj.W, 2), 'ILLEGAL DATA SHAPE');
             sizeinfo(1) = size(obj.W, 1);
         end
         
         function sizeinfo = sizeOut2In(obj,sizeinfo)
+            assert(sizeinfo(1) == size(obj.W, 1), 'ILLEGAL DATA SHAPE');
             sizeinfo(1) = size(obj.W, 2);
         end
         
@@ -73,15 +70,37 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
         function debug()
             sizein  = 16;
             sizeout = 16;
-            refer  = LinearTransform(randn(sizeout, sizein), randn(sizeout, 1));
+            refer = LinearTransform(randn(sizeout, sizein), randn(sizeout, 1));
             aprox = LinearTransform.randinit(sizein, sizeout);
             dataset = DataGenerator('normal', sizein);
             objective = Likelihood('mse');
             opt = HyperParam.getOptimizer();
-            opt.gradmode('basic');
-            opt.stepmode('adapt', 'estimatedChange', 1e-1);
-            opt.enableRcdmode(3);
+            % opt.gradmode('basic');
+            % opt.stepmode('adapt', 'estimatedChange', 1e-1);
+            % opt.enableRcdmode(3);
+            % opt.gradmode('rmsprop', 'decay2ndOrder', 0.999);
+            opt.gradmode('adam', 'decay1stOrder', 0, 'decay2ndOrder', 0.999);
+            opt.stepmode('static', 'step', 1e-2);
             task = SimulationTest(aprox, refer, dataset, objective);
+            task.run(3e2, 16, 64);
+        end
+        
+        function gdebug()
+            sizein  = 16;
+            sizeout = 16;
+            refer = LinearTransform(randn(sizeout, sizein), randn(sizeout, 1));
+            aprox = LinearTransform.randinit(sizein, sizeout);
+            dataset = DataGenerator('normal', sizein);
+            objective = Likelihood('mse');
+            % opt = HyperParam.getOptimizer();
+            % opt.gradmode('basic');
+            % opt.stepmode('adapt', 'estimatedChange', 1e-1);
+            % opt.enableRcdmode(3);
+            % opt.gradmode('rmsprop', 'decay2ndOrder', 0.999);
+            % opt.gradmode('adam', 'decay1stOrder', 0.9, 'decay2ndOrder', 0.999);
+            % opt.gradmode('basic');
+            % opt.stepmode('static', 'step', 1e-3);
+            task = GenerativeTest(aprox, refer, dataset, objective);
             task.run(3e2, 16, 64);
         end
     end

@@ -11,10 +11,12 @@ classdef MultiLT < MISOUnit & FeedforwardOperation & Evolvable
         end
         
         function varargout = deltaproc(obj, d)
-            obj.B.addgrad(sum(d, 2));
-            for i = 1 : numel(obj.W)
-                if not(obj.I{i}.datarcd.isempty)
-                    obj.W{i}.addgrad(d * obj.I{i}.datarcd.pop()');
+            if obj.pkginfo.updateHParam
+                obj.B.addgrad(sum(d, 2));
+                for i = 1 : numel(obj.W)
+                    if not(obj.I{i}.datarcd.isempty)
+                        obj.W{i}.addgrad(d * obj.I{i}.datarcd.pop()');
+                    end
                 end
             end
             varargout = cellfun(@(w) w.get()' * d, obj.W, 'UniformOutput', false);
@@ -28,12 +30,17 @@ classdef MultiLT < MISOUnit & FeedforwardOperation & Evolvable
     end
     
     methods
-        function sizeout = sizeIn2Out(obj, varargin) % DANGEROUS
-            sizein  = varargin{1};
-            sizeout = [size(obj.B, 1), sizein(2)];
+        function sizeout = sizeIn2Out(obj, varargin)
+            batchsize = unique(cellfun(@(el) el(2), varargin));
+            assert(issingle(batchsize), 'INCONSISTANT DATA SHAPE');
+            for i = 1 : numel(varargin)
+                assert(varargin{i}(1) == size(obj.W{i}, 2), 'ILLEGAL DATA SHAPE');
+            end
+            sizeout = [size(obj.B, 1), batchsize];
         end
         
-        function varargout = sizeOut2In(obj, sizeout) % DANGEROUS
+        function varargout = sizeOut2In(obj, sizeout)
+            assert(sizeout(1) == size(obj.B, 1), 'ILLEGAL DATA SHAPE');
             varargout = cellfun(@(w) [size(w, 2), sizeout(2)], obj.W, ...
                 'UniformOutput', false);
         end

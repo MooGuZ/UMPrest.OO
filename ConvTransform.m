@@ -11,8 +11,10 @@ classdef ConvTransform < SISOUnit & FeedforwardOperation & Evolvable
         function d = deltaproc(obj, d)
             [d, dW, dB] = MathLib.nnconvDifferential(...
                 d, obj.I{1}.datarcd.pop(), obj.weight, 'same');
-            obj.W.addgrad(dW);
-            obj.B.addgrad(dB);
+            if obj.pkginfo.updateHParam
+                obj.W.addgrad(dW);
+                obj.B.addgrad(dB);
+            end
         end
     end
     
