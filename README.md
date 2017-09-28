@@ -104,3 +104,8 @@ Class `SizeDescriptor` provides a static method `interp` to category a given val
 A special case of size description is the empty vector, which represents no limitation at all. So, it can match to all the size descriptions.
 
 Two major methods of `SizeDescription` are `check` and `match`. The former answer the question ‘Whether or not the given *size value* is allowed, according to the given *size description*?’; while, the later try to solve the problem of making two *size description* accept each other. It returns the answer whether or not it is possible, and if it’s the case, a `solution` will be returned together. This solution represents the condition that make two *size descriptions* match.
+
+### Prior
+- Object defined in class *Prior*, while operation defined in class *ProbabilityDescription*.
+- There are two types of *priors*: prior of hyper-parameters and prior in generative units.
+- I also add prior to *UnitAP* and calculate delta in *unpack* procedure while processing *ErrorPackage*. This setting has no concrete application currently. It is just a theoretical design that can specify priors to all the data appearing in the network. 

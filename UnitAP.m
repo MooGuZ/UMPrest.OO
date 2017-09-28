@@ -1,16 +1,19 @@
+% UPDATE LOG:
+%  2017SEP06: correct PACKUP process for SizePackage
+%
 % TODO: apply prior gradient to ERRORPACKAGE in UNPACK process
-classdef UnitAP < AccessPoint
+classdef UnitAP < AccessPoint & ProbabilityDescription
 % ======================= DATA PROCESSING =======================
     methods
         function data = unpack(obj, package)
-            if isempty(package)
-                data = [];
-                return
-            end
+            % if isempty(package)
+            %     data = [];
+            %     return
+            % end
             if obj.no && not(isempty(obj.parent.pkginfo.class))
                 assert(strcmp(class(package), obj.parent.pkginfo.class));
                 assert(package.taxis == obj.parent.pkginfo.taxis);
-                % assert(package.batchsize == obj.parent.pkginfo.batchsize);
+                assert(package.batchsize == obj.parent.pkginfo.batchsize);
                 if obj.expandable 
                     if package.dsample >= obj.dsample
                         assert(package.dsample - obj.dsample == obj.parent.pkginfo.dexpand);
@@ -18,10 +21,13 @@ classdef UnitAP < AccessPoint
                         assert(obj.parent.pkginfo.dexpand == 0);
                     end
                 end
+                if isa(package, 'ErrorPackage')
+                    assert(package.updateHParam == obj.parent.pkginfo.updateHParam);
+                end
             else
                 obj.parent.pkginfo.class = class(package);
                 obj.parent.pkginfo.taxis = package.taxis;
-                % obj.parent.pkginfo.batchsize = package.batchsize;
+                obj.parent.pkginfo.batchsize = package.batchsize;
                 if obj.expandable 
                     if package.dsample >= obj.dsample
                         obj.parent.pkginfo.dexpand = package.dsample - obj.dsample;
@@ -29,7 +35,9 @@ classdef UnitAP < AccessPoint
                         obj.parent.pkginfo.dexpand = 0;
                     end
                 end
-                obj.parent.pkginfo.batchsize = package.batchsize;
+                if isa(package, 'ErrorPackage')
+                    obj.parent.pkginfo.updateHParam = package.updateHParam;
+                end
             end
             % calculate desired shape of data
             [datashape, needReshape] = obj.sizeOut2In( ...
@@ -53,8 +61,8 @@ classdef UnitAP < AccessPoint
                     data = package.data;
                 end
                 % apply prior to gradient
-                if not(isempty(obj.prior))
-                    data = data + obj.prior.delta();
+                if not(isempty(obj.priorSet))
+                    data = data + obj.priorDelta(obj.datarcd.fetch(-1));
                 end
                                 
               case {'SizePackage'}
@@ -74,9 +82,9 @@ classdef UnitAP < AccessPoint
                 dim = obj.dsample;
             end
             taxis = obj.parent.pkginfo.taxis;
-            [datashape, needReshape] = obj.sizeIn2Out(size(data), dim, taxis);
             switch obj.parent.pkginfo.class
               case {'DataPackage'}
+                [datashape, needReshape] = obj.sizeIn2Out(size(data), dim, taxis);
                 if obj.recdata
                     obj.datarcd.push(data);
                 end
@@ -86,18 +94,15 @@ classdef UnitAP < AccessPoint
                 package = DataPackage(data, dim, taxis);
                 
               case {'ErrorPackage'}
+                [datashape, needReshape] = obj.sizeIn2Out(size(data), dim, taxis);
                 if needReshape
                     data = reshape(data, datashape);
                 end
-                % apply prior to gradient
-                if not(isempty(obj.prior))
-                    data = data + obj.prior.delta();
-                end
                 % compose error package
-                package = ErrorPackage(data, dim, taxis);
+                package = ErrorPackage(data, dim, taxis, obj.parent.pkginfo.updateHParam);
                 
               case {'SizePackage'}
-                package = SizePackage(datashape, dim, taxis);
+                package = SizePackage(obj.sizeIn2Out(data, dim, taxis), dim, taxis);
                 
               otherwise
                 error('UNSUPPORTED');
@@ -106,7 +111,7 @@ classdef UnitAP < AccessPoint
         end
     end
     
-    methods (Access = private)
+    methods (Hidden)
         % NOTE: implementation here allow the case that data package
         %       contains data with more dimensions than interface
         %       requirement and cannot be automatically correct. In this
@@ -168,13 +173,25 @@ classdef UnitAP < AccessPoint
         end
     end
     
+    % overwrite behavior of addPrior
+    methods
+        function addPrior(obj, value)
+            addPrior@ProbabilityDescription(value);
+            % ensure recording data if prior is added
+            if not(isempty(obj.priorSet))
+                obj.recdata = true;
+            end
+        end
+    end
+    
     methods (Static)
         function pkginfo = initPackageInfo()
             pkginfo = struct( ...
-                'class',     [], ...
-                'taxis',     [], ...
-                'dexpand',   [], ...
-                'batchsize', []);
+                'class',        [], ...
+                'taxis',        [], ...
+                'dexpand',      [], ...
+                'batchsize',    [], ...
+                'updateHParam', []);
         end
     end
     
@@ -182,8 +199,6 @@ classdef UnitAP < AccessPoint
     methods
         function obj = UnitAP(parent, dsample, varargin)
             conf = Config(varargin);
-            
-            obj.no = 0;
             
             obj.parent     = parent;
             obj.dsample    = dsample;
@@ -204,14 +219,11 @@ classdef UnitAP < AccessPoint
     end
     
     % ======================= DATA STRUCTURE =======================
-    properties
-        prior
-    end
     properties (SetAccess = protected)
         parent     % handle of a SimpleUnit, the host of this AccessPoint
         dsample    % dimension of data pass through this AccessPoint
         expandable % TRUE/FALSE, indicating dimension of data can be expanded
-        no         % series number, 0 represent independent, otherwise in cooperate mode
+        no = 0     % series number, 0 represent independent, otherwise in cooperate mode        
     end
     properties (Dependent)
         recdata    % TRUE/FALSE, indicating this AccessPoint would record passed data
@@ -222,7 +234,7 @@ classdef UnitAP < AccessPoint
     end
     methods
         function set.parent(obj, value)
-            assert(isa(value, 'SimpleUnit'), 'ILLEGAL OPERATION');
+            assert(isa(value, 'Unit'), 'ILLEGAL OPERATION');
             obj.parent = value;
         end
         

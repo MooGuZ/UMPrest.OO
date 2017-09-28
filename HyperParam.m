@@ -1,4 +1,4 @@
-classdef HyperParam < Tensor
+classdef HyperParam < Tensor & ProbabilityDescription
     methods
        function addgrad(obj, grad)
             if not(obj.frozen)
@@ -14,8 +14,8 @@ classdef HyperParam < Tensor
                     obj.conf = obj.optimizer.getconf();
                 end
                 % apply prior if exist
-                if isa(obj.prior, 'Objective')
-                    obj.addgrad(obj.prior.delta(obj.data));
+                if not(isempty(obj.priorSet))
+                    obj.addgrad(obj.priorDelta(obj.data));
                 end
                 % calculate gradient
                 % NOTE: correctness of following line is based on the fact that
@@ -120,7 +120,6 @@ classdef HyperParam < Tensor
         moment1stOrd = 0
         moment2ndOrd = 0
         conf, laststep
-        prior
     end
     properties (Constant)
         optimizer = HyperParam.getOptimizer();
