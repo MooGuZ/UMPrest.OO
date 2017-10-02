@@ -211,6 +211,49 @@ classdef DPHLSTM < RecurrentUnit
                 inputTransformA, outputTransformA, inputTransformB, outputTransformB);
         end
         
+        function unit = combine(dumpA, dumpB)
+            assert(strcmpi(dumpA{1}, 'PHLSTM'), 'ILLEGAL FIRST ARGUMENT');
+            assert(strcmpi(dumpB{1}, 'PHLSTM'), 'ILLEGAL SECOND ARGUMENT');
+            % obtain quantity of hidden units of each part
+            nhidunitA = size(dumpA{2}{2}, 1);
+            nhidunitB = size(dumpB{2}{2}, 1);
+            % build element in Recurrent Unit
+            stateControlA  = Interface.loaddump(dumpA{2});
+            updateControlA = Interface.loaddump(dumpA{4});
+            stateUpdateA   = MultiLT(dumpA{3}{2:3}, HyperParam.randlt(nhidunitA, nhidunitB), dumpA{3}{4});
+            outputControlA = MultiLT(dumpA{5}{2:4}, HyperParam.randlt(nhidunitA, nhidunitB), dumpA{5}{5});
+            stateControlB  = Interface.loaddump(dumpB{2});
+            updateControlB = Interface.loaddump(dumpB{4});
+            stateUpdateB   = MultiLT(dumpB{3}{2:3}, HyperParam.randlt(nhidunitB, nhidunitA), dumpB{3}{4});
+            outputControlB = MultiLT(dumpB{5}{2:4}, HyperParam.randlt(nhidunitB, nhidunitA), dumpB{5}{5});
+            % build input/output transforms
+            if isempty(dumpA{6})
+                inputTransformA = [];
+            else
+                inputTransformA = Interface.loaddump(dumpA{6});
+            end
+            if isempty(dumpA{7})
+                outputTransformA = [];
+            else
+                outputTransformA = Interface.loaddump(dumpA{7});
+            end
+            if isempty(dumpB{6})
+                inputTransformB = [];
+            else
+                inputTransformB = Interface.loaddump(dumpB{6});
+            end
+            if isempty(dumpB{7})
+                outputTransformB = [];
+            else
+                outputTransformB = Interface.loaddump(dumpB{7});
+            end
+            % build unit
+            unit = DPHLSTM( ...
+                stateControlA, stateUpdateA, updateControlA, outputControlA, ...
+                stateControlB, stateUpdateB, updateControlB, outputControlB, ...
+                inputTransformA, outputTransformA, inputTransformB, outputTransformB);
+        end
+        
         function debug()
             nhidden = 32;
             sizein  = 32;
