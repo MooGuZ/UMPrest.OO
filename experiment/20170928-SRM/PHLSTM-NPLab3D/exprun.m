@@ -31,7 +31,7 @@ nframePredict = 15;
 initEstch = 1e-3;
 %% environment parameters
 istart  = 0;
-taskid  = ['SRM', num2str(nhidunit), 'NPLAB3D'];
+taskid  = ['PHLSTM', num2str(nhidunit), 'NPLAB3D'];
 savedir = fullfile(taskdir, 'records');
 datadir = fullfile(taskdir, 'data');
 namept  = [taskid, '-ITER%d-DUMP.mat'];
