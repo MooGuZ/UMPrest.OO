@@ -28,9 +28,10 @@ end
 nbases = 1024;
 nframeEncoder = 15;
 nframePredict = 15;
+initEstch = 1e-3;
 %% environment parameters
 istart  = 0;
-taskid  = ['SRM', num2str(nhidunit)];
+taskid  = ['SRM', num2str(nhidunit), 'NPLAB3D'];
 savedir = fullfile(taskdir, 'records');
 datadir = fullfile(taskdir, 'data');
 namept  = [taskid, '-ITER%d-DUMP.mat'];
@@ -97,7 +98,7 @@ task = CustomTask(taskid, taskdir, model, {nplab3d, zerogen}, lossfun, {}, ...
 %% setup optmizator
 opt = HyperParam.getOptimizer();
 opt.gradmode('basic');
-opt.stepmode('adapt', 'estimatedChange', 1e-2);
+opt.stepmode('adapt', 'estimatedChange', initEstch);
 opt.enableRcdmode(3);
 %% run task
 latestsave = [];
