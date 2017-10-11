@@ -22,7 +22,7 @@ classdef Interface < handle
                 % special cases
                 if iscell(apto) && isscalar(apto)
                     apto = apto{1};
-                elseif isa(apto, 'Interface') && isscalar(apto.O)
+                elseif isa(apto, 'Interface') && isscalar(apto.I)
                     apto = apto.I{1};
                 end
                 assert(isa(apto, 'AccessPoint'), 'ILLEGAL OPERATION');
