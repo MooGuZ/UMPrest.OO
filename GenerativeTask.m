@@ -49,6 +49,7 @@ classdef GenerativeTask < Task
         end
         
         function value = validate(obj, validset)
+            obj.model.frozen = true;
             if iscell(validset)
                 for i = 1 : numel(validset)
                     obj.dataset{i}.data.send(validset{i});
@@ -73,6 +74,7 @@ classdef GenerativeTask < Task
             else
                 fprintf('\n');
             end
+            obj.model.frozen = false;
         end
     end
     
