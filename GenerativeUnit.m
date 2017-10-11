@@ -88,6 +88,12 @@ classdef GenerativeUnit < Unit & Evolvable
               otherwise
                 error('UNKNOWN PACKAGE TYPE!');
             end
+            % send package if necessary
+            if nargout == 0
+                for i = 1 : numel(self.I)
+                    self.I{i}.send(varargout{i});
+                end
+            end
         end
         
         function [value, delta] = infer(self, data)
@@ -170,7 +176,7 @@ classdef GenerativeUnit < Unit & Evolvable
         frozen = true
         inferOption = struct( ...
             'Method',      'cg',  ...
-            'Display',     'iter', ...
+            'Display',     'off', ...
             'MaxIter',     20,    ...
             'MaxFunEvals', 30);
         normfunc = []
