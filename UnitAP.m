@@ -2,7 +2,7 @@
 %  2017SEP06: correct PACKUP process for SizePackage
 %
 % TODO: apply prior gradient to ERRORPACKAGE in UNPACK process
-classdef UnitAP < AccessPoint & ProbabilityDescription
+classdef UnitAP < AccessPoint
 % ======================= DATA PROCESSING =======================
     methods
         function data = unpack(obj, package)
@@ -60,10 +60,10 @@ classdef UnitAP < AccessPoint & ProbabilityDescription
                 else
                     data = package.data;
                 end
-                % apply prior to gradient
-                if not(isempty(obj.priorSet))
-                    data = data + obj.priorDelta(obj.datarcd.fetch(-1));
-                end
+                % % apply prior to gradient
+                % if not(isempty(obj.priorSet))
+                %     data = data + obj.priorDelta(obj.datarcd.fetch(-1));
+                % end
                                 
               case {'SizePackage'}
                 data = datashape;
@@ -173,16 +173,16 @@ classdef UnitAP < AccessPoint & ProbabilityDescription
         end
     end
     
-    % overwrite behavior of addPrior
-    methods
-        function addPrior(obj, value)
-            addPrior@ProbabilityDescription(value);
-            % ensure recording data if prior is added
-            if not(isempty(obj.priorSet))
-                obj.recdata = true;
-            end
-        end
-    end
+%     % overwrite behavior of addPrior
+%     methods
+%         function addPrior(obj, value)
+%             addPrior@ProbabilityDescription(value);
+%             % ensure recording data if prior is added
+%             if not(isempty(obj.priorSet))
+%                 obj.recdata = true;
+%             end
+%         end
+%     end
     
     methods (Static)
         function pkginfo = initPackageInfo()
