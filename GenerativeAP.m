@@ -101,6 +101,9 @@ classdef GenerativeAP < AccessPoint & ProbabilityDescription
             end
             value = self.delta(:)' * self.delta(:);
             self.delta = 2 * self.delta;
+            if isa(value, 'gpuArray')
+                value = double(gather(value));
+            end
         end
         
         function composeDelta(self)
