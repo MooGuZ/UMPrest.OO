@@ -42,12 +42,13 @@ npixel    = prod(framesize);
 %% load COModel bases
 comodel = load(fullfile(datadir, 'comodel_nplab3d.mat'));
 % create whitening module
-whitening = StatisticTransform('whiten', nplab3d.stat).appendto(nplab3d.data);
+whitening = StatisticTransform(nplab3d.stat, 'mode', 'whiten');
+whitening.compressOutput(size(comodel.iweight, 1));
 stat      = whitening.getKernel(framesize);
 %% create/load units and model
 % if istart == 0
-%     encoder     = DPHLSTM.randinit(nhidunit, [], [], [], []);
-%     predict     = DPHLSTM.randinit(nhidunit, [], nbase, [], nbase);
+%     encoder     = DPHLSTM.randinit(nhidunit, [], []);
+%     predict     = DPHLSTM.randinit(nhidunit, [], nbases);
 %     reTransform = LinearTransform.randinit(stat.sizeout, nhidunit);
 %     imTransform = LinearTransform.randinit(stat.sizeout, nhidunit);
 % else
@@ -64,9 +65,12 @@ crdTransform = Cart2Polar().appendto( ...
 model = Model(reTransform, imTransform, crdTransform, encoder, predict);
 %% create prevnet
 inputSlicer  = FrameSlicer(nframeEncoder, 'front', 0).appendto( ...
-    whitening).aheadof(reTransform).aheadof(imTransform);
+    nplab3d.data).aheadof(whitening);
 outputSlicer = FrameSlicer(nframePredict, 'front', nframeEncoder).appendto(nplab3d.data);
-outputShaper = Shaper().appendto(outputSlicer);
+outputShaper = Reshaper().appendto(outputSlicer);
+% connect whitening
+whitening.aheadof(reTransform).aheadof(imTransform);
+% compose prevnet
 prevnet = Model(whitening, inputSlicer, outputSlicer, outputShaper);
 %% create postnet
 ampact = SimpleActivation('ReLU').appendto(predict.DO{1});
@@ -75,7 +79,7 @@ angscaler = Scaler(pi).appendto(angact);
 cotransform = PolarCLT(comodel.rweight, comodel.iweight, zeros(stat.sizeout, 1)).appendto( ...
     ampact, angscaler);
 cotransform.freeze();
-dewhiten = LinearTransform(stat.decode, stat.offset).appendto(cotransform);
+dewhiten = LinearTransform(stat.decode, stat.offset(:)).appendto(cotransform);
 dewhiten.freeze();
 postnet = Model(ampact, angact, angscaler, cotransform, dewhiten);
 %% create zero generators
