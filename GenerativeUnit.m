@@ -100,11 +100,14 @@ classdef GenerativeUnit < Unit & Evolvable
             self.deployData(self.O, data);
             cellfun(@sendData, self.O);
             self.kernel.forward();
-            value = sum(cellfun(@objfunc, self.I));
-            cellfun(@(ap) ap.sendDelta(false), self.I);
-            self.kernel.backward();
-            cellfun(@composeDelta, self.O);
-            delta = self.collectDelta(self.O);
+            value = sum(cellfun(@objfunc, self.I)) ...
+                + sum(cellfun(@priorEval, self.O));
+            if nargout > 1
+                cellfun(@(ap) ap.sendDelta(false), self.I);
+                self.kernel.backward();
+                cellfun(@composeDelta, self.O);
+                delta = self.collectDelta(self.O);
+            end
         end
         
         function adapt(self)
