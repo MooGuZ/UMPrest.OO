@@ -5,7 +5,7 @@ classdef MovingImageSet < handle
             samples = cell(1, n);
             for i = 1 : n
                 samples{i} = obj.generate( ...
-                    obj.db(:, :, randi(obj.volumn, 1, obj.objectPerSample)));
+                    obj.db(:, :, randi(obj.volume, 1, obj.objectPerSample)));
             end
             package = obj.data.packup(samples);
             if nargout == 0
@@ -81,10 +81,10 @@ classdef MovingImageSet < handle
         islabelled = false
     end
     properties (Dependent)
-        volumn % number of unique samples in the dataset
+        volume % number of unique samples in the dataset
     end
     methods
-        function value = get.volumn(obj)
+        function value = get.volume(obj)
             value = size(obj.db, 3);
         end
     end

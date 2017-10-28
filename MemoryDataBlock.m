@@ -6,7 +6,7 @@ classdef MemoryDataBlock < DataBlock
         end
         
         function mdb = subset(obj, n)
-            index = randperm(obj.volumn, n);
+            index = randperm(obj.volume, n);
             if obj.stat.status
                 mdb = MemoryDataBlock(obj.cache(index), 'stat', obj.stat.collector.dsample);
             else
@@ -68,10 +68,10 @@ classdef MemoryDataBlock < DataBlock
     end
     
     properties (Dependent)
-        volumn
+        volume
     end
     methods
-        function value = get.volumn(obj)
+        function value = get.volume(obj)
             value = numel(obj.cache);
         end
     end

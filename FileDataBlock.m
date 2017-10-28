@@ -76,11 +76,11 @@ classdef FileDataBlock < DataBlock
         function shuffle(obj)
             if obj.autoload.status
                 % get new random order
-                obj.order = randperm(obj.volumn);
+                obj.order = randperm(obj.volume);
                 % reset file index
                 obj.autoload.iid = 0;
                 % initialize cache in new order
-                if obj.volumn
+                if obj.volume
                     obj.refresh();
                 end
                 % CASE: cache capacity is sufficient for whole data
@@ -89,7 +89,7 @@ classdef FileDataBlock < DataBlock
                 end
             else
                 % generate permutation map
-                index = randperm(obj.volumn);
+                index = randperm(obj.volume);
                 % reorganize order and cache according to the map
                 obj.order = obj.order(index);
                 obj.cache = obj.cache(index);
@@ -119,7 +119,7 @@ classdef FileDataBlock < DataBlock
         function mdb = subset(obj, n)
         % create a MemoryDataBlock containing subset of this FileDataBlock's files. And
         % remove these file from this DB.
-            assert(n < obj.volumn && n > 0 && MathLib.isinteger(n) && isscalar(n), ...
+            assert(n < obj.volume && n > 0 && MathLib.isinteger(n) && isscalar(n), ...
                 'ILLEGAL OPERATION');
             
             if obj.autoload.status
@@ -153,8 +153,8 @@ classdef FileDataBlock < DataBlock
                     obj.refresh();
                     % CASE : autoload is turned off
                     if not(obj.autoload.status) && count < n
-                        assert(obj.volumn > n - count, 'DATA IS NOT ENOUGH');
-                        index = randperm(obj.volumn);
+                        assert(obj.volume > n - count, 'DATA IS NOT ENOUGH');
+                        index = randperm(obj.volume);
                         dcell(count + 1 : n) = obj.cache(index(1 : n - count));
                         obj.cache = obj.cache(index(n - count + 1 : end));
                         obj.deleteFiles(obj.order(index(1 : n - count)));
@@ -162,7 +162,7 @@ classdef FileDataBlock < DataBlock
                     end
                 end
             else
-                index = randperm(obj.volumn);
+                index = randperm(obj.volume);
                 dcell = obj.cache(index(1 : n));
                 obj.cache = obj.cache(index(n+1 : end));
                 obj.deleteFiles(obj.order(index(1 : n)));
@@ -181,7 +181,7 @@ classdef FileDataBlock < DataBlock
             obj.stat = struct( ...
                 'status',    true, ...
                 'collector', StatisticCollector(dim), ...
-                'tag',       false(1, obj.volumn));
+                'tag',       false(1, obj.volume));
         end
         
         function obj = disableStatistics(obj)
@@ -282,11 +282,11 @@ classdef FileDataBlock < DataBlock
     end
     
     properties (Dependent)
-        volumn
+        volume
     end
     methods
-        function value = get.volumn(obj)
-            value = obj.ftree.volumn;
+        function value = get.volume(obj)
+            value = obj.ftree.volume;
             if obj.autoload.status
                 value = value - numel(obj.autoload.ifailed);
             end

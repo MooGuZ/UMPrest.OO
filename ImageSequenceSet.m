@@ -145,15 +145,15 @@ classdef ImageSequenceSet < Dataset
         taxis   = true;
     end
     properties (Dependent)
-        volumn
+        volume
         islabelled
         dataPerSample
         hideTAxis % option for hiding temporal axis in output data package
         stat
     end
     methods
-        function value = get.volumn(obj)
-            value = obj.db.volumn;
+        function value = get.volume(obj)
+            value = obj.db.volume;
         end
         
         function value = get.islabelled(obj)

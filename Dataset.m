@@ -4,7 +4,7 @@ classdef Dataset < handle
     end
     
     properties (Abstract, Dependent)
-        volumn % number of unique samples in the dataset
+        volume % number of unique samples in the dataset
         islabelled % T/F indicating whether or not there is label with data
     end
     properties (SetAccess = protected)

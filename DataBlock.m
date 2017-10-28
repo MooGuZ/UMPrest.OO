@@ -65,6 +65,6 @@ classdef DataBlock < handle
     end
     
     properties (Abstract, Dependent)
-        volumn % quantity of unique data unit containes
+        volume % quantity of unique data unit containes
     end
 end
