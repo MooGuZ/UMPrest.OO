@@ -1,4 +1,4 @@
-classdef Transform2D < handle
+classdef Transform2D < Dataset
     methods
         function [anim, info] = next(self, n)
             if not(exist('n', 'var'))
@@ -228,9 +228,9 @@ classdef Transform2D < handle
         end
         
         function conf = decodeConfig(code)
-            conf  = [];
             index = 2;
-            for i = 1 : code(1)
+            conf  = cell(1, code(1));
+            for i = 1 : numel(cell);
                 cfg.shape        = Transform2D.shapeset(code(index));
                 cfg.nedges       = code(index + 1);
                 index = index + 1;
@@ -246,8 +246,9 @@ classdef Transform2D < handle
                 cfg.rotation     = code(index + 8);
                 cfg.tzwidth      = code(index + 9);
                 index = index + 10;
-                conf = [conf, cfg];
+                conf{i} = cfg;
             end
+            conf = cell2mat(conf);
         end
     end
     
@@ -317,8 +318,12 @@ classdef Transform2D < handle
     properties (Access = protected)
         cache = [], count = 0         % cache and its lifetime
     end
-    properties (SetAccess = protected)
-        data, label              % Access-Points
+    % properties (SetAccess = protected)
+    %     data, label              % Access-Points
+    % end
+    properties (Dependent)
+        islabelled
+        volume
     end
     properties
         framesize = [32, 32]     % size of each frame
@@ -329,6 +334,14 @@ classdef Transform2D < handle
         scale, position, orient, translation, scaling, rotation
     end
     methods
+        function value = get.islabelled(~)
+            value = true;
+        end
+        
+        function value = get.volume(~)
+            value = inf;
+        end
+        
         function set.framesize(self, value)
             assert(numel(value) == 2 && MathLib.isinteger(value) && all(value >= 8), ...
                 'ILLEGAL ASSIGNMENT');
