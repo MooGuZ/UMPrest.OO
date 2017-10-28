@@ -1,7 +1,8 @@
 classdef ProbabilityDescription < handle
     methods
-        function addPrior(self, varargin)
-            self.priorSet = [self.priorSet, {CommonPrior(varargin{:})}];
+        function prior = addPrior(self, varargin)
+            prior = CommonPrior(varargin{:});
+            self.priorSet = [self.priorSet, {prior}];
         end
         
         function clearPrior(self)
