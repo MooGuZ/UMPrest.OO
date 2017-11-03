@@ -18,14 +18,14 @@ classdef GenerativeAP < AccessPoint & ProbabilityDescription
             if self.no && not(isempty(self.parent.pkginfo.class))
                 assert(strcmp(class(package), self.parent.pkginfo.class));
                 assert(package.taxis == self.parent.pkginfo.taxis);
-                % assert(package.batchsize == self.parent.pkginfo.batchsize);
+                assert(package.batchsize == self.parent.pkginfo.batchsize);
                 if isa(package, 'ErrorPackage')
                     assert(package.updateHParam == self.parent.pkginfo.updateHParam);
                 end
             else
                 self.parent.pkginfo.class     = class(package);
                 self.parent.pkginfo.taxis     = package.taxis;
-                % self.parent.pkginfo.batchsize = package.batchsize;
+                self.parent.pkginfo.batchsize = package.batchsize;
                 if isa(package, 'ErrorPackage')
                     self.parent.pkginfo.updateHParam = package.updateHParam;
                 end
@@ -94,24 +94,39 @@ classdef GenerativeAP < AccessPoint & ProbabilityDescription
         end
         
         function value = objfunc(self)
-        % Implemented under criteria of MSE without MEAN operation
-            self.delta = self.hostio.pop().data - self.data;
+        % use negative log gaussian distribution as evaluation method by default
+            package    = self.hostio.pop();
+            self.delta = package.data - self.data;
             if not(isempty(self.objweight))
                 self.delta = bsxfun(@times, self.delta, self.objweight);
             end
-            value = self.delta(:)' * self.delta(:);
-            self.delta = 2 * self.delta;
+            batchsize   = self.parent.pkginfo.batchsize;
+            probability = self.parent.valuefunc(self.delta, 0, self.parent.noiseStdvar);
+            self.delta  = self.parent.deltafunc(self.delta, 0, self.parent.noiseStdvar) / batchsize;
+            value       = sum(probability(:)) / batchsize;
             if isa(value, 'gpuArray')
                 value = double(gather(value));
             end
         end
         
         function composeDelta(self)
-            self.delta = self.hostio.pop().data + self.priorDelta(self.data);
+            package    = self.hostio.pop();            
+            self.delta = package.data + self.priorDelta(self.data);
         end
         
         function self = cooperate(self, no)
             self.no = no;
+        end
+    end
+    
+    % overwrite functions from ProbabilityDescription to remove influnence of batchsize
+    methods
+        function value = priorEval(self, varargin)
+            value = priorEval@ProbabilityDescription(self, varargin{:}) / self.parent.pkginfo.batchsize;
+        end
+        
+        function value = priorDelta(self, varargin)
+            value = priorDelta@ProbabilityDescription(self, varargin{:}) / self.parent.pkginfo.batchsize;
         end
     end
     

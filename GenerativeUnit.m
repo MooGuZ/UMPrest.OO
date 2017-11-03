@@ -100,8 +100,9 @@ classdef GenerativeUnit < Unit & Evolvable
             self.deployData(self.O, data);
             cellfun(@sendData, self.O);
             self.kernel.forward();
-            value = sum(cellfun(@objfunc, self.I)) ...
-                + sum(cellfun(@priorEval, self.O));
+            lhood = sum(cellfun(@objfunc, self.I));
+            prior = sum(cellfun(@priorEval, self.O));
+            value = lhood + prior;
             if nargout > 1
                 cellfun(@(ap) ap.sendDelta(false), self.I);
                 self.kernel.backward();
@@ -172,17 +173,20 @@ classdef GenerativeUnit < Unit & Evolvable
             if exist('normfunc', 'var')
                 self.normfunc = normfunc;
             end
+            % set noise distribution to Gaussian by default
+            self.noiseDistribution = 'Gaussian';
         end
     end
     
     properties
         frozen = false
         inferOption = struct( ...
-            'Method',      'bb',  ...
+            'Method',      'lbfgs',  ...
             'Display',     'off', ...
-            'MaxIter',     17,    ...
-            'MaxFunEvals', 23);
+            'MaxIter',     20,    ...
+            'MaxFunEvals', 30);
         normfunc = []
+        noiseStdvar = 1
     end
     properties (Hidden)
         pkginfo
@@ -190,9 +194,12 @@ classdef GenerativeUnit < Unit & Evolvable
     properties (SetAccess = protected)
         I, O, kernel
     end
-    % properties
-    %     inputVectorSize, outputVectorSize
-    % end
+    properties (SetAccess = protected, Hidden)
+        noisedist, valuefunc, deltafunc
+    end
+    properties (Dependent)
+        noiseDistribution
+    end
     methods
         function set.I(self, value)
             try
@@ -227,5 +234,31 @@ classdef GenerativeUnit < Unit & Evolvable
                 error('ILLEGAL ASSIGNMENT');
             end
         end
+        
+        function value = get.noiseDistribution(self)
+            value = self.noisedist;
+        end
+        
+        function set.noiseDistribution(self, value)
+            switch lower(value)
+              case {'gauss', 'gaussian', 'normal'}
+                self.noisedist = 'Gaussian';
+                self.valuefunc = @MathLib.negLogGauss;
+                self.deltafunc = @MathLib.negLogGaussGradient;
+                
+              case {'cauchy'}
+                self.noisedist = 'Cauchy';
+                self.valuefunc = @MathLib.negLogCauchy;
+                self.deltafunc = @MathLib.negLogCauchyGradient;
+                
+              case {'laplace'}
+                self.noisedist = 'Laplace';
+                self.valuefunc = @MathLib.negLogLaplace;
+                self.deltafunc = @MathLib.negLogLaplaceGradient;
+                
+              otherwise
+                error('UNRECOGNIZED DISTRIBUTION');
+            end
+        end        
     end
 end
