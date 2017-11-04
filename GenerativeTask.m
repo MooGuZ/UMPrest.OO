@@ -1,6 +1,7 @@
 classdef GenerativeTask < Task
     methods
         function run(obj, nepoch, batchPerEpoch, batchsize, validsize)
+            fprintf('[%s] Generative Task start Running\n', datestr(now));
             if iscell(obj.dataset)
                 validset = cell(1, numel(obj.dataset));
                 for i = 1 : numel(validset)
@@ -63,10 +64,12 @@ classdef GenerativeTask < Task
             buffer = cell(1, numel(obj.model.O));
             [buffer{:}] = obj.model.forward();
             obj.model.backward(buffer{:});
-            value = sum(cellfun(@evaluate, obj.objective)) + sum(cellfun(@priorEval, obj.priors));
+            lhood = sum(cellfun(@evaluate, obj.objective));
+            prior = sum(cellfun(@priorEval, obj.priorHolder));
+            value = lhood + prior;
             if obj.verbose
-                fprintf('[%s] Objective Value after [%04d] iterations : %.2e ', ...
-                    datestr(now), obj.iteration, value);
+                fprintf('[%s] Objective Value after [%05d] iterations : %.2e <L:%.2e,P:%.2e> ', ...
+                    datestr(now), obj.iteration, value, lhood, prior);
             end
             if obj.optimizer.rcdmode.status
                 obj.optimizer.record(value);
@@ -79,7 +82,7 @@ classdef GenerativeTask < Task
     end
     
     methods
-        function obj = GenerativeTask(taskid, taskdir, model, dataset, objective, priors, varargin)
+        function obj = GenerativeTask(taskid, taskdir, model, dataset, objective, priorHolder, varargin)
             conf = Config(varargin);
             % setup fundamental properties
             obj.id        = taskid;
@@ -91,10 +94,10 @@ classdef GenerativeTask < Task
             else
                 obj.objective = {objective};
             end
-            obj.priors    = priors;
-            obj.iteration = conf.pop('iteration', 0);
-            obj.nosave    = conf.pop('nosave', false);
-            obj.verbose   = conf.pop('verbose', true);
+            obj.priorHolder = priorHolder;
+            obj.iteration   = conf.pop('iteration', 0);
+            obj.nosave      = conf.pop('nosave', false);
+            obj.verbose     = conf.pop('verbose', true);
             % setup dependent properties
             obj.savedir     = fullfile(obj.dir, 'records');
             obj.namePattern = [obj.id, '-ITER%d-DUMP.mat'];
@@ -111,7 +114,7 @@ classdef GenerativeTask < Task
         latestSave
     end
     properties (SetAccess = protected)
-        id, iteration, dir, savedir, namePattern, priors, prevnet
+        id, iteration, dir, savedir, namePattern, priorHolder, prevnet
     end
     properties (Constant)
         optimizer = HyperParam.getOptimizer()
@@ -139,12 +142,13 @@ classdef GenerativeTask < Task
             obj.dir = value;
         end
         
-        function set.priors(obj, value)
+        function set.priorHolder(obj, value)
             if isa(value, 'ProbabilityDescription')
-                obj.priors = {value};
+                obj.priorHolder = {value};
             else
-                assert(iscell(value), 'ILLEGAL ASSIGNMENT');
-                obj.priors = value;
+                assert(iscell(value) && all(cellfun(@(v) isa(v, 'ProbabilityDescription'), value)), ...
+                    'ILLEGAL ASSIGNMENT');
+                obj.priorHolder = value;
             end
         end
         
