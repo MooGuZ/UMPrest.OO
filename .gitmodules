@@ -4,3 +4,6 @@
 [submodule "jsonlab"]
 	path = jsonlab
 	url = https://github.com/fangq/jsonlab.git
+[submodule "minFunc"]
+	path = minFunc
+	url = git@github.com:MooGuZ/minFunc.git
