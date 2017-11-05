@@ -24,9 +24,9 @@ else
     taskdir   = pwd();
 end
 whitenSizeOut = 512;
-initEstch = 1e-2;
+initEstch = 1e-3;
 %% environment parameters
-istart  = 5e5;
+istart  = 5e4;
 taskid  = ['COMPGEN', num2str(nhidunit), 'TRANSFORM2D'];
 savedir = fullfile(taskdir, 'records');
 datadir = fullfile(taskdir, 'data');
@@ -55,6 +55,12 @@ model.noiseStdvar = 0.3;
 model.I{1}.objweight = sqrt(stat.pixelweight);
 sparse = model.O{1}.addPrior('cauchy', 'stdvar', sqrt(2));
 slow   = model.O{1}.addPrior('slow', 'stdvar', sqrt(2));
+%% setup inference options
+model.inferOption = struct( ...
+    'Method',      'bb', ...
+    'Display',     'off', ...
+    'MaxIter',     40, ...
+    'MaxFunEvals', 50);
 %% create prevnet
 stunit.appendto(dataset.data).aheadof(model);
 prevnet = stunit;
