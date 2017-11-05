@@ -44,6 +44,10 @@ classdef ImageSequenceSet < Dataset
             end
         end
         
+        function obj = shuffle(obj)
+            obj.db.refresh();
+        end
+        
         function obj = enablePatchMode(obj, patchsize, patchPerSample)
             assert(MathLib.isinteger(patchsize) && numel(patchsize) == 2, ...
                 'ILLEGAL PATCH SIZE');
