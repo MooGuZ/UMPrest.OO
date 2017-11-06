@@ -38,7 +38,7 @@ classdef GenerativeUnit < Unit & Evolvable
                 % normalization representation
                 self.normalizeRepresentation();
                 % do adaptation by back-propagation
-                if not(self.frozen)
+                if self.training
                     self.adapt();
                 end
                 % collect representations as packages
@@ -159,6 +159,25 @@ classdef GenerativeUnit < Unit & Evolvable
         function unitdump = dump(self)
             unitdump = {class(self), self.kernel.dump()};
         end
+
+        function self = mode(self, value)
+            if exist('value', 'var')
+                switch lower(value)
+                  case {'train', 'training', 'learn', 'adapt'}
+                    self.training = true;
+
+                  case {'work', 'working', 'normal', 'test', 'testing'}
+                    self.training = false;
+
+                  otherwise
+                    error('UNRECOGNIZED MODE IDENTIFIER')
+                end
+            elseif self.training
+                disp('Generative Unit is in Traning mode');
+            else
+                disp('Generative Unit is in Working mode');
+            end
+        end
     end
     
     methods
@@ -175,11 +194,12 @@ classdef GenerativeUnit < Unit & Evolvable
             end
             % set noise distribution to Gaussian by default
             self.noiseDistribution = 'Gaussian';
+            % set mode to working
+            self.mode('working');
         end
     end
     
     properties
-        frozen = false
         inferOption = struct( ...
             'Method',      'lbfgs',  ...
             'Display',     'off', ...
@@ -196,6 +216,9 @@ classdef GenerativeUnit < Unit & Evolvable
     end
     properties (SetAccess = protected, Hidden)
         noisedist, valuefunc, deltafunc
+    end
+    properties (Access = private)
+        training
     end
     properties (Dependent)
         noiseDistribution

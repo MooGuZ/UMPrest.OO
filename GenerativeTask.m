@@ -1,6 +1,7 @@
 classdef GenerativeTask < Task
     methods
         function run(obj, nepoch, batchPerEpoch, batchsize, validsize)
+            obj.model.mode('training');
             fprintf('[%s] Generative Task start Running\n', datestr(now));
             if iscell(obj.dataset)
                 validset = cell(1, numel(obj.dataset));
@@ -33,6 +34,8 @@ classdef GenerativeTask < Task
             end
             % keep the last save
             obj.latestSave = [];
+            % switch back to working mode
+            obj.model.mode('working');
         end
         
         function modeldump = save(obj)
