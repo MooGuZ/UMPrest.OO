@@ -1,5 +1,6 @@
 % MODEL : Complex Generative Model on Transform2D dataset
 % CODE  : https://github.com/MooGuZ/UMPrest.OO/commit/c5ed9b6fc7cfe750ad85cea4068bfd74249ec5b8
+function exprun(istart, initEstch, nepoch)
 %% check environment
 ishpc = isunix && not(ismac);
 %% load package to MATLAB search path
@@ -7,35 +8,39 @@ if ishpc
     addpath('/home/hxz244'); 
     pathLoader('umpoo');
 end
+%% apply default setting if necessary
+if not(exist('istart', 'var'))
+    istart = 0;
+end
+if not(exist('initEstch', 'var'))
+    initEstch = 1e-3;
+end
+if not(exist('nepoch', 'var'))
+    nepoch = 10;
+end
 %% model parameters
 if ishpc
     nhidunit  = 1024;
-    nepoch    = 40;
     nbatch    = 500;
     batchsize = 32;
     validsize = 128;
-    taskdir   = fileparts(mfilename('fullpath'));
     taskopt   = {};
 else
     nhidunit  = 1024;
-    nepoch    = 3;
     nbatch    = 3;
     batchsize = 8;
     validsize = 32;
-    taskdir   = exproot();
     taskopt   = {'-nosave'};
 end
 whitenSizeOut = 512;
-initEstch = 1e-3;
 %% environment parameters
-istart  = 5e4;
+taskdir = exproot();
 taskid  = ['COMPGEN', num2str(nhidunit), 'TRANSFORM2D'];
 savedir = fullfile(taskdir, 'records');
 datadir = fullfile(taskdir, 'data');
 namept  = [taskid, '-ITER%d-DUMP.mat'];
 %% load dataset and parameter setup
 dataset = Transform2D();
-nframes = dataset.nframes;
 framesize = dataset.framesize;
 %% load statistic information
 load(fullfile(datadir, 'statrans_transform2d.mat'));
