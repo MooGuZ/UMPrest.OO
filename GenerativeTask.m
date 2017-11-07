@@ -53,7 +53,7 @@ classdef GenerativeTask < Task
         end
         
         function value = validate(obj, validset)
-            obj.model.frozen = true;
+            obj.model.mode('testing');
             if iscell(validset)
                 for i = 1 : numel(validset)
                     obj.dataset{i}.data.send(validset{i});
@@ -64,40 +64,37 @@ classdef GenerativeTask < Task
             if not(isempty(obj.prevnet))
                 obj.prevnet.forward();
             end
-            buffer = cell(1, numel(obj.model.O));
-            [buffer{:}] = obj.model.forward();
-            obj.model.backward(buffer{:});
-            lhood = sum(cellfun(@evaluate, obj.objective));
-            prior = sum(cellfun(@priorEval, obj.priorHolder));
-            value = lhood + prior;
+            % buffer = cell(1, numel(obj.model.O));
+            % [buffer{:}] = obj.model.forward();
+            % obj.model.backward(buffer{:});
+            % lhood = sum(cellfun(@evaluate, obj.objective));
+            % prior = sum(cellfun(@priorEval, obj.priorHolder));
+            % value = lhood + prior;
+            obj.model.forward();
+            [likelihood, prior] = obj.model.status();
+            value = likelihood + prior;
             if obj.verbose
-                fprintf('[%s] Objective Value after [%05d] iterations : %.2e <L:%.2e,P:%.2e> ', ...
-                    datestr(now), obj.iteration, value, lhood, prior);
+                fprintf('[%s] Objective Value after [%05d] iterations : %.5e <L:%.2e,P:%.2e> ', ...
+                    datestr(now), obj.iteration, value, likelihood, prior);
+                if obj.optimizer.rcdmode.status
+                    obj.optimizer.record(value);
+                    fprintf('[ESTCH : %.2e]\n', obj.optimizer.cache.stepmode.estch);
+                else
+                    fprintf('\n');
+                end
             end
-            if obj.optimizer.rcdmode.status
-                obj.optimizer.record(value);
-                fprintf('[ESTCH : %.2e]\n', obj.optimizer.cache.stepmode.estch);
-            else
-                fprintf('\n');
-            end
-            obj.model.frozen = false;
+            obj.model.mode('training');
         end
     end
     
     methods
-        function obj = GenerativeTask(taskid, taskdir, model, dataset, objective, priorHolder, varargin)
+        function obj = GenerativeTask(taskid, taskdir, model, dataset, varargin)
             conf = Config(varargin);
             % setup fundamental properties
             obj.id        = taskid;
             obj.dir       = abspath(taskdir);
             obj.model     = model;
             obj.dataset   = dataset;
-            if iscell(objective)
-                obj.objective = objective;
-            else
-                obj.objective = {objective};
-            end
-            obj.priorHolder = priorHolder;
             obj.iteration   = conf.pop('iteration', 0);
             obj.nosave      = conf.pop('nosave', false);
             obj.verbose     = conf.pop('verbose', true);
@@ -117,7 +114,7 @@ classdef GenerativeTask < Task
         latestSave
     end
     properties (SetAccess = protected)
-        id, iteration, dir, savedir, namePattern, priorHolder, prevnet
+        id, iteration, dir, savedir, namePattern, prevnet
     end
     properties (Constant)
         optimizer = HyperParam.getOptimizer()
@@ -143,16 +140,6 @@ classdef GenerativeTask < Task
                 mkdir(value, 'records');
             end
             obj.dir = value;
-        end
-        
-        function set.priorHolder(obj, value)
-            if isa(value, 'ProbabilityDescription')
-                obj.priorHolder = {value};
-            else
-                assert(iscell(value) && all(cellfun(@(v) isa(v, 'ProbabilityDescription'), value)), ...
-                    'ILLEGAL ASSIGNMENT');
-                obj.priorHolder = value;
-            end
         end
         
         function set.nosave(obj, value)

@@ -98,11 +98,8 @@ classdef GenerativeUnit < Unit & Evolvable
         
         function [value, delta] = infer(self, data)
             self.deployData(self.O, data);
-            cellfun(@sendData, self.O);
-            self.kernel.forward();
-            lhood = sum(cellfun(@objfunc, self.I));
-            prior = sum(cellfun(@priorEval, self.O));
-            value = lhood + prior;
+            [likelihood, prior] = self.status();
+            value = likelihood + prior;
             if nargout > 1
                 cellfun(@(ap) ap.sendDelta(false), self.I);
                 self.kernel.backward();
@@ -118,6 +115,13 @@ classdef GenerativeUnit < Unit & Evolvable
             cellfun(@(ap) ap.sendDelta(true), self.I);
             self.kernel.backward();
             self.kernel.update();            
+        end
+        
+        function [likelihood, prior] = status(self)
+            cellfun(@sendData, self.O);
+            self.kernel.forward();
+            likelihood = sum(cellfun(@objfunc, self.I));
+            prior = sum(cellfun(@priorEval, self.O));
         end
         
         function deployData(~, aplist, data)
