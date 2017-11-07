@@ -20,3 +20,6 @@ One clear problem is the objective function I used, weighted-MSE, is not a good 
 Another concern locates at overfitting problem. Currently, I use all the data in training (only 20k sequence at all). There is no testing set and independent validate set. I should update the scripts to make the separation and keeping log of training, validating, and testing scores. Besides, I should also test the model on Transform2D dataset, which contains unlimited data in theory and also leave background alone, which should be beneficial for the model.
 
 I should also consider train a complex bases in convolutional way, then combine it with recurrent unit to see whether or not it can recover more background details.
+
+**Sat Oct 28 09:59:28 EDT 2017**
+Run experiment of recurrent model on NPLab3D's prediction with objective function evaluated on pixel space instead of whitening space with weights. I try to use this modification to overcome the problem that model overlook the background in reconstruction of future frames.
