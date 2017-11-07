@@ -18,7 +18,7 @@ classdef DataBlock < handle
             % refresh cache if it is traversed
             if obj.icache >= numel(obj.cache)
                 obj.refresh();
-                assert(numel(obj.cache), 'BUG : EMPTY DATABLOCK AFTER REFRESH');
+                assert(numel(obj.cache) > 0, 'BUG : EMPTY DATABLOCK AFTER REFRESH');
             end
             % initialize index filled units
             index = 0;

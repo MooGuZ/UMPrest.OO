@@ -21,7 +21,7 @@ end
 %% model parameters
 if ishpc
     nhidunit  = 1024;
-    nbatch    = 500;
+    nbatch    = 1000;
     batchsize = 32;
     validsize = 128;
     taskopt   = {};
