@@ -69,6 +69,11 @@ classdef FileTree < handle
                 obj.parent.refresh();
             end
         end
+        
+        function value = calcVolume(obj)
+            value = numel(obj.subfile) + sum(cellfun(@calcVolume, obj.subfolder));
+            obj.volume = value;
+        end
     end
     
     methods (Access = private)
