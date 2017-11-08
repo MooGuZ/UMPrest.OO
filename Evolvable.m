@@ -33,7 +33,7 @@ classdef Evolvable < handle
             end
         end
         
-        function freeze(obj)
+        function obj = freeze(obj)
             hpcell = obj.hparam();
             for i = 1 : numel(hpcell)
                 hpcell{i}.cleanup();

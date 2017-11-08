@@ -1,5 +1,12 @@
 % MODEL : Complex Recurrent Model on Transform2D dataset
 % CODE  : https://github.com/MooGuZ/UMPrest.OO/commit/7e31d8741c9ba3d12587f7341f87afa4246807ef
+%% Function Start Here
+function exprun(istart, initEstch, nloop, swLinBase)
+% default setttings
+if not(exist('istart', 'var')),    istart = 0;        end
+if not(exist('initEstch', 'var')), initEstch = 1e-3;  end
+if not(exist('nloop', 'var')),     nloop = 10;        end
+if not(exist('swLinBase', 'var')), swLinBase = false; end
 %% check environment
 ishpc = isunix && not(ismac);
 %% load package to MATLAB search path
@@ -9,39 +16,40 @@ if ishpc
 end
 %% model parameters
 if ishpc
-    nhidunit  = 1024;
-    nloop     = 4;
     nepoch    = 10;
     nbatch    = 500;
     batchsize = 32;
     validsize = 128;
-    taskdir   = fileparts(mfilename('fullpath'));
+    swSave    = true;
 else
-    nhidunit  = 1024;
-    nloop     = 3;
-    nepoch    = 3;
+
+    nepoch    = 10;
     nbatch    = 3;
     batchsize = 8;
     validsize = 32;
-    taskdir   = pwd();
+    swSave    = false;
 end
-nbases = 1024;
+% structure settings
+nbases   = 1024;
+nhidunit = 1024;
 nframeEncoder = 15;
 nframePredict = 15;
-initEstch = 1e-3;
 %% environment parameters
-istart  = 0;
-taskid  = ['DPHLSTM', num2str(nhidunit), 'TRANSFORM2D'];
+taskdir = exproot();
+if swLinBase
+    taskid = ['DPHLSTM', num2str(nhidunit), 'TRANSFORM2D-EVBASE'];
+else
+    taskid  = ['DPHLSTM', num2str(nhidunit), 'TRANSFORM2D'];
+end
 savedir = fullfile(taskdir, 'records');
 datadir = fullfile(taskdir, 'data');
 namept  = [taskid, '-ITER%d-DUMP.mat'];
 %% load dataset and parameter setup
 dataset   = Transform2D('nobjects', 1, 'nframes', nframeEncoder + nframePredict);
 framesize = dataset.framesize;
-npixel    = prod(framesize);
-%% load COModel bases
+%% load linear bases
 comodel = load(fullfile(datadir, 'comodel_transform2d.mat'));
-% create whitening module
+%% create whitening unit
 load(fullfile(datadir, 'statrans_transform2d.mat'));
 whitening = Interface.loaddump(stdump);
 whitening.compressOutput(size(comodel.iweight, 1));
@@ -80,9 +88,10 @@ angact = SimpleActivation('tanh').appendto(predict.DO{2});
 angscaler = Scaler(pi).appendto(angact);
 cotransform = PolarCLT(comodel.rweight, comodel.iweight, zeros(stat.sizeout, 1)).appendto( ...
     ampact, angscaler);
-cotransform.freeze();
-dewhiten = LinearTransform(stat.decode, stat.offset(:)).appendto(cotransform);
-dewhiten.freeze();
+if not(swLinBase)
+    cotransform.freeze();
+end
+dewhiten = LinearTransform(stat.decode, stat.offset(:)).appendto(cotransform).freeze();
 postnet = Model(ampact, angact, angscaler, cotransform, dewhiten);
 %% create zero generators
 zerogen = DataGenerator('zero', nhidunit, 'tmode', nframeEncoder);
@@ -108,14 +117,16 @@ opt.enableRcdmode(3);
 latestsave = [];
 for i = 1 : nloop
     task.run(nepoch, nbatch, batchsize, validsize);
-    encoderdump     = encoder.dump();
-    predictdump     = predict.dump();
-    retransformdump = reTransform.dump();
-    imtransformdump = imTransform.dump();
-    save(fullfile(savedir, sprintf(namept, task.iteration)), ...
-        'encoderdump', 'predictdump', 'retransformdump', 'imtransformdump', '-v7.3');
-    if not(isempty(latestsave))
-        delete(latestsave);
+    if swSave
+        encoderdump     = encoder.dump();
+        predictdump     = predict.dump();
+        retransformdump = reTransform.dump();
+        imtransformdump = imTransform.dump();
+        save(fullfile(savedir, sprintf(namept, task.iteration)), ...
+            'encoderdump', 'predictdump', 'retransformdump', 'imtransformdump', '-v7.3');
+        if not(isempty(latestsave))
+            delete(latestsave);
+        end
+        latestsave = fullfile(savedir, sprintf(namept, task.iteration));
     end
-    latestsave = fullfile(savedir, sprintf(namept, task.iteration));
 end
