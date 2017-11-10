@@ -62,8 +62,9 @@ classdef HyperParam < Tensor & ProbabilityDescription
                     (1 - conf.decay1stOrd) * obj.gradient;
                 obj.moment2ndOrd = conf.decay2ndOrd * obj.moment2ndOrd + ...
                     (1 - conf.decay2ndOrd) * (obj.gradient.^2);
-                obj.gradient = sqrt(1 - conf.decay2ndOrd^obj.t) / (1 - conf.decay1stOrd^obj.t) * ...
-                       (obj.moment1stOrd ./ (1e-8 + obj.moment2ndOrd));
+                moment1stOrdBC = obj.moment1stOrd / (1 - conf.decay1stOrd^obj.t);
+                moment2ndOrdBC = obj.moment2ndOrd / (1 - conf.decay2ndOrd^obj.t);
+                obj.gradient = moment1stOrdBC ./ (sqrt(moment2ndOrdBC) + 1e-8);
                 
               otherwise
                 error('UNRECOGNIZED PARAMETER');
