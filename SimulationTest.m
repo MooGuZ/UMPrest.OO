@@ -89,7 +89,7 @@ classdef SimulationTest < Task
     end
     methods
         function set.ref(obj, value)
-            assert(isa(value, 'Interface'), 'ILLEGAL ASSIGNMENT');
+            assert(isa(value, 'BuildingBlock'), 'ILLEGAL ASSIGNMENT');
             obj.ref = value;
         end
     end

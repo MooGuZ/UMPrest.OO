@@ -1,4 +1,4 @@
-classdef Unit < Interface
+classdef Unit < BuildingBlock
     methods
         function obj = Unit()
             obj.id = obj.idset.register();

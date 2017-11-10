@@ -1,4 +1,4 @@
-classdef Model < Interface & Evolvable
+classdef Model < BuildingBlock & Evolvable
     methods
         % PRB: package leak to units which is not in the Model
         function varargout = forward(obj, varargin)
@@ -108,7 +108,7 @@ classdef Model < Interface & Evolvable
     
     methods (Static)
         function self = loaddump(unitdump, edgedump, varargin)
-            unitset = cellfun(@Interface.loaddump, unitdump, 'UniformOutput', false);
+            unitset = cellfun(@BuildingBlock.loaddump, unitdump, 'UniformOutput', false);
             % connect units according to edgedump
             for i = 1 : numel(edgedump)
                 unitset{edgedump{i}(1)}.O{edgedump{i}(2)}.connect( ...

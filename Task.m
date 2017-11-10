@@ -8,7 +8,7 @@ classdef Task < handle
     end
     methods
         function set.model(obj, value)
-            assert(isa(value, 'Interface'), 'ILLEGAL ASSIGNMENT');
+            assert(isa(value, 'BuildingBlock'), 'ILLEGAL ASSIGNMENT');
             obj.model = value;
         end
         
