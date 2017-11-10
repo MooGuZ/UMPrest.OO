@@ -75,12 +75,12 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
             dataset = DataGenerator('normal', sizein);
             objective = Likelihood('mse');
             opt = HyperParam.getOptimizer();
-            % opt.gradmode('basic');
-            % opt.stepmode('adapt', 'estimatedChange', 1e-1);
-            % opt.enableRcdmode(3);
+            opt.gradmode('basic');
+            opt.stepmode('adapt', 'estimatedChange', 1e-1);
+            opt.enableRcdmode(3);
             % opt.gradmode('rmsprop', 'decay2ndOrder', 0.999);
-            opt.gradmode('adam', 'decay1stOrder', 0, 'decay2ndOrder', 0.999);
-            opt.stepmode('static', 'step', 1e-2);
+            % opt.gradmode('adam', 'decay1stOrder', 0, 'decay2ndOrder', 0.999);
+            % opt.stepmode('static', 'step', 1e-2);
             task = SimulationTest(aprox, refer, dataset, objective);
             task.run(3e2, 16, 64);
         end
@@ -92,13 +92,12 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
             aprox = LinearTransform.randinit(sizein, sizeout);
             dataset = DataGenerator('normal', sizein);
             objective = Likelihood('mse');
-            % opt = HyperParam.getOptimizer();
-            % opt.gradmode('basic');
-            % opt.stepmode('adapt', 'estimatedChange', 1e-1);
-            % opt.enableRcdmode(3);
+            opt = HyperParam.getOptimizer();
+            opt.gradmode('basic');
+            opt.stepmode('adapt', 'estimatedChange', 1e-1);
+            opt.enableRcdmode(3);
             % opt.gradmode('rmsprop', 'decay2ndOrder', 0.999);
             % opt.gradmode('adam', 'decay1stOrder', 0.9, 'decay2ndOrder', 0.999);
-            % opt.gradmode('basic');
             % opt.stepmode('static', 'step', 1e-3);
             task = GenerativeTest(aprox, refer, dataset, objective);
             task.run(3e2, 16, 64);
@@ -106,8 +105,7 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
     end
     
     properties (Constant, Hidden)
-        taxis = false;
-        % expandable = false;
+        taxis = false;        
     end
     
     properties (Access = protected)
