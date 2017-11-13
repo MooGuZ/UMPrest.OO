@@ -118,6 +118,7 @@ classdef HyperParam < Tensor & ProbabilityDescription
         t            = 0
         timestamp    = -inf
         gradient     = 0
+        momentum     = 0
         moment1stOrd = 0
         moment2ndOrd = 0
         conf, laststep

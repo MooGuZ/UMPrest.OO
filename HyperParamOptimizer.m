@@ -86,7 +86,7 @@ classdef HyperParamOptimizer < handle
               otherwise
                 error('UNRECOGNIZED MODE');
             end
-            obj.timestamp = now();
+            obj.update();
         end
         
         function obj = stepmode(obj, mode, varargin)
@@ -96,7 +96,6 @@ classdef HyperParamOptimizer < handle
                 obj.cache.stepmode = struct( ...
                     'mode', 'static', ...
                     'step', conf.pop('step', obj.default.stepmode.static.step));
-                obj.disableRcdmode();
                 
               case {'decline'}
                 obj.cache.stepmode = struct( ...
@@ -107,7 +106,6 @@ classdef HyperParamOptimizer < handle
                         obj.default.stepmode.decline.downFactor), ...
                     'wsize',    conf.pop('windowSize', ...
                         obj.default.stepmode.decline.windowSize));
-                obj.disableRcdmode();
                 
               case {'adapt'}
                 obj.cache.stepmode = struct( ...
@@ -129,20 +127,30 @@ classdef HyperParamOptimizer < handle
               otherwise
                 error('UNRECOGNIZED MODE');
             end
-            obj.timestamp = now();
+            obj.update();
         end
         
         function obj = enableMomentum(obj, varargin)
-            conf = Config(varagin);
+            conf = Config(varargin);
             obj.cache.momentum = struct( ...
                 'status',  true, ...
                 'inertia', conf.pop('inertia', obj.default.momentum.inertia));
-            obj.timestamp = now();
+            obj.update()
         end
         
         function obj = disableMomentum(obj)
             obj.cache.momentum = struct('status', false);
+            obj.update();
+        end
+        
+        function obj = update(obj)
             obj.timestamp = now();
+            % reset record mode
+            if strcmpi(obj.cache.stepmode.mode, 'adapt') && obj.rcdmode.status
+                obj.enableRcdmode(numel(obj.rcdmode.value));
+            else
+                obj.disableRcdmode();
+            end
         end
     end
         
@@ -150,10 +158,12 @@ classdef HyperParamOptimizer < handle
         function disp(obj)
             fprintf('\n[Gradient]\n\n');
             disp(obj.cache.gradmode);
-            fprintf('[Stepsize]\n\n');
-            disp(obj.cache.stepmode);
             fprintf('[Momentum]\n\n');
             disp(obj.cache.momentum);
+            fprintf('[Stepsize]\n\n');
+            disp(obj.cache.stepmode);
+            fprintf('[Record Mode]\n\n');
+            disp(obj.rcdmode);
         end
     end
     
@@ -165,9 +175,7 @@ classdef HyperParamOptimizer < handle
                 jsonfile = loadjson(UMPrest.path('config', 'hpconf.json'));
             end
             obj.default = jsonfile.conf;
-            % apply default settings
-            obj.gradmode(obj.default.gradmode.mode);
-            obj.stepmode(obj.default.stepmode.mode);
+            % setup momentum
             if obj.default.momentum.status
                 obj.enableMomentum();
             else
@@ -175,6 +183,9 @@ classdef HyperParamOptimizer < handle
             end
             % disable record-mode by default
             obj.disableRcdmode();
+            % apply default settings
+            obj.gradmode(obj.default.gradmode.mode);
+            obj.stepmode(obj.default.stepmode.mode);
         end
     end
     
