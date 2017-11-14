@@ -175,6 +175,13 @@ classdef HyperParamOptimizer < handle
                 jsonfile = loadjson(UMPrest.path('config', 'hpconf.json'));
             end
             obj.default = jsonfile.conf;
+            % initialize record-mode status
+            obj.rcdmode.status = false;
+            % apply default settings
+            % NOTE: have to initialize STEPMODE at first, due to
+            % implementation of UPDATE method
+            obj.stepmode(obj.default.stepmode.mode);
+            obj.gradmode(obj.default.gradmode.mode);
             % setup momentum
             if obj.default.momentum.status
                 obj.enableMomentum();
@@ -182,10 +189,11 @@ classdef HyperParamOptimizer < handle
                 obj.disableMomentum();
             end
             % disable record-mode by default
-            obj.disableRcdmode();
-            % apply default settings
-            obj.gradmode(obj.default.gradmode.mode);
-            obj.stepmode(obj.default.stepmode.mode);
+            if obj.default.recordmode.status
+                obj.enableRcdmode(obj.default.recordmode.n);
+            else
+                obj.disableRcdmode();
+            end
         end
     end
     

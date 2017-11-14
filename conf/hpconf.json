@@ -28,8 +28,12 @@
 	}
     },
     "momentum": {
-	"status": false,
-	"inertia": 0.9
+    	"status": false,
+        "inertia": 0.9
+    },
+    "recordmode": {
+        "status": true,
+        "n": 3
     }
 }}
 
