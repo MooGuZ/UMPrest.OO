@@ -308,12 +308,17 @@ classdef MathLib < handle
             % derivatives of BIAS
             if nargout > 2
                 dB = MathLib.margin(d, 3);
+                dB = reshape(dB, 1, 1, numel(dB));
             end
         end
         
         function dsize = nnconvsize(dsize, fsize, shape)
             if numel(dsize) < 3
                 dsize = [dsize, ones(1, 3 - numel(dsize))];
+            end
+            
+            if numel(fsize) < 4
+                fsize = [fsize, ones(1, 4 - numel(fsize))];
             end
             
             % type conversion in case of symbolic
