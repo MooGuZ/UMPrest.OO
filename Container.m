@@ -74,7 +74,7 @@ classdef Container < handle
                 if obj.issimple
                     element = obj.C;
                 else
-                    element = obj.C{obj.seek(obj.tail, index + 1)};
+                    element = obj.C{obj.seek(obj.tail, index)};
                 end
             else
                 error('OUT OF RANGE');
