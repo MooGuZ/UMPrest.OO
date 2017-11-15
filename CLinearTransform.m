@@ -75,23 +75,26 @@ classdef CLinearTransform < MISOUnit & FeedforwardOperation & Evolvable
                 zeros(sizeout, 1));
         end
     
-        function debug()
-            sizein  = 16;
-            sizeout = 16;
-            refer = CLinearTransform(randn(sizeout, sizein), ...
-                randn(sizeout, sizein), randn(sizeout, 1));
-            aprox = CLinearTransform.randinit(sizein, sizeout);
+        function debug(probScale, niter, batchsize, validsize)
+            if not(exist('probScale', 'var')), probScale = 16;  end
+            if not(exist('niter',     'var')), niter     = 3e2; end
+            if not(exist('batchsize', 'var')), batchsize = 16;  end
+            if not(exist('validsize', 'var')), validsize = 128; end
+            
+            sizein  = probScale;
+            sizeout = probScale;
+            % reference model
+            refer = CLinearTransform.randinit(sizein, sizeout);
+            cellfun(@(hp) hp.set(randn(size(hp))), refer.hparam);
+            % approximate model
+            model = CLinearTransform.randinit(sizein, sizeout);
+            % data generator
             dataset = DataGenerator('normal', sizein);
+            % objective function
             objective = Likelihood('mse');
-            opt = HyperParam.getOptimizer();
-            opt.gradmode('basic');
-            opt.stepmode('adapt', 'estimatedChange', 1e-1);
-            opt.enableRcdmode(3);
-            % opt.gradmode('rmsprop', 'decay2ndOrder', 0.999);
-            % opt.gradmode('adam', 'decay1stOrder', 0.9, 'decay2ndOrder', 0.999);
-            % opt.stepmode('static', 'step', 1e-2);
-            task = SimulationTest(aprox, refer, {dataset, dataset}, objective);
-            task.run(3e2, 16, 64);
+            % create task and run experiment
+            task = SimulationTest(model, refer, {dataset, dataset}, objective);
+            task.run(niter, batchsize, validsize);
         end
     end
     

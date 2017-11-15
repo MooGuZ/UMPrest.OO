@@ -127,40 +127,31 @@ classdef PHLSTM < RecurrentUnit
                 inputTransform, outputTransform);
         end
         
-        function debug()
-            nhidden = 32;
-            sizein  = 32;
-            sizeout = 32;
-            nframes = 7;
-            % calculate data size
-            if isempty(sizein)
-                datasize = nhidden;
-            else
-                datasize = sizein;
-            end
-            % create model and its reference
+        function debug(probScale, niter, batchsize, validsize)
+            if not(exist('probScale', 'var')), probScale = 16;  end
+            if not(exist('niter',     'var')), niter     = 3e2; end
+            if not(exist('batchsize', 'var')), batchsize = 16;  end
+            if not(exist('validsize', 'var')), validsize = 128; end
+            
+            nhidden = probScale;
+            sizein  = probScale;
+            sizeout = probScale;
+            nframes = ceil(log2(probScale));
+            % reference model
             refer = PHLSTM.randinit(nhidden, sizein, sizeout);
+            cellfun(@(hp) hp.set(randn(size(hp))), refer.hparam);
+            % apporximate model
             model = PHLSTM.randinit(nhidden, sizein, sizeout);
             % % set as last-frame mode
             % refer.setupOutputMode('last');
             % model.setupOutputMode('last');
-            % create dataset
-            dataset = DataGenerator('normal', datasize).enableTmode(nframes);
-            % create objectives
+            % data generator
+            dataset = DataGenerator('normal', sizein).enableTmode(nframes);
+            % objective function
             objective = Likelihood('mse');
-            % initialize task
+            % create task and run experiment
             task = SimulationTest(model, refer, dataset, objective);
-            % setup optimizer
-            opt = HyperParam.getOptimizer();
-            opt.gradmode('basic');
-            opt.stepmode('adapt', 'estimatedChange', 1e-2);
-            opt.enableRcdmode(3);
-            % opt.stepmode('static', 'step', 1e-3);
-            % opt.gradmode('rmsprop', 'decay2ndOrder', 0.999);
-            % opt.gradmode('adam', 'decay1stOrder', 0.9, 'decay2ndOrder', 0.999);
-            % opt.gradmode('basic');
-            % run simulation test
-            task.run(3e2, 16, 128);
+            task.run(niter, batchsize, validsize);
         end
     end
 end

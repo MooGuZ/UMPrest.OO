@@ -89,36 +89,31 @@ classdef SimpleRNN < RecurrentUnit
                 inputTransform, outputTransform);
         end
         
-        function debug()
-            nhidden = 16;
-            sizein  = 8;
-            sizeout = 32;
-            nframes = 7;
-            % calculate data size
-            if isempty(sizein)
-                datasize = nhidden;
-            else
-                datasize = sizein;
-            end
-            % create model and its reference
+        function debug(probScale, niter, batchsize, validsize)
+            if not(exist('probScale', 'var')), probScale = 16;  end
+            if not(exist('niter',     'var')), niter     = 3e2; end
+            if not(exist('batchsize', 'var')), batchsize = 16;  end
+            if not(exist('validsize', 'var')), validsize = 128; end
+            
+            nhidden = probScale;
+            sizein  = probScale;
+            sizeout = probScale;
+            nframes = ceil(log2(probScale));
+            % reference model
             refer = SimpleRNN.randinit(nhidden, sizein, sizeout);
+            cellfun(@(hp) hp.set(randn(size(hp))), refer.hparam);
+            % approximate model
             model = SimpleRNN.randinit(nhidden, sizein, sizeout);
             % % set as last-frame mode
             % refer.setupOutputMode('last');
             % model.setupOutputMode('last');
-            % create dataset
-            dataset = DataGenerator('normal', datasize).enableTmode(nframes);
-            % create objectives
+            % data generator
+            dataset = DataGenerator('normal', sizein).enableTmode(nframes);
+            % objective function
             objective = Likelihood('mse');
-            % initialize task
-            task = SimulationTest(model, refer, dataset, objective);
-            % setup optimizer
-            opt = HyperParam.getOptimizer();
-            opt.gradmode('basic');
-            opt.stepmode('adapt', 'estimatedChange', 1e-2);
-            opt.enableRcdmode(3);
-            % run simulation test
-            task.run(300, 16, 64);
+            % create task and run experiment
+            task = SimulationTest(model, refer, dataset, objective);            
+            task.run(niter, batchsize, validsize);
         end
     end
 end

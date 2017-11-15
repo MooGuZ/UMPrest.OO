@@ -67,26 +67,48 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
     end
     
     methods (Static)
-        function debug()
-            sizein  = 16;
-            sizeout = 16;
-            refer = LinearTransform(randn(sizeout, sizein), randn(sizeout, 1));
-            aprox = LinearTransform.randinit(sizein, sizeout);
+        function debug(probScale, niter, batchsize, validsize)
+            if not(exist('probScale', 'var')), probScale = 16;  end
+            if not(exist('niter',     'var')), niter     = 3e2; end
+            if not(exist('batchsize', 'var')), batchsize = 16;  end
+            if not(exist('validsize', 'var')), validsize = 128; end
+            
+            sizein  = probScale;
+            sizeout = probScale;
+            % reference model
+            refer = LinearTransform.randinit(sizein, sizeout);
+            cellfun(@(hp) hp.set(randn(size(hp))), refer.hparam);
+            % approximate model
+            model = LinearTransform.randinit(sizein, sizeout);
+            % data generator
             dataset = DataGenerator('normal', sizein);
+            % objective function
             objective = Likelihood('mse');
-            task = SimulationTest(aprox, refer, dataset, objective);
-            task.run(3e2, 16, 64);
+            % create task and run experiment
+            task = SimulationTest(model, refer, dataset, objective);
+            task.run(niter, batchsize, validsize);
         end
         
-        function gdebug()
-            sizein  = 16;
-            sizeout = 16;
-            refer = LinearTransform(randn(sizeout, sizein), randn(sizeout, 1));
-            aprox = LinearTransform.randinit(sizein, sizeout);
+        function gdebug(probScale, niter, batchsize, validsize)
+            if not(exist('probScale', 'var')), probScale = 16;  end
+            if not(exist('niter',     'var')), niter     = 3e2; end
+            if not(exist('batchsize', 'var')), batchsize = 16;  end
+            if not(exist('validsize', 'var')), validsize = 128; end
+            
+            sizein  = probScale;
+            sizeout = probScale;
+            % reference model
+            refer = LinearTransform.randinit(sizein, sizeout);
+            cellfun(@(hp) hp.set(randn(size(hp))), refer.hparam);
+            % approximate model
+            model = LinearTransform.randinit(sizein, sizeout);
+            % data generator
             dataset = DataGenerator('normal', sizein);
+            % objective function
             objective = Likelihood('mse');
-            task = GenerativeTest(aprox, refer, dataset, objective);
-            task.run(3e2, 16, 64);
+            % create task and run experiment
+            task = GenerativeTest(model, refer, dataset, objective);
+            task.run(niter, batchsize, validsize);
         end
     end
     

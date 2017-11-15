@@ -2,15 +2,72 @@ classdef ConvTransform < SISOUnit & FeedforwardOperation & Evolvable
     % NOTE: currently ConvTransform use convolution in 'SAME' shape
     methods
         function y = dataproc(obj, x)
-            y = MathLib.nnconv(x, obj.weight, obj.bias, 'same');
+            % if obj.useBuildInConv2D
+            %     if obj.useGPU
+            %         % NOTE: GPU version seems only accept symmetric
+            %         % padding, should deal with it latter.
+            %         y = nnet.internal.cnngpu.convolveForward2D( ...
+            %             x, obj.weight, ...
+            %             obj.padding.top, obj.padding.left, ...
+            %             obj.padding.bottom, obj.padding.right, ...
+            %             1, 1) + obj.bias;                    
+            %     else
+            %         y = nnet.internal.cnnhost.convolveForward2D( ...
+            %             x, obj.weight, ...
+            %             obj.padding.top, obj.padding.left, ...
+            %             obj.padding.bottom, obj.padding.right, ...
+            %             1, 1) + obj.bias;
+            %     end
+            % else
+                y = MathLib.nnconv(x, obj.weight, obj.bias, 'same');
+            % end
         end
         
         % NOTE: omit output parameter of dW and dB can save calculation
         %       power in case they are not necessary, such as, when
         %       hyperparameter is frozen.
         function d = deltaproc(obj, d)
-            [d, dW, dB] = MathLib.nnconvDifferential(...
-                d, obj.I{1}.datarcd.pop(), obj.weight, 'same');
+            x = obj.I{1}.datarcd.pop();
+            % if obj.useBuildInConv2D
+            %     if obj.useGPU
+            %         d = nnet.internal.cnngpu.convolveBackwardData2D( ...
+            %             x, obj.weight, d, ...
+            %             obj.padding.top, obj.padding.left, ...
+            %             obj.padding.bottom, obj.padding.right, ...
+            %             1, 1);
+            %         if obj.pkginfo.updateHParam
+            %             dW = nnet.internal.cnngpu.convolveBackwardFilter2D( ...
+            %                 x, obj.weight, d, ...
+            %                 obj.padding.top, obj.padding.left, ...
+            %                 obj.padding.bottom, obj.padding.right, ...
+            %                 1, 1);
+            %             dB = nnet.internal.cnngpu.convolveBackwardBias2D(d);
+            %         end
+            %     else
+            %         d = nnet.internal.cnnhost.convolveBackwardData2D( ...
+            %             x, obj.weight, d, ...
+            %             obj.padding.top, obj.padding.left, ...
+            %             obj.padding.bottom, obj.padding.right, ...
+            %             1, 1);
+            %         if obj.pkginfo.updateHParam
+            %             dW = nnet.internal.cnnhost.convolveBackwardFilter2D( ...
+            %                 x, obj.weight, d, ...
+            %                 obj.padding.top, obj.padding.left, ...
+            %                 obj.padding.bottom, obj.padding.right, ...
+            %                 1, 1);
+            %             dB = nnet.internal.cnnhost.convolveBackwardBias2D(d);
+            %         end
+            %     end
+            % else
+                if obj.pkginfo.updateHParam
+                    [d, dW, dB] = MathLib.nnconvDifferential(...
+                        d, x, obj.weight, 'same');
+                else
+                    d = MathLib.nnconvDifferential(...
+                        d, obj.I{1}.datarcd.pop(), obj.weight, 'same');
+                end
+            % end
+            % record gradients to Hyper-Parameters
             if obj.pkginfo.updateHParam
                 obj.W.addgrad(dW);
                 obj.B.addgrad(dB);
@@ -41,9 +98,14 @@ classdef ConvTransform < SISOUnit & FeedforwardOperation & Evolvable
     methods
         function obj = ConvTransform(weight, bias)
             obj.W = HyperParam(weight);
-            obj.B = HyperParam(bias);
+            obj.B = HyperParam(reshape(bias, 1, 1, numel(bias)));
             obj.I = {UnitAP(obj, 3, '-recdata')};
             obj.O = {UnitAP(obj, 3)};
+            % % calculate padding information
+            % obj.padding.top    = floor(size(weight, 1) / 2);
+            % obj.padding.bottom = floor((size(weight, 1) - 1) / 2);
+            % obj.padding.left   = floor(size(weight, 2) / 2);
+            % obj.padding.right  = floor((size(weight, 2) - 1) / 2);
         end
     end
     
@@ -57,49 +119,35 @@ classdef ConvTransform < SISOUnit & FeedforwardOperation & Evolvable
     end
     
     methods (Static)
-        function debug()
-            sizein   = [16, 16];
-            nfilter  = 3;
-            fltsize  = [7, 7];
-            nchannel = 3;
-            weight = randn([fltsize, nchannel, nfilter]);
-            bias   = randn(nfilter, 1);
-            refer = ConvTransform(weight, bias);
+        function debug(probScale, niter, batchsize, validsize)
+            if not(exist('probScale', 'var')), probScale = 16;  end
+            if not(exist('niter',     'var')), niter     = 3e2; end
+            if not(exist('batchsize', 'var')), batchsize = 16;  end
+            if not(exist('validsize', 'var')), validsize = 128; end
+            
+            sizein   = [probScale, probScale];
+            nfilter  = ceil(log2(probScale));
+            fltsize  = ceil(sqrt(sizein));
+            nchannel = nfilter;
+            % reference model
+            refer = ConvTransform.randinit(fltsize, nchannel, nfilter);
+            cellfun(@(hp) hp.set(randn(size(hp))), refer.hparam);
+            % approximate model
             model = ConvTransform.randinit(fltsize, nchannel, nfilter);
-            likelihood = Likelihood('mse');
-            % create validate set
-            % data = randn(sizein, 1e2);
-            % validset = DataPackage(data, 'label', bsxfun(@plus, ltrans * data, bias));
-            validsetIn  = DataPackage(randn([sizein, nchannel, 1e2]), 3, false);
-            validsetOut = refer.forward(validsetIn);
-            % get optimizer
-            opt = HyperParam.getOptimizer();
-            % setup optimizer
-            opt.gradmode('basic');
-            opt.stepmode('adapt', 'estimatedChange', 1e-2);            
-            opt.enableRcdmode(3);
-            % start to learn the linear transformation
-            objval = likelihood.evaluate(model.forward(validsetIn).data, validsetOut.data);
-            fprintf('Initial objective value : %.2f\n', objval);
-            opt.record(objval);
-            for i = 1 : UMPrest.parameter.get('iteration')
-                data = randn([sizein, nchannel, 8]);
-                ipkg = DataPackage(data, 3, false);
-                opkg = refer.forward(ipkg);
-                model.backward(likelihood.delta(model.forward(ipkg), opkg));
-                model.update();
-                objval = likelihood.evaluate(model.forward(validsetIn).data, validsetOut.data);
-                fprintf('Objective Value after [%04d] turns: %.2f\n', i, objval);
-                opt.record(objval);
-            end
-            % show result
-            werr = weight - model.weight;
-            berr = bias - model.bias;
-            fprintf('Estimate Weight Error > MEAN:%-8.2e\tVAR:%-8.2e\tMAX:%-8.2e\n', ...
-                mean(werr(:)), var(werr(:)), max(abs(werr(:))));
-            fprintf('Estimate Bias Error   > MEAN:%-8.2e\tVAR:%-8.2e\tMAX:%-8.2e\n', ...
-                mean(berr(:)), var(berr(:)), max(abs(berr(:))));
+            % data generator
+            dataset = DataGenerator('normal', [sizein, nchannel]);
+            % objective function
+            objective = Likelihood('mse');
+            % create task and run experiment
+            task = SimulationTest(model, refer, dataset, objective);
+            task.run(niter, batchsize, validsize);
         end
+    end
+    
+    properties (Constant)
+        % useGPU = logical(gpuDeviceCount)
+        % useBuildInConv2D = ...
+        %     not(isempty(which('nnet.internal.cnnhost.convolveForward2D')))        
     end
     
     properties (Constant, Hidden)
@@ -107,7 +155,7 @@ classdef ConvTransform < SISOUnit & FeedforwardOperation & Evolvable
     end
     
     properties (Access = protected)
-        W, B
+        W, B, padding
     end
     
     properties (Dependent)

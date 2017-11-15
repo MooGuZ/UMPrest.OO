@@ -90,20 +90,27 @@ classdef MultiLT < MISOUnit & FeedforwardOperation & Evolvable
             obj = MultiLT(weight{:}, bias);
         end
         
-        function debug(n)
-            if not(exist('n', 'var')), n = 3; end
-            sizeout = 32;
-            sizein  = num2cell(randi(32, [1, n]));
-            weights = cellfun(@(szin) randn(sizeout, szin), sizein, 'UniformOutput', false);
-            refer = MultiLT(weights{:}, randn(sizeout, 1));
+        function debug(probScale, niter, batchsize, validsize)
+            if not(exist('probScale', 'var')), probScale = 16;  end
+            if not(exist('niter',     'var')), niter     = 3e2; end
+            if not(exist('batchsize', 'var')), batchsize = 16;  end
+            if not(exist('validsize', 'var')), validsize = 128; end
+            
+            ninput  = ceil(log2(probScale));
+            sizeout = probScale;
+            sizein  = num2cell(randi(3 * probScale, [1, ninput]));
+            % reference model
+            refer = MultiLT.randinit(sizeout, sizein{:});
+            cellfun(@(hp) hp.set(randn(size(hp))), refer.hparam);
+            % approximate model
             model = MultiLT.randinit(sizeout, sizein{:});
+            % data generator
             dataset = cellfun(@(sz) DataGenerator('normal', sz), sizein, 'UniformOutput', false);
+            % objective function
             objective = Likelihood('mse');
+            % create task and run experiment
             task = SimulationTest(model, refer, dataset, objective);
-            opt = HyperParam.getOptimizer();
-            opt.gradmode('basic');
-            opt.stepmode('adapt', 'estimatedChange', 1e-2);
-            task.run(300, 16, 64);
+            task.run(niter, batchsize, validsize);
         end
     end
 end

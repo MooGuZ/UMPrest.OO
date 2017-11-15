@@ -54,52 +54,34 @@ classdef MLP < Model
     end
     
     methods (Static)
-        function [refer, aprox] = debug()
-            verbose    = true;
-            validsize  = 1e3;
-            batchsize  = 8;
-            rcdintval  = 10;
-            niteration = 3e2;
+        function debug(probScale, niter, batchsize, validsize)
+            if not(exist('probScale', 'var')), probScale = 16;  end
+            if not(exist('niter',     'var')), niter     = 3e2; end
+            if not(exist('batchsize', 'var')), batchsize = 16;  end
+            if not(exist('validsize', 'var')), validsize = 128; end
+            
             % model parameters
-            sizein   = 4;
-            pqlist   = [4, 16, 4];
+            nlayer   = ceil(log2(probScale));
+            nunits   = probScale * ones(1, nlayer + 1);
             hactType = 'ReLU';
-            oactType = 'sigmoid';
-            % create models
-            refer = MLP.randinit(sizein, pqlist, ...
+            oactType = 'tanh';
+            % create reference model
+            refer = MLP.randinit(nunits(1), nunits(2:end), ...
                 'HiddenLayerActType', hactType, ...
                 'OutputLayerActType', oactType);
-            aprox = MLP.randinit(sizein, pqlist, ...
+            cellfun(@(hp) hp.set(randn(size(hp))), refer.hparam);
+            % create approximate model
+            model = MLP.randinit(nunits(1), nunits(2:end), ...
                 'HiddenLayerActType', hactType, ...
                 'OutputLayerActType', oactType);
-            likelihood = Likelihood('cross');
-            % create validate set
-            validsetIn  = DataPackage(randn([sizein, validsize]), 1, false);
-            validsetOut = refer.forward(validsetIn);
-            % get optimizer
-            opt = HyperParam.getOptimizer();
-            % setup optimizer
-            opt.gradmode('basic');
-            opt.stepmode('adapt', 'estimatedChange', 1e-1);            
-            % opt.enableRcdmode(3);
-            % start to learn the linear transformation
-            objval = likelihood.evaluate(aprox.forward(validsetIn).data, validsetOut.data);
-            fprintf('Initial objective value : %.2f\n', objval);
-            % opt.record(objval, verbose);
-            for i = 1 : niteration
-                data = randn([sizein, batchsize]);
-                ipkg = DataPackage(data, 1, false);
-                opkg = refer.forward(ipkg);
-                aprox.backward(likelihood.delta(aprox.forward(ipkg), opkg));
-                aprox.update();
-                objval = likelihood.evaluate(aprox.forward(validsetIn).data, validsetOut.data);
-                fprintf('Objective Value after [%04d] turns: %.2e\n', i, objval);
-                % if mod(i, rcdintval) == 0
-                %     opt.record(objval, verbose);
-                % end
-            end
-            % show result
-            distinfo(abs(refer.dumpraw() - aprox.dumpraw()), 'HPARAMS', false);
+            % data generator
+            dataset = DataGenerator('normal', nunits(1));
+            % objective funtion
+            objective = Likelihood('mse');
+            % create simulation task
+            task = SimulationTest(model, refer, dataset, objective);
+            % run test
+            task.run(niter, batchsize, validsize);
         end
     end
 end

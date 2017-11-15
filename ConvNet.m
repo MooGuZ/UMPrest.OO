@@ -89,47 +89,35 @@ classdef ConvNet < Model
     end
     
     methods (Static)
-        function [refer, aprox] = debug()
-            verbose  = false;
-            sizein   = [32, 32];
-            nfilter  = [3, 5, 3];
-            fltsize  = [3, 3];
-            poolsize = [];
-            nchannel = 3;
-            refer = ConvNet.randinit(nchannel, nfilter, ...
-                'filterSize', fltsize, 'poolsize', poolsize);
-            aprox = ConvNet.randinit(nchannel, nfilter, ...
-                'filterSize', fltsize, 'poolsize', poolsize);
+        function debug(probScale, niter, batchsize, validsize)
+            if not(exist('probScale', 'var')), probScale = 16;     end
+            if not(exist('niter',     'var')), niter     = 3e2;    end
+            if not(exist('batchsize', 'var')), batchsize = 16;     end
+            if not(exist('validsize', 'var')), validsize = 128;    end
+            
+            % setup parameters
+            nlayer   = ceil(log2(probScale));
+            sizein   = probScale * [1,1];
+            nchannel = nlayer;
+            fltsize  = ceil(sqrt(sizein));
+            nfilter  = [nchannel, nlayer * ones(1, nlayer)];
+            hactType = 'ReLU';
+            oactType = 'tanh';
+            % reference model
+            refer = ConvNet.randinit(nchannel, nfilter(2 : end), 'filterSize', fltsize, ...
+                'HiddenLayerActType', hactType, 'OutputLayerActType', oactType);
+            cellfun(@(hp) hp.set(randn(size(hp))), refer.hparam);
+            % approximate model
+            model = ConvNet.randinit(nchannel, nfilter(2 : end), 'filterSize', fltsize, ...
+                'HiddenLayerActType', hactType, 'OutputLayerActType', oactType);
+            % create dataset
+            dataset = DataGenerator('normal', [sizein, nchannel]);
+            % create objectives
             likelihood = Likelihood('mse');
-            % create validate set
-            % data = randn(sizein, 1e2);
-            % validset = DataPackage(data, 'label', bsxfun(@plus, ltrans * data, bias));
-            validsetIn  = DataPackage(randn([sizein, nchannel, 1e2]), 3, false);
-            validsetOut = refer.forward(validsetIn);
-            % get optimizer
-            opt = HyperParam.getOptimizer();
-            % setup optimizer
-            opt.gradmode('basic');
-            opt.stepmode('adapt', 'estimatedChange', 1e-2);            
-            opt.enableRcdmode(3);
-            % start to learn the linear transformation
-            objval = likelihood.evaluate(aprox.forward(validsetIn).data, validsetOut.data);
-            fprintf('Initial objective value : %.2f\n', objval);
-            opt.record(objval, verbose);
-            for i = 1 : UMPrest.parameter.get('iteration')
-                data = randn([sizein, nchannel, 8]);
-                ipkg = DataPackage(data, 3, false);
-                opkg = refer.forward(ipkg);
-                aprox.backward(likelihood.delta(aprox.forward(ipkg), opkg));
-                aprox.update();
-                objval = likelihood.evaluate(aprox.forward(validsetIn).data, validsetOut.data);
-                fprintf('Objective Value after [%04d] turns: %.2e\n', i, objval);
-                if mod(i, 10) == 0
-                    opt.record(objval, verbose);
-                end
-            end
-            % show result
-            distinfo(abs(refer.dumpraw() - aprox.dumpraw()), 'HPARAMS', false);
+            % create simulation task
+            task = SimulationTest(model, refer, dataset, likelihood);
+            % run simulation
+            task.run(niter, batchsize, validsize);
         end
     end
 end
