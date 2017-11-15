@@ -99,12 +99,12 @@ classdef CustomTask < Task
             if obj.verbose
                 fprintf('[%s] Objective Value after [%04d] iterations : %.2e ', ...
                     datestr(now), obj.iteration, value);
-            end
-            if obj.optimizer.rcdmode.status
-                obj.optimizer.record(value);
-                fprintf('[ESTCH : %.2e]\n', obj.optimizer.cache.stepmode.estch);
-            else
-                fprintf('\n');
+                if obj.optimizer.cache.rcdmode.status
+                    obj.optimizer.record(value);
+                    fprintf('[ESTCH : %.2e]\n', obj.optimizer.cache.stepmode.estch);
+                else
+                    fprintf('\n');
+                end
             end
         end
     end

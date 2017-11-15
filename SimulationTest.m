@@ -28,7 +28,7 @@ classdef SimulationTest < Task
             distinfo(abs(obj.ref.dumpraw() - obj.model.dumpraw()), 'HPARAM ERROR', false);
             disp(repmat('=', 1, 100));
             fprintf('Initial objective value : %.2e\n', objval);
-            if opt.rcdmode.status
+            if opt.cache.rcdmode.status
                 opt.record(objval, false);
             end
             % start simulation process
@@ -65,9 +65,14 @@ classdef SimulationTest < Task
                 else                
                     objval = obj.objective.evaluate(obj.model.forward(validset.data{:}), validset.label);
                 end
-                fprintf('Objective Value after [%04d] turns: %.2e\n', i, objval);
-                if mod(i, 10) && opt.rcdmode.status
-                    opt.record(objval, false);
+                fprintf('Objective Value after [%04d] turns: %.2e ', i, objval);
+                if opt.cache.rcdmode.status
+                    fprintf('[ESTCH : %.2e]\n', opt.cache.stepmode.estch);
+                    if mod(i, 10)
+                        opt.record(objval, false);
+                    end
+                else
+                    fprintf('\n');
                 end
             end
             disp(repmat('=', 1, 100));

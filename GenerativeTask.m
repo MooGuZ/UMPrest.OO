@@ -76,7 +76,7 @@ classdef GenerativeTask < Task
             if obj.verbose
                 fprintf('[%s] Objective Value after [%05d] iterations : %.5e <L:%.2e,P:%.2e> ', ...
                     datestr(now), obj.iteration, value, likelihood, prior);
-                if obj.optimizer.rcdmode.status
+                if obj.optimizer.cache.rcdmode.status
                     obj.optimizer.record(value);
                     fprintf('[ESTCH : %.2e]\n', obj.optimizer.cache.stepmode.estch);
                 else
