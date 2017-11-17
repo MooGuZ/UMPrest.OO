@@ -37,45 +37,49 @@ classdef UMPrest < handle
                 probScale = 16;
             end
             
-            % record current setup
-            opt = HyperParam.getOptimizer();
-            opt.push();
-            
-            disp('\n\n[Linear Transformation]'); 
-            opt.fetch(-1); LinearTransform.debug(probScale); pause();
+            fprintf('\n\n[Linear Transformation]\n'); 
+            LinearTransform.debug(probScale);
+            pause();
                         
-            disp('\n\n[Complex Linear Transformation]');
-            opt.fetch(-1); CLinearTransform.debug(probScale); pause();
+            fprintf('\n\n[Complex Linear Transformation]\n');
+            CLinearTransform.debug(probScale);
+            pause();
                         
-            disp('\n\n[Polar Complex Linear Transformation]');
-            opt.fetch(-1); PolarCLT.debug(probScale); pause();
+            fprintf('\n\n[Polar Complex Linear Transformation]\n');
+            PolarCLT.debug(probScale);
+            pause();
             
-            disp('\n\n[Multiple Linear Transformation]');
-            opt.fetch(-1); MultiLT.debug(probScale); pause();
+            fprintf('\n\n[Multiple Linear Transformation]\n');
+            MultiLT.debug(probScale);
+            pause();
             
-            disp('\n\n[Multiple Layers Perceptron]');
-            opt.fetch(-1); MLP.debug(probScale); pause();
+            fprintf('\n\n[Multiple Layers Perceptron]\n');
+            MLP.debug(probScale);
+            pause();
             
-            disp('\n\n[Convolutional Transformation]');
-            opt.fetch(-1); ConvTransform.debug(probScale); pause();
+            fprintf('\n\n[Convolutional Transformation]\n');
+            ConvTransform.debug(probScale);
+            pause();
             
-            disp('\n\n[Convolutional Network]');
-            opt.fetch(-1); ConvNet.debug(probScale); pause();
+            fprintf('\n\n[Convolutional Network]\n');
+            ConvNet.debug(probScale);
+            pause();
             
-            disp('\n\n[Simple Recurrent Neural Network]');
-            opt.fetch(-1); SimpleRNN.debug(probScale); pause();
+            fprintf('\n\n[Simple Recurrent Neural Network]\n');
+            SimpleRNN.debug(probScale);
+            pause();
             
-            disp('\n\n[Long-Short Term Memory]');
-            opt.fetch(-1); LSTM.debug(probScale); pause();
+            fprintf('\n\n[Long-Short Term Memory]\n');
+            LSTM.debug(probScale);
+            pause();
             
-            disp('\n\n[Peep-Hole Long-Short Term Memory]');
-            opt.fetch(-1); PHLSTM.debug(probScale); pause();
+            fprintf('\n\n[Peep-Hole Long-Short Term Memory]\n');
+            PHLSTM.debug(probScale);
+            pause();
             
-            disp('\n\n[Dual Peep-Hole Long-Short Term Memory]');
-            opt.fetch(-1); DPHLSTM.debug(probScale); pause();
-            
-            % restore optimizer setup
-            opt.pop();
+            fprintf('\n\n[Dual Peep-Hole Long-Short Term Memory]\n');
+            DPHLSTM.debug(probScale);
+            pause();            
         end
     end
 end

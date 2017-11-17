@@ -12,8 +12,9 @@ classdef SimulationTest < Task
             else                
                 validset.label = obj.ref.forward(validset.data{:});
             end
-            % get optimizer
+            % get optimizer and reserve current setting
             opt = HyperParam.getOptimizer();
+            opt.push();
             % check objective value of current state
             if iscell(obj.objective)
                 objval = 0;
@@ -77,6 +78,8 @@ classdef SimulationTest < Task
             end
             disp(repmat('=', 1, 100));
             distinfo(abs(obj.ref.dumpraw() - obj.model.dumpraw()), 'HPARAM ERROR', false);
+            % restore optimization setting reserved at beginning
+            opt.pop();
         end
     end
     
