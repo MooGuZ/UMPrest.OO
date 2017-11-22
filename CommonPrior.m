@@ -41,6 +41,9 @@ classdef CommonPrior < Prior
             end
             obj.mu    = conf.pop('mean', 0);
             obj.sigma = conf.pop('stdvar', 1);
+            if strcmpi(type, 'slow')
+                obj.mu = conf.pop('dim', 2);
+            end
         end
     end
     

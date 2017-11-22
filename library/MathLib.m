@@ -74,13 +74,26 @@ classdef MathLib < handle
             d = sigma * sin(x - mu);
         end
         % prior of slowness
-        function p = slow(x, ~, ~)
-        % PROBLEM: hardcode 2nd dim as time-axis currently
-            p = diff(x, 1, 2) .^ 2;
+        function p = slow(x, dim, sigma)
+            needReshape = exist('dim', 'var') && dim ~= 2;
+            if needReshape
+                [x, szinfo] = vec(x, dim, 'select');
+                szinfo(dim) = szinfo(dim) - 1;
+                p = reshape(diff(x, 1, 2) .^ 2 / (2 * sigma^2), szinfo);
+            else
+                p = diff(x, 1, 2) .^ 2 / (2 * sigma^2);
+            end                
         end
-        function d = slowGradient(x, ~, ~)
-            D = diff(x, 1, 2);
-            d = [-D(:, 1, :), -diff(D, 1, 2), D(:, end, :)];
+        function d = slowGradient(x, dim, sigma)
+            needReshape = exist('dim', 'var') && dim ~= 2;
+            if needReshape
+                [x, szinfo] = vec(x, dim, 'select');
+                D = diff(x, 1, 2) / sigma^2;
+                d = reshape([-D(:, 1, :), -diff(D, 1, 2), D(:, end, :)], szinfo);
+            else
+                D = diff(x, 1, 2) / sigma^2;
+                d = [-D(:, 1, :), -diff(D, 1, 2), D(:, end, :)];
+            end
         end
     end
     
