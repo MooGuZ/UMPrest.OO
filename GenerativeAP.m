@@ -84,7 +84,7 @@ classdef GenerativeAP < AccessPoint & ProbabilityDescription
         end
         
         function initData(self, szpkg)
-            self.data     = randn(szpkg.datasize);
+            self.data     = Tensor(randn(szpkg.datasize)).get();
             self.dsample  = szpkg.dsample;
             self.datasize = szpkg.datasize;
         end
