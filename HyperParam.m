@@ -142,5 +142,10 @@ classdef HyperParam < Tensor & ProbabilityDescription
         function M = randlt(row, col)
             M = (rand(row, col) - 0.5) * (2 / sqrt(col));
         end
+        
+        function F = randct(fltsize, nchannel, nfilter)
+            F = HyperParam.randlt(nfilter, prod([fltsize, nchannel]));
+            F = reshape(F, [fltsize, nchannel, nfilter]);
+        end
     end
 end

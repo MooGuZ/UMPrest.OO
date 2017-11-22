@@ -111,9 +111,8 @@ classdef ConvTransform < SISOUnit & FeedforwardOperation & Evolvable
     
     methods (Static)
         function obj = randinit(fltsize, nchannel, nfilter)
-            ksize = [fltsize, nchannel, nfilter];
             obj = ConvTransform( ...
-                (rand(ksize) - 0.5) * (2 / sqrt(prod(ksize))), ...
+                HyperParam.randct(fltsize, nchannel, nfilter), ...
                 zeros(nfilter, 1));
         end
     end
