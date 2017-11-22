@@ -60,8 +60,8 @@ classdef PolarCCT < MISOUnit & FeedforwardOperation & Evolvable
                 re = bsxfun(@rdivide, re, sqrt(sum(re.^2)));
                 im = bsxfun(@rdivide, im, sqrt(sum(im.^2)));
                 % flip real and imaginary part
-                self.realW.set(reshape(im, size(self.realW)));
-                self.imagW.set(reshape(re, size(self.imagW)));
+                self.realF.set(reshape(im, size(self.realF)));
+                self.imagF.set(reshape(re, size(self.imagF)));
             end
         end
     end
