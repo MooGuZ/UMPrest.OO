@@ -238,10 +238,12 @@ classdef MathLib < handle
               case {'valid'}
                 for k = 1 : nsample
                     for j = 1 : nchannel
+                        buffer = dI(:, :, j, k);
                         for i = 1 : nfilter
-                            dI(:, :, j, k) = dI(:, :, j, k) + ...
+                            buffer = buffer + ...
                                 conv2(flipF(:, :, j, i), d(:, :, i, k), 'full');
                         end
+                        dI(:, :, j, k) = buffer;
                     end
                 end
                 

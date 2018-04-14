@@ -59,9 +59,17 @@ classdef FrameSlicer < PackageProcessor
     
     properties (SetAccess = protected)
         I, O
+    end
+    
+    properties (Hidden)
         n, loc, offset
     end
     methods
+        function set.n(obj, value)
+            assert(MathLib.isinteger(value) && value > 0, 'ILLEGAL QUANTITY');
+            obj.n = value;
+        end
+            
         function set.loc(obj, value)
             assert(any(strcmpi(value, obj.locationSet)), 'ILLEGAL LOCATION');
             obj.loc = lower(value);

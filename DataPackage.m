@@ -56,6 +56,10 @@ classdef DataPackage < Package
             end
         end
         
+        function obj = dot(obj, mask)
+            obj.data = bsxfun(@times, obj.data, mask);
+        end
+        
         function obj = treverse(obj)
             if obj.taxis
                 obj.data = sltondim(obj.data, obj.dsample + 1, obj.nframe : -1 : 1);

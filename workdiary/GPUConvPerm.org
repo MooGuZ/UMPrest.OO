@@ -1,0 +1,4 @@
+* GPU Convolution Operation Performance
+** Ideas
+1. initialize data on GPU directly instead of copy it to GPU from CPU memory: create static function under Tensor class, like /zeros/, /ones/, /rand/ and /randn/. At the same time, use static function to create a static property /enableGPU/ (in this way, should modify all the usage of /enableGPU/ or /useGPU/ in the project).
+2. use /arrayfun/ and /pagefun/ in computational intensive functions to accelerate GPU performance. At the same time check the GPU supported function list to find more performance-related functions.
