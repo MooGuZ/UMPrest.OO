@@ -230,7 +230,7 @@ classdef Transform2D < Dataset
         function conf = decodeConfig(code)
             index = 2;
             conf  = cell(1, code(1));
-            for i = 1 : numel(cell);
+            for i = 1 : numel(cell)
                 cfg.shape        = Transform2D.shapeset(code(index));
                 cfg.nedges       = code(index + 1);
                 index = index + 1;

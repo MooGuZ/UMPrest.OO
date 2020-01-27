@@ -56,24 +56,17 @@ classdef ConvTransform < SISOUnit & FeedforwardOperation & Evolvable
     
     methods
         function obj = ConvTransform(weight, bias, stride)
-            % calculate padding information
-            obj.padding.top    = floor(size(weight, 1) / 2);
-            obj.padding.bottom = floor((size(weight, 1) - 1) / 2);
-            obj.padding.left   = floor(size(weight, 2) / 2);
-            obj.padding.right  = floor((size(weight, 2) - 1) / 2);
             % normalize stride
             if not(exist('stride', 'var'))
                 obj.stride = [1, 1];
             elseif numel(stride) == 1
                 obj.stride = stride * [1, 1];
             end
-            % prepare filter according to stride
-            if obj.useStride
-                obj.W = obj.prepareFilter(weight, stride);
-            else
-                obj.W = HyperParam(weight); 
-            end
+            % initialize filter and bias
+            obj.W = HyperParam(weight);
             obj.B = HyperParam(reshape(bias, 1, 1, numel(bias)));
+            % initialize filter set and corresponding padding information
+            [obj.WSet, obj.WPadding] = ConvTransform.decomposeFilter(weight, obj.stride);
             % initialize IO
             obj.I = {UnitAP(obj, 3, '-recdata')};
             obj.O = {UnitAP(obj, 3)};
@@ -82,38 +75,24 @@ classdef ConvTransform < SISOUnit & FeedforwardOperation & Evolvable
     
     methods (Static)
         function [xset, xpadding] = decomposeData(x, stride)
-            xset = cell([stride, size(x, 3)]);
-            [xset(:, :, 1), xpadding] = getStrideSet(x(:, :, 1), stride);
-            for i = 2 : size(x, 3)
-                xset(:, :, i) = getStrideSet(x(:, :, i), stride);
-            end
+            [xset, xpadding] = getStrideSet(x, stride);
         end
         
         function x = composeData(xset, xpadding)
-            [h, w]    = size(xset{1});
-            [m, n, c] = size(xset);
+            [h, w]       = size(xset{1});
+            [m, n, c, s] = size(xset);
             % combine matrix in cell array
             x = cat(3, xset{:});
-            x = reshape(x, [h, w, m, n, c]);
-            x = permute(x, [3, 1, 4, 2, 5]);
-            x = reshape(x, [h * m, w * n, c]);
+            x = reshape(x, [h, w, m, n, c, s]);
+            x = permute(x, [3, 1, 4, 2, 5, 6]);
+            x = reshape(x, [h * m, w * n, c, s]);
             % remove zero-padding
-            x = x(1 : end - xpadding(1), 1 : end - xpadding(2), :);
+            x = x(1 : end - xpadding(1), 1 : end - xpadding(2), :, :);
         end
         
         function [wset, wpadding] = decomposeFilter(w, stride)
-            wset = cell([stride, size(w, 3), size(w, 4)]);
             referPoint = ceil(([size(w, 1), size(w, 2)] + 1) / 2);
-            for i = 1 : size(w, 3)
-                for j = 1 : size(w, 4)
-                    if exist('wpadding', 'var')
-                        wset(:, :, i, j) = getStrideSet(w(:, :, i, j), stride, referPoint, 'reverse');
-                    else
-                        [wset(:, :, i, j), wpadding] = ...
-                            getStrideSet(w(:, :, i, j), stride, referPoint, 'reverse');
-                    end
-                end
-            end
+            [wset, wpadding] = getStrideSet(w, stride, referPoint, 'reverse');
         end
         
         function weight = composeFilter(wset, wpadding)
@@ -134,84 +113,97 @@ classdef ConvTransform < SISOUnit & FeedforwardOperation & Evolvable
     
     methods (Static)
         function y = conv2d(x, f, bias)
-            y = cell(size(f, 4), 1);
-            for n = 1 : numel(y)
-                y{n} = 0;
-                for i = 1 : size(x, 1)
-                    for j = 1 : size(x, 2)
-                        for k = 1 : size(x, 3)
-                            y{n} = y{n} + conv2(x{i, j, k}, f{i, j, k, n}, 'same');
+            buffer = cell(size(f, 4), size(x, 4));
+            for m = 1 : size(x, 4) % for each sample
+                for n = 1 : size(f, 4) % for each output layer
+                    buffer{n, m} = 0;
+                    for i = 1 : size(x, 1)
+                        for j = 1 : size(x, 2)
+                            for k = 1 : size(x, 3)
+                                buffer{n, m} = buffer{n, m} + conv2(x{i, j, k}, f{i, j, k, n}, 'same');
+                            end
                         end
                     end
                 end
             end
             % combine cells into a matrix
-            y = cat(3, y{:});
+            temp = cell(size(x, 4), 1);
+            for m = 1 : numel(temp)
+                temp{m} = cat(3, buffer{:, m});
+            end
+            y = cat(4, temp{:});
             % add bias
             y = bsxfun(@plus, y, reshape(bias, [1, 1, numel(bias)]));
         end
         
-        function [d, dW, dB] = grad2d(d, x, weight, padding, fBuildIn, fGPU, fOldVer)
-            if fBuildIn
-                issymmetric = (padding.top == padding.bottom) && (padding.left == padding.right);
-                % padding array for non-symmetric cases (or GPU)
-                if not(issymmetric) && (fGPU || (not(fGPU) && fOldVer))
-                    x = padarray(x, [padding.top, padding.left], 0, 'pre');
-                    x = padarray(x, [padding.bottom, padding.right], 0, 'post');
-                    padding = struct('top', 0, 'left', 0, 'bottom', 0, 'right', 0);
+        function [dXSet, dWSet, dB] = grad2d(d, xset, wset)
+        % NOTE: this function is based on the fact that all the filter in WSET has odd
+        %       width and length. If this is not established, the calculation will be
+        %       wrong.
+            
+            dXSet = cell(size(xset));
+            % put output gradient in cell array
+            dY = cell(size(d, 3), size(d, 4));
+            for s = 1 : size(d, 4)
+                for c = 1 : size(d, 3)
+                    dY{c, s} = d(:, :, c, s);
                 end
-                % calcuate gradient under GPU or CPU environment
-                if fGPU
-                    if fOldVer || ispc
-                        d = nnet.internal.cnngpu.convolveBackwardData2D( ...
-                            x, weight, d, padding.top, padding.left, 1, 1);
-                        if nargout > 1
-                            dW = nnet.internal.cnngpu.convolveBackwardFilter2D( ...
-                                x, weight, d, padding.top, padding.left, 1, 1);
-                            dB = nnet.internal.cnngpu.convolveBackwardBias2D(d);
-                        end
-                    else
-                        d = nnet.internal.cnngpu.convolveBackwardData2D( ...
-                            x, weight, d, ...
-                            padding.top, padding.left, padding.bottom, padding.right, ...
-                            1, 1);
-                        if nargout > 1
-                            dW = nnet.internal.cnngpu.convolveBackwardFilter2D( ...
-                                x, weight, d, ...
-                                padding.top, padding.left, padding.bottom, padding.right, ...
-                                1, 1);
-                            dB = nnet.internal.cnngpu.convolveBackwardBias2D(d);
-                        end
-                    end
-                else
-                    if fOldVer
-                        d = nnet.internal.cnnhost.convolveBackwardData2D( ...
-                            x, weight, d, padding.top, padding.left, 1, 1);
-                        if nargout > 1
-                            dW = nnet.internal.cnnhost.convolveBackwardFilter2D( ...
-                                x, weight, d, padding.top, padding.left, 1, 1);
-                            dB = nnet.internal.cnnhost.convolveBackwardBias2D(d);
-                        end
-                    else
-                        d = nnet.internal.cnnhost.convolveBackwardData2D( ...
-                            x, weight, d, ...
-                            padding.top, padding.left, padding.bottom, padding.right, ...
-                            1, 1);
-                        if nargout > 1
-                            dW = nnet.internal.cnnhost.convolveBackwardFilter2D( ...
-                                x, weight, d, ...
-                                padding.top, padding.left, padding.bottom, padding.right, ...
-                                1, 1);
-                            dB = nnet.internal.cnnhost.convolveBackwardBias2D(d);
+            end
+            % flip filter matrix
+            wflip = cell(size(wset));            
+            for i = 1 : numel(wset)
+                wflip{i} = flip(flip(wset{i}, 1), 2);
+            end
+            % calculate gradients of input
+            for s = 1 : size(xset, 4)
+                for k = 1 : size(xset, 3) 
+                    for j = 1 : size(xset, 2)
+                        for i = 1 : size(xset, 1)
+                            buffer = 0;
+                            for c = 1 : size(d, 3)
+                                buffer = buffer + conv2(dY{c, s}, wflip{i, j, k, c}, 'same');
+                            end
+                            dXSet{i, j, k, s} = buffer;
                         end
                     end
                 end
-            else
-                if nargout > 1
-                    [d, dW, dB] = MathLib.nnconvDifferential(d, x, weight, 'same');
-                else
-                    d = MathLib.nnconvDifferential(d, x, weight, 'same');
+            end
+            % calculate filter gradient
+            if nargout > 1
+                dWSet = cell(size(wset));
+                % calculate padding size
+                padsize = (size(wset{1}) - 1) / 2;
+                % pad output gradients
+                d = padarray(d, padsize, 0, 'both');
+                for s = 1 : size(d, 4)
+                    for c = 1 : size(d, 3)
+                        dY{c, s} = d(:, :, c, s);
+                    end
                 end
+                % flip input matrix
+                xflip = cell(size(xset));
+                for i = 1 : numel(xset)
+                    xflip{i} = flip(flip(xset{i}, 1), 2);
+                end
+                % calculate filter's gradients
+                for c = 1 : size(wset, 4)
+                    for k = 1 : size(wset, 3)
+                        for j = 1 : size(wset, 2)
+                            for i = 1 : size(wset, 1)
+                                buffer = 0;
+                                for s = 1 : size(d, 4)
+                                    buffer = buffer + conv2(dY{c, s}, xflip{i, j, k, s}, 'valid');
+                                end
+                                dWSet{i, j, k, c} = buffer;
+                            end
+                        end
+                    end
+                end               
+            end
+            % calculate gradients of bias
+            if nargout > 2
+                dB = MathLib.margin(d, 3);
+                dB = reshape(dB, 1, 1, numel(dB));
             end
         end
     end
@@ -236,6 +228,7 @@ classdef ConvTransform < SISOUnit & FeedforwardOperation & Evolvable
             % reference model
             refer = ConvTransform.randinit(fltsize, nchannel, nfilter);
             cellfun(@(hp) hp.set(randn(size(hp))), refer.hparam);
+            refer.update();
             % approximate model
             model = ConvTransform.randinit(fltsize, nchannel, nfilter);
             % data generator
@@ -248,24 +241,12 @@ classdef ConvTransform < SISOUnit & FeedforwardOperation & Evolvable
         end
     end
     
-    properties (Constant)
-        enableGPU = logical(gpuDeviceCount)
-        % useBuildInConv2D = ...
-        %     not(isempty(which('nnet.internal.cnnhost.convolveForward2D')))
-        useBuildInConv2D = false
-        useOldVersion = sscanf(version('-release'), '%g', 1) < 2017
-    end
-    
     properties (Constant, Hidden)
         taxis = false;
     end
     
-    properties
-        stride
-    end
-    
     properties (Access = protected)
-        W, B, padding
+        W, B, WSet, WPadding, stride
     end
     
     properties (Dependent)
