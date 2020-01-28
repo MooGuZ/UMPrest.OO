@@ -1,6 +1,8 @@
 {"conf": {
     "gradmode": {
-	"mode": "basic",
+	"mode": "adam",
+	"basic": {
+	},
 	"rmsprop": {
 	    "decay2ndOrd": 0.999
 	},
