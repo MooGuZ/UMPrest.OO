@@ -2,6 +2,12 @@ classdef SimpleActivation < SISOUnit & ElementwiseOperation
     methods
         function obj = SimpleActivation(type)
             switch lower(type)
+                case {'lin', 'linear', 'none'}
+                    obj.type     = 'Linear';
+                    obj.dataproc = @(x) x;
+                    obj.datainvp = @(x) x;
+                    obj.gradient = @(~) 1;
+                    
                 case {'sigmoid', 'logistic'}
                     obj.type     = 'Sigmoid';
                     obj.dataproc = @MathLib.sigmoid;
