@@ -308,7 +308,9 @@ classdef Model < BuildingBlock & Evolvable
             % initialize model with given components
             obj.add(varargin{:});
             % keep model legal and sorted
-            obj.prepare();
+            if not(isempty(obj.nodes))
+                obj.prepare();
+            end
         end
     end
     
