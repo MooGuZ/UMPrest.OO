@@ -301,6 +301,11 @@ classdef Transform2D < Dataset
 
     methods
         function self = Transform2D(varargin)
+        % DATASET = TRANSFORM2D(KEY1, VALUE1, KEY2, VALUE2, ...), in which, 
+        % common keys are 'nobjects', 'nframes', 'framesize', 'translation',
+        % 'scaling', and 'rotation'. Where, the later three represent three
+        % basic motion in 2D space and are associated with a two element 
+        % array defining the range of varying.
             self.data  = DatasetAP(self, self.dsample, self.taxis);
             self.label = DatasetAP(self, 1, self.taxis);
             % load default configuration
