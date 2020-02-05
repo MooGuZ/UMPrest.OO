@@ -88,6 +88,45 @@ classdef LSTMCoder < WorkSpace
             obj.zerodec.enableTmode(nframeEncoder);
             obj.zeroprd.enableTmode(nframePredict);
             obj.errgen.enableTmode(nframeEncoder);
+            % Setup cheating units if enabled
+            if obj.cheatMode
+                obj.decoderCheatFix.setup(nframeEncoder, 'front', 0);
+                obj.predictCheatFix.setup(nframePredict, 'front', 0);
+            end
+        end
+        
+        % CHEATING MODE provide last frames to decoder and predict, which
+        % is actually cheating in prediction.
+        function obj = startCheating(obj)
+            if not(obj.cheatMode)
+                % initialize cheating connections if necessary
+                if isempty(obj.decoderCheat)
+                    obj.decoderCheat = FrameInsert(1, 'front', 0).appendto(obj.decoderReferFix);
+                    obj.decoderCheatFix = FrameSlicer().appendto(obj.decoderCheat);
+                    obj.predictCheat = FrameInsert(1, 'front', 0).appendto(obj.predictReferFix);
+                    obj.predictCheatFix = FrameSlicer().appendto(obj.predictCheat);
+                    obj.prev.add(obj.decoderCheat, obj.decoderCheatFix, ...
+                        obj.predictCheat, obj.predictCheatFix);
+                end
+                % Switch connections to decoder/predict
+                obj.zerodec.data.disconnect(obj.DEC.DI{1});
+                obj.decoderCheatFix.O{1}.connect(obj.DEC.DI{1});
+                obj.zeroprd.data.disconnect(obj.PRD.DI{1});
+                obj.predictCheatFix.O{1}.connect(obj.PRD.DI{1});
+                % switch indicator
+                obj.cheatMode = true;
+            end
+        end
+        function obj = stopCheating(obj)
+            if obj.cheatMode
+                % Switch connections to decoder/predict
+                obj.decoderCheatFix.O{1}.disconnect(obj.DEC.DI{1});
+                obj.zerodec.data.connect(obj.DEC.DI{1});
+                obj.predictCheatFix.O{1}.disconnect(obj.PRD.DI{1});
+                obj.zeroprd.data.connect(obj.PRD.DI{1});
+                % Switch the mode indicator
+                obj.cheatMode = false;
+            end
         end
     end
 
@@ -155,5 +194,8 @@ classdef LSTMCoder < WorkSpace
         predictRefer, predictReferFix, decoderAct, predictAct
         % Objective Units
         decObjective, prdObjective
+        % cheatMode related
+        decoderCheat, decoderCheatFix, predictCheat, predictCheatFix
+        cheatMode = false
     end
 end
