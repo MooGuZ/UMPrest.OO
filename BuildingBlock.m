@@ -35,6 +35,17 @@ classdef BuildingBlock < handle
                 apfrom.connect(obj.I{i});
             end
         end
+        
+        function obj = isolate(obj)
+            % disconnect from input side
+            for i = 1 : numel(obj.I)
+                obj.I{i}.isolate();
+            end
+            %  disconnect from output side
+            for i = 1 : numel(obj.O)
+                obj.O{i}.isolate();
+            end
+        end
     end
     
     methods (Abstract)
