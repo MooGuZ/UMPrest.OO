@@ -211,6 +211,14 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
                 obj.whitenSizeOut = [];
             end
         end
+        
+        function obj = freeze(obj)
+            obj.frozen = true;
+        end
+        
+        function obj = unfreeze(obj)
+            obj.frozen = false;
+        end
     end
     
     methods

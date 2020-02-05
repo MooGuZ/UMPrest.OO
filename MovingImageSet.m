@@ -81,11 +81,19 @@ classdef MovingImageSet < handle
         islabelled = false
     end
     properties (Dependent)
-        volume % number of unique samples in the dataset
+        volume    % number of unique samples in the dataset
+        framesize % alias for canvasSize
     end
     methods
         function value = get.volume(obj)
             value = size(obj.db, 3);
+        end
+        
+        function obj = set.framesize(obj, value)
+            obj.canvasSize = value;
+        end
+        function value = get.framesize(obj)
+            value = obj.canvasSize;
         end
     end
 end

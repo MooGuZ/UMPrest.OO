@@ -7,23 +7,28 @@ classdef FrameSlicer < PackageProcessor
             end
             % slicing the package on temporal axes
             assert(pkgin.taxis, 'PACKAGE HAVE NO TEMPORAL AXES');
-            switch obj.loc
-              case {'front'}
-                index = obj.offset;
-                
-              case {'back'}
-                index = pkgin.nframe - obj.offset - obj.n;
-                
-              case {'random'}
-                if obj.nframe > obj.n
-                    index = randi(pkgin.nframe - obj.n);
-                else
-                    index = 0;
+            if obj.n == 0
+                pkgout = pkgin;
+            else
+                switch obj.loc
+                    case {'front'}
+                        index = obj.offset;
+                        
+                    case {'back'}
+                        index = pkgin.nframe - obj.offset - obj.n;
+                        
+                    case {'random'}
+                        if obj.nframe > obj.n
+                            index = randi(pkgin.nframe - obj.n);
+                        else
+                            index = 0;
+                        end
                 end
+                % Compose output package
+                pkgout = DataPackage( ...
+                    sltondim(pkgin.data, pkgin.dsample + 1, index + (1 : obj.n)), ...
+                    pkgin.dsample, true);
             end
-            pkgout = DataPackage( ...
-                sltondim(pkgin.data, pkgin.dsample + 1, index + (1 : obj.n)), ...
-                pkgin.dsample, true);
             % send output package through access-point
             if nargout == 0
                 obj.O{1}.send(pkgout);
@@ -37,19 +42,21 @@ classdef FrameSlicer < PackageProcessor
     
     methods
         function obj = FrameSlicer(n, location, offset)
-            obj.n = n;
-            if exist('location', 'var')
-                obj.loc = location; % FRONT/BACK/RANDOM
-            else
-                obj.loc = 'random';
-            end
-            if exist('offset', 'var')
-                obj.offset = offset;
-            else
-                obj.offset = 0;
-            end
+            % Default values
+            if not(exist('n',        'var')), n        = 0;        end
+            if not(exist('location', 'var')), location = 'random'; end
+            if not(exist('offset',   'var')), offset   = 0;        end
+            % Setup frame-slicer
+            obj.setup(n, location, offset);
+            % Initialize interfaces
             obj.I = {SimpleAP(obj)};
             obj.O = {SimpleAP(obj)};
+        end
+        
+        function obj = setup(obj, n, location, offset)
+            obj.n      = n;
+            obj.loc    = location;
+            obj.offset = offset;
         end
     end
     
@@ -61,12 +68,12 @@ classdef FrameSlicer < PackageProcessor
         I, O
     end
     
-    properties (Hidden)
+    properties (SetAccess = private, Hidden)
         n, loc, offset
     end
     methods
         function set.n(obj, value)
-            assert(MathLib.isinteger(value) && value > 0, 'ILLEGAL QUANTITY');
+            assert(MathLib.isinteger(value) && value >= 0, 'ILLEGAL QUANTITY');
             obj.n = value;
         end
             

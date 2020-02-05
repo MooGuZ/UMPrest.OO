@@ -105,8 +105,12 @@ classdef StatisticCollector < handle
             end
         end
         
-        function freeze(obj)
+        function obj = freeze(obj)
             obj.frozen = true;
+        end
+        
+        function obj = unfreeze(obj)
+            obj.frozen = false;
         end
     end
 
