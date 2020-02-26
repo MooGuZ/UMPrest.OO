@@ -47,5 +47,10 @@ classdef Evolvable < handle
                 hpcell{i}.frozen = false;
             end
         end
+        
+        function tf = isfrozen(obj)
+            hpcell = obj.hparam();
+            tf = hpcell{1}.frozen;
+        end
     end
 end

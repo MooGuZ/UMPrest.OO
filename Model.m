@@ -296,6 +296,9 @@ classdef Model < BuildingBlock & Evolvable
                 if isa(unit, 'SimpleUnit')
                     unit.recrtmode(n);
                 end
+                if isa(unit, 'Reshaper')
+                    unit.shapercd.init(n);
+                end
             end
         end
     end

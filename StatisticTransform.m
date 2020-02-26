@@ -19,6 +19,11 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
                     data = vec(data, obj.dsample, 'front');
                     data = mtimesnd(kernel.encode, data);
                     
+                case {'zerophase'}
+                    data = bsxfun(@minus, data, kernel.offset);
+                    data = vec(data, obj.dsample, 'front');
+                    data = mtimesnd(kernel.encodeZero, data);
+                    
                 otherwise
                     error('UMPrest:ArgumentError', 'Unrecognized coding mode : %s', ...
                         upper(obj.mode));
@@ -37,6 +42,12 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
                     
                 case {'whiten'}
                     data = mtimesnd(kernel.decode, data);
+                    temp = size(data);
+                    data = reshape(data, [kernel.sizein, temp(2:end)]);
+                    data = bsxfun(@plus, data, kernel.offset);
+                    
+                case {'zerophase'}
+                    data = mtimesnd(kernel.decodeZero, data);
                     temp = size(data);
                     data = reshape(data, [kernel.sizein, temp(2:end)]);
                     data = bsxfun(@plus, data, kernel.offset);
@@ -61,6 +72,11 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
                     temp  = size(error);
                     error = reshape(data, [kernel.sizein, temp(2:end)]);
                     
+                case {'zerophase'}
+                    error = mtimesnd(kernel.encodeZero', error);
+                    temp  = size(error);
+                    error = reshape(data, [kernel.sizein, temp(2:end)]);
+                    
                 otherwise
                     error('UNSUPPORTED');
             end
@@ -78,6 +94,9 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
                 case {'whiten'}
                     error = mtimesnd(kernel.decode', vec(error, obj.dsample, 'front'));
                     
+                case {'zerophase'}
+                    error = mtimesnd(kernel.decodeZero', vec(error, obj.dsample, 'front'));
+                    
                 otherwise
                     error('UNSUPPORTED');
             end
@@ -88,7 +107,7 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
                 case {'debias', 'normalize'}
                     sizeout = sizein;
                     
-                case {'whiten'}
+                case {'whiten', 'zerophase'}
                     numelSample = prod(sizein(1 : obj.dsample));
                     sizeout = [ceil(obj.whitenCompressRatio * numelSample), ...
                         sizein(obj.dsample + 1 : end)];
@@ -103,7 +122,7 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
                 case {'debias', 'normalize'}
                     sizein = sizeout;
                     
-                case {'whiten'}
+                case {'whiten', 'zerophase'}
                     kernel = obj.getKernel();
                     assert(sizeout(1) == kernel.sizeout, 'ILLEGAL DATA SHAPE');
                     sizein = [kernel.sizein, sizeout(2 : end)];
@@ -169,9 +188,10 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
                 % >>> use eigen value <<<
                 kernel.pixelweight = sqrt(val);
                 % transformation matrix                
-                kernel.encode    = diag(1 ./ sqrt(val)) * vec';
-                kernel.decode    = vec * diag(sqrt(val));
-                kernel.zerophase = vec * diag(1 ./ sqrt(val)) * vec';
+                kernel.encode     = diag(1 ./ sqrt(val)) * vec';
+                kernel.decode     = vec * diag(sqrt(val));
+                kernel.encodeZero = vec * kernel.encode;
+                kernel.decodeZero = kernel.decode * vec';
             else
                 kernel.sizeout     = numel(sinfo.sum);
                 kernel.pixelweight = ones(size(sinfo.sum), 'like', sinfo.sum);
@@ -268,7 +288,7 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
         updateInterval = 1000
         frozen = false
     end
-    properties (SetAccess = protected)
+    properties
         mode = 'whiten', lastSampleSize, whitenSizeOut
     end
     properties (SetAccess = private, Hidden)
@@ -285,7 +305,7 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
         end
         
         function set.mode(obj, value)
-            validatestring(lower(value), {'debias', 'normalize', 'whiten'});
+            validatestring(lower(value), {'debias', 'normalize', 'whiten', 'zerophase'});
             obj.mode = lower(value);
         end
         
