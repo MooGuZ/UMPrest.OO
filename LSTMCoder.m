@@ -1,7 +1,4 @@
 % LSTMCoder is a reproduction of model in Srivastava's paper
-%
-%   TODO: 
-%     1. add cheat mode to provide last frame to decoder/predict as input
 classdef LSTMCoder < WorkSpace
     % Methods for Object Construction and Save
     %
@@ -183,6 +180,35 @@ classdef LSTMCoder < WorkSpace
             smpDec = obj.decoderAct.O{1}.packagercd.reshape(obj.dataset.framesize);
             smpPrd = obj.predictAct.O{1}.packagercd.reshape(obj.dataset.framesize);
         end
+        
+        function obj = startRecording(obj)
+            if not(obj.recordMode)
+                obj.ENC.startRecording();
+                obj.DEC.startRecording();
+                obj.PRD.startRecording();
+                obj.recordMode = true;
+            end
+        end
+        
+        function obj = stopRecording(obj)
+            if obj.recordMode
+                obj.ENC.stopRecording();
+                obj.DEC.stopRecording();
+                obj.PRD.stopRecording();
+                obj.recordMode = false;
+            end
+        end
+        
+        function records = getRecords(obj)
+            if obj.recordMode
+                records = struct( ...
+                    'encoder', obj.ENC.getRecords(), ...
+                    'decoder', obj.DEC.getRecords(), ...
+                    'predict', obj.PRD.getRecords());
+            else
+                warning('Model is not recording, use startRecording() at first.');
+            end
+        end
     end
     
     properties
@@ -197,5 +223,7 @@ classdef LSTMCoder < WorkSpace
         % cheatMode related
         decoderCheat, decoderCheatFix, predictCheat, predictCheatFix
         cheatMode = false
+        % recordMode
+        recordMode = false
     end
 end

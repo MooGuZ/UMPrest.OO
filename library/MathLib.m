@@ -389,6 +389,8 @@ classdef MathLib < handle
         end
         
         function tf = ind2tf(x, minValue, maxValue)
+        % convert a vector of index to a set of one-shot vectors with
+        % corresponding element be true.
             assert(MathLib.isinteger(minValue) && MathLib.isinteger(maxValue));
             x  = MathLib.bound(x(:)', [minValue, maxValue]) - (minValue - 1);
             tf = false(maxValue - minValue + 1, numel(x));

@@ -44,6 +44,7 @@ classdef PHLSTM < RecurrentUnit
         stateControl, stateUpdate, updateControl, outputControl, inputTransform, outputTransform
         stateKeep, stateControlAct, updateAct, stateAddon, updateControlAct, stateNew, outputAct
         output, outputControlAct, nhidunit
+        recordMode = false
     end
     
     methods
@@ -101,6 +102,54 @@ classdef PHLSTM < RecurrentUnit
             obj.outputAct        = outputAct;
             obj.output           = output.mix;
             obj.outputControlAct = output.act;
+        end
+    end
+    
+    properties (Hidden, SetAccess = private)
+        listeners
+    end
+    methods
+        function obj = startRecording(obj)
+            if not(obj.recordMode)
+                obj.listeners = struct( ...
+                    'cstate', Listener(obj.S{1}.O{1}), ...
+                    'hstate', Listener(obj.S{2}.O{1}), ...
+                    'stkeep', Listener(obj.stateKeep.O{1}), ...
+                    'stnew',  Listener(obj.stateNew.O{1}), ...
+                    'output', Listener(obj.output.O{1}), ...
+                    'stctrl', Listener(obj.stateControl.O{1}), ...
+                    'update', Listener(obj.updateAct.O{1}), ...
+                    'upctrl', Listener(obj.updateControl.O{1}), ...
+                    'staddon', Listener(obj.stateAddon.O{1}), ...
+                    'st2out', Listener(obj.outputAct.O{1}), ...
+                    'outctrl', Listener(obj.outputControl.O{1}));
+                obj.recordMode = true;
+            end
+        end
+        
+        function obj = stopRecording(obj)
+            if obj.recordMode
+                fldnames = fieldnames(obj.listeners);
+                for i = 1 : numel(fldnames)
+                    obj.listeners.(fldnames{i}).detach();
+                end
+                obj.listeners  = [];
+                obj.recordMode = false;
+            end
+        end
+        
+        function records = getRecords(obj)
+            if obj.recordMode
+                fldnames = fieldnames(obj.listeners);
+                buffer  = cell(1, numel(fldnames));
+                for i = 1 : numel(fldnames)
+                    buffer{i} = obj.listeners.(fldnames{i}).collect();
+                end
+                buffer = [fldnames'; buffer];
+                records = struct(buffer{:});
+            else
+                warning('Model is not recording, use startRecording() at first.');
+            end
         end
     end
     
