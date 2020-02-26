@@ -155,7 +155,7 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
             kernel.offset = sinfo.mean;
             kernel.scale  = sinfo.std;
             
-            if strcmpi(obj.mode, 'whiten')
+            if any(strcmpi(obj.mode, {'whiten', 'zerophase'}))
                 [vec, val] = eig(sinfo.covmat);
                 [val, idx] = sort(diag(val), 'descend');
                 vec = vec(:, idx);
