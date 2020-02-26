@@ -139,96 +139,99 @@ classdef SConvEncoder < MISOUnit & FeedforwardOperation & Evolvable
     % Meta (Mathematical) Operations
     methods (Static)
         function [yr, yi] = conv(x, alpha, theta)
-            nbatch    = size(x, 4);
-            nlayerIn  = size(alpha, 3);
-            nlayerOut = size(alpha, 4);
-            % calculate bases
-            br = MatrixOperation.matsplit(alpha .* cos(theta), 2);
-            bi = MatrixOperation.matsplit(alpha .* sin(theta), 2);
-%             br = alpha .* cos(theta);
-%             bi = alpha .* sin(theta);
-            % initialize outputs
-            yr = cell(nlayerIn, nlayerOut, nbatch);
-            yi = cell(nlayerIn, nlayerOut, nbatch);
-            for ib = 1 : nbatch
+            nlayerIn = size(alpha, 3);
+            
+            % compose bases (real and imaginary)
+            br = alpha .* cos(theta);
+            bi = alpha .* sin(theta);
+            
+            if nlayerIn > 1
+                yr = cell(nlayerIn, 1);
+                yi = cell(nlayerIn, 1);
                 for i = 1 : nlayerIn
-                    x_slice = x(:, :, i, ib);
-                    for j = 1 : nlayerOut
-                        yr{i, j, ib} = conv2(x_slice, br{i, j}, 'same');
-                        yi{i, j, ib} = conv2(x_slice, bi{i, j}, 'same');
-%                         yr{i, j, ib} = conv2(x_slice, br(:, :, i, j), 'same');
-%                         yi{i, j, ib} = conv2(x_slice, bi(:, :, i, j), 'same');
-                    end
+                    yr{i} = MatrixOperation.nnconv(x(:, :, i, :), br(:, :, i, :), 'same');
+                    yi{i} = MatrixOperation.nnconv(x(:, :, i, :), bi(:, :, i, :), 'same');
                 end
+                yr = permute(cat(5, yr{:}), [1, 2, 5, 3, 4]);
+                yi = permute(cat(5, yi{:}), [1, 2, 5, 3, 4]);
+            else
+                yr = MatrixOperation.nnconv(x, br, 'same');
+                yi = MatrixOperation.nnconv(x, bi, 'same');
+                yr = MatrixOperation.diminsert(yr, 3);
+                yi = MatrixOperation.diminsert(yi, 3);
             end
-            yr = MatrixOperation.cellcombine(yr, 3);
-            yi = MatrixOperation.cellcombine(yi, 3);
         end
         
         function dx = datagrad(dyr, dyi, alpha, theta)
-            nbatch    = size(dyr, 5);
-            nlayerIn  = size(alpha, 3);
-            nlayerOut = size(alpha, 4);
-            % calculate filpped bases
-            bfr = MatrixOperation.matsplit(flip(flip(alpha .* cos(theta), 1), 2), 2);
-            bfi = MatrixOperation.matsplit(flip(flip(alpha .* sin(theta), 1), 2), 2);
-%             bfr = flip(flip(alpha .* cos(theta), 1), 2);
-%             bfi = flip(flip(alpha .* sin(theta), 1), 2);
-            % split gradients into cells
-            dyr = MatrixOperation.matsplit(dyr, 2);
-            dyi = MatrixOperation.matsplit(dyi, 2);
-            % initialize dx
-            dx = cell(nlayerIn, nbatch);
-            for ib = 1 : nbatch
+            nlayerIn = size(alpha, 3);
+            
+            % get flipped version of bases
+            bfr = flip(flip(alpha .* cos(theta), 1), 2);
+            bfi = flip(flip(alpha .* sin(theta), 1), 2);
+            
+            % make input layers as the last dimension
+            dyr = permute(dyr, [1, 2, 4, 5, 3]);
+            dyi = permute(dyi, [1, 2, 4, 5, 3]);
+            bfr = permute(bfr, [1, 2, 4, 3]);
+            bfi = permute(bfi, [1, 2, 4, 3]);
+            
+            if nlayerIn > 1
+                dx = cell(nlayerIn, 1);
+                bfr = MatrixOperation.matsplit(bfr, 3);
+                bfi = MatrixOperation.matsplit(bfi, 3);
+                dyr = MatrixOperation.matsplit(dyr, 4);
+                dyi = MatrixOperation.matsplit(dyi, 4);
                 for i = 1 : nlayerIn
-                    temp = 0;
-                    for j = 1 : nlayerOut
-                        temp =  temp + conv2(dyr{i, j, ib}, bfr{i, j}, 'same') ...
-                            - conv2(dyi{i, j, ib}, bfi{i, j}, 'same');
-%                         temp =  temp + conv2(dyr(:, :, i, j, ib), bfr(:, :, i, j), 'same') ...
-%                             - conv2(dyi(:, :, i, j, ib), bfi(:, :, i, j), 'same');
-                    end
-                    dx{i, ib} = temp;
+                    dx{i} = MatrixOperation.nnconv(dyr{i}, bfr{i}, 'same') ...
+                        - MatrixOperation.nnconv(dyi{i}, bfi{i}, 'same');
                 end
+                dx = cat(3, dx{:});
+            else
+                dx = MatrixOperation.nnconv(dyr, bfr, 'same') ...
+                    - MatrixOperation.nnconv(dyi, bfi, 'same');
             end
-            dx = MatrixOperation.cellcombine(dx, 3);
         end
         
         function [dalpha, dtheta] = basegrad(dyr, dyi, x, alpha, theta)
-            nbatch    = size(dyr, 5);
-            nlayerIn  = size(alpha, 3);
-            nlayerOut = size(alpha, 4);
+            nlayerIn = size(alpha, 3);
+            
             % get flipped input data
-            xf = MatrixOperation.matsplit(flip(flip(x, 1), 2), 2);
-%             xf = flip(flip(x, 1), 2);
+            xf = flip(flip(x, 1), 2);
+            
             % add zero-padding to gradients
-            padpre  = ceil(([size(alpha,1), size(alpha,2)] - 1) / 2);
-            dyr     = padarray(dyr, padpre, 0, 'pre');
-            dyi     = padarray(dyi, padpre, 0, 'pre');
-            padpost = floor(([size(alpha,1), size(alpha,2)] - 1) / 2);
-            dyr     = padarray(dyr, padpost, 0, 'post');
-            dyi     = padarray(dyi, padpost, 0, 'post');
-            % split gradients into cells
-            dyr = MatrixOperation.matsplit(dyr, 2);
-            dyi = MatrixOperation.matsplit(dyi, 2);
-            % initialize temporary value
-            tr = cell(nlayerIn, nlayerOut);
-            ti = cell(nlayerIn, nlayerOut);
-            for i = 1 : nlayerIn
-                for j = 1 : nlayerOut
-                    tr{i, j} = 0;
-                    ti{i, j} = 0;
-                    for ib = 1 : nbatch
-                        tr{i, j} = tr{i, j} + conv2(dyr{i, j, ib}, xf{i, ib}, 'valid');
-                        ti{i, j} = ti{i, j} + conv2(dyi{i, j, ib}, xf{i, ib}, 'valid');
-%                         tr{i, j} = tr{i, j} + conv2(dyr(:, :, i, j, ib), xf(:, :, i, ib), 'valid');
-%                         ti{i, j} = ti{i, j} + conv2(dyi(:, :, i, j, ib), xf(:, :, i, ib), 'valid');
-                    end
-                end
+            padsize = ([size(alpha,1), size(alpha,2)] - 1) / 2;
+            if MathLib.isinteger(padsize)
+                dyr = padarray(dyr, padsize, 0, 'both');
+                dyi = padarray(dyi, padsize, 0, 'both');
+            else
+                dyr = padarray(dyr, ceil(padsize), 0, 'pre');
+                dyi = padarray(dyi, ceil(padsize), 0, 'pre');
+                dyr = padarray(dyr, floor(padsize), 0, 'post');
+                dyi = padarray(dyi, floor(padsize), 0, 'post');
             end
-            tr = MatrixOperation.cellcombine(tr, 3);
-            ti = MatrixOperation.cellcombine(ti, 3);
-            % calculate gradients of bases
+            
+            % make batch-dimension to the 3rd one
+            xf  = permute(xf,  [1, 2, 4, 3]);
+            dyr = permute(dyr, [1, 2, 5, 4, 3]);
+            dyi = permute(dyi, [1, 2, 5, 4, 3]);
+            
+            if nlayerIn > 1
+                tr = cell(nlayerIn);
+                ti = cell(nlayerIn);
+                xf = MatrixOperation.matsplit(xf, 3);
+                dyr = MatrixOperation.matsplit(dyr, 4);
+                dyi = MatrixOperation.matsplit(dyi, 4);
+                for i = 1 : nlayerIn
+                    tr{i} = MatrixOperation.nnconv(dyr{i}, xf{i}, 'valid');
+                    ti{i} = MatrixOperation.nnconv(dyi{i}, xf{i}, 'valid');
+                end
+                tr = cat(3, tr{:});
+                ti = cat(3, ti{:});
+            else
+                tr = MatrixOperation.nnconv(dyr, xf, 'valid');
+                ti = MatrixOperation.nnconv(dyi, xf, 'valid');
+            end
+            
             dalpha = cos(theta) .* tr - sin(theta) .* ti;
             dtheta = -alpha .* (sin(theta) .* tr + cos(theta) .* ti);
         end

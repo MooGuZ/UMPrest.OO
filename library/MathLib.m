@@ -414,6 +414,14 @@ classdef MathLib < handle
             end
         end
         
+        % INRANGE check whether or not all the element in a array are in a
+        % specific range.
+        function tf = inrange(x, a, b)
+            tfa = (x(:) >= a);
+            tfb = (x(:) <= b);
+            tf  = all(tfa & tfb);
+        end
+        
         function x = smpvec(n, v, pos, u)
             x = ones(1, n) * v;
             x(pos) = u;

@@ -143,5 +143,52 @@ classdef MatrixOperation
         function pos = getRefPoint(szinfo)
             pos = ceil((szinfo(1:2) + 1) / 2);
         end
+        
+        function x = diminsert(x, dim)
+            if dim > nndims(x)
+                return
+            else
+                xsize = size(x);
+                x = reshape(x, [xsize(1:dim-1), 1, xsize(dim:end)]);
+            end                
+        end
+        
+        function x = dimcomb(x, dfrom, dto)
+            if dfrom >= nndims(x)
+                return
+            elseif not(exist('dto', 'var'))
+                dto = dfrom + 1;
+            end
+            xsize = size(x);
+            x = reshape(x, [xsize(1:dfrom-1), prod(xsize(dfrom:dto)), xsize(dto+1:end)]);
+        end
+        
+        % convolutional operation specified for neural network
+        function y = nnconv(x, f, shape)
+            if strcmpi(shape, 'same')
+                padsize = ([size(f, 1), size(f, 2)] - 1) / 2;
+                if MathLib.isinteger(padsize)
+                    x = padarray(x, padsize, 0, 'both');
+                else
+                    x = padarray(x, floor(padsize), 0, 'pre');
+                    x = padarray(x, ceil(padsize), 0, 'post');
+                end
+            elseif not(strcmpi(shape, 'valid'))
+                error('ONLY SUPPORT SAME OR VALID!');
+            end
+            % flip filter's 3rd dimension to get right results
+            f = flip(f, 3);
+            % separate filers
+            if size(f, 4) > 1
+                f = MatrixOperation.matsplit(f, 3);
+                y = cell(numel(f));
+                for i = 1 : numel(f)
+                    y{i} = convn(x, f{i}, 'valid');
+                end
+                y = cat(3, y{:});
+            else
+                y = convn(x, f, 'valid');
+            end
+        end
     end
 end
