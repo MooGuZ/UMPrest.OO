@@ -1,31 +1,38 @@
 % Recurrent Steerable Convolutional Coder
-classdef RSConvCoder < RecurrentUnit
+classdef RSConvDecoder < RecurrentUnit
     methods
-        function obj = RSConvCoder(framesize, ...
+        function obj = RSConvDecoder(framesize, ...
                 stateControlP, stateUpdateP, updateControlP, ...
                 stateControlA, updateControlA, dataMixer, ampEncoder, ...
                 outputControlA, outputControlP, frameDecoder)
             X  = DataPoint();
-            H  = DataPoint();
+            H0 = DataPoint();
             Ca = DataPoint();
             Cp = DataPoint();
             % get size information
             szinfo = size(ampEncoder.alpha);
             framelayer = szinfo(3);
             statelayer = szinfo(4);
-            statesize  = ceil(framesize ./ ampEncoder.mode.stride);
+            if strcmpi(ampEncoder.mode.type, 'stride')
+                statesize  = ceil(framesize ./ ampEncoder.mode.stride);
+            else
+                statesize = framesize;
+            end
+            % Make X useless
+            Zero = Scaler(0).appendto(X);
+            H = PlusUnit().appendto(Zero, H0);
             % Phase State (Cp) Part
-            stateControlP.appendto(X, H, Cp);
-            stateUpdateP.appendto(X, H);
-            updateControlP.appendto(X, H, Cp);
+            stateControlP.appendto(H, Cp);
+            stateUpdateP.appendto(H);
+            updateControlP.appendto(H, Cp);
             stateKeepP  = DataSelector().appendto(Cp, stateControlP);
             updateActP  = SimpleActivation('tanh').appendto(stateUpdateP);
             stateAddonP = DataSelector().appendto(updateActP, updateControlP);
             stateNewP   = PlusUnit().appendto(stateKeepP, stateAddonP);
             % Amplitude State (Ca) Part
-            stateControlA.appendto(X, H, Ca);
-            updateControlA.appendto(X, H, Ca);
-            dataMixer.appendto(X, H);
+            stateControlA.appendto(H, Ca);
+            updateControlA.appendto(H, Ca);
+            dataMixer.appendto(H);
             datasize  = [framesize, framelayer];
             phasesize = [statesize, framelayer, statelayer];
             dataForUpdate  = Reshaper(datasize).appendto(dataMixer);
@@ -38,8 +45,8 @@ classdef RSConvCoder < RecurrentUnit
             stateAddonA = DataSelector().appendto(updateActA, updateControlA);
             stateNewA = PlusUnit().appendto(stateKeepA, stateAddonA);
             % Output Part
-            outputControlA.appendto(X, H, stateNewA);
-            outputControlP.appendto(X, H, stateNewP);
+            outputControlA.appendto(H, stateNewA);
+            outputControlP.appendto(H, stateNewP);
             outputActA = SimpleActivation('tanh').appendto(stateNewA);
             outputActP = SimpleActivation('tanh').appendto(stateNewP);
             outputA = DataSelector().appendto(outputActA, outputControlA);
@@ -52,7 +59,7 @@ classdef RSConvCoder < RecurrentUnit
             frameDecoder.appendto(ampForOutput, phaseForOutput);
             updateH = Reshaper().appendto(frameDecoder);
             % create model
-            model = Model(X, H, Ca, Cp, ...
+            model = Model(X, H0, Ca, Cp, Zero, H, ...
                 stateControlP, stateUpdateP, updateControlP, stateKeepP, updateActP, ...
                 stateAddonP, stateNewP, stateControlA, updateControlA, dataMixer, ...
                 dataForUpdate, stateAddonFixP, phaseForUpdate, ampEncoder, stateKeepA, ...
@@ -66,7 +73,7 @@ classdef RSConvCoder < RecurrentUnit
             obj@RecurrentUnit(model, ...
                 {stateNewA.O{1}, Ca.I{1}, nstate}, ...
                 {stateNewP.O{1}, Cp.I{1}, nstate}, ...
-                {updateH.O{1},   H.I{1},  nhidden});
+                {updateH.O{1},   H0.I{1},  nhidden});
             % assign class members
             obj.nhidden = nhidden;
             obj.nstate  = nstate;
@@ -104,7 +111,7 @@ classdef RSConvCoder < RecurrentUnit
     
     methods
         function unitdump = dump(obj)
-            unitdump = {'RSConvCoder', obj.framesize, ...
+            unitdump = {'RSConvDecoder', obj.framesize, ...
                 obj.stateControlP.dump(), obj.stateUpdateP.dump(), ...
                 obj.updateControlP.dump(), obj.stateControlA.dump(), ...
                 obj.updateControlA.dump(), obj.dataMixer.dump(), ...
@@ -133,6 +140,8 @@ classdef RSConvCoder < RecurrentUnit
             nhidden = prod([frmsize, nlayerFrm]);
             if exist('grid', 'var')
                 statesize = ceil(frmsize ./ grid);
+            else
+                statesize = frmsize;
             end
             nstate  = prod([statesize, nlayerFrm, nbase]);
             % generate steerable convolution units
@@ -142,20 +151,20 @@ classdef RSConvCoder < RecurrentUnit
                 ampEncoder.setup('stride', grid);
                 frameDecoder.setup('spacing', grid);
             end
-            unit = RSConvCoder(frmsize, ...
-                MultiLT.randinit(nstate, nhidden, nhidden, nstate), ...
-                MultiLT.randinit(nstate, nhidden, nhidden), ...
-                MultiLT.randinit(nstate, nhidden, nhidden, nstate), ...
-                MultiLT.randinit(nstate, nhidden, nhidden, nstate), ...
-                MultiLT.randinit(nstate, nhidden, nhidden, nstate), ...
-                MultiLT.randinit(nhidden, nhidden, nhidden), ...
+            unit = RSConvDecoder(frmsize, ...
+                MultiLT.randinit(nstate, nhidden, nstate), ...
+                LinearTransform.randinit(nhidden, nstate), ...
+                MultiLT.randinit(nstate, nhidden, nstate), ...
+                MultiLT.randinit(nstate, nhidden, nstate), ...
+                MultiLT.randinit(nstate, nhidden, nstate), ...
+                LinearTransform.randinit(nhidden, nhidden), ...
                 ampEncoder, ...
-                MultiLT.randinit(nstate, nhidden, nhidden, nstate), ...
-                MultiLT.randinit(nstate, nhidden, nhidden, nstate), ...
+                MultiLT.randinit(nstate, nhidden, nstate), ...
+                MultiLT.randinit(nstate, nhidden, nstate), ...
                 frameDecoder);                
         end
         
-        function debug(probScale, niter, batchsize, validsize)
+        function debug(niter, probScale, batchsize, validsize)
             if not(exist('probScale', 'var')), probScale = 16;  end
             if not(exist('niter',     'var')), niter     = 3e2; end
             if not(exist('batchsize', 'var')), batchsize = 16;  end
@@ -167,11 +176,11 @@ classdef RSConvCoder < RecurrentUnit
             nbase = ceil(sqrt(probScale));
             nframes = nbase;
             % reference model
-            refer = RSConvCoder.randinit(frmsize, nlayerFrm, basesize, nbase, [2,2]);
+            refer = RSConvDecoder.randinit(frmsize, nlayerFrm, basesize, nbase, [2,2]);
             cellfun(@(hp) hp.set(randn(size(hp))), refer.hparam);
             refer.refresh();
             % approximate model
-            model = RSConvCoder.randinit(frmsize, nlayerFrm, basesize, nbase, [2,2]);
+            model = RSConvDecoder.randinit(frmsize, nlayerFrm, basesize, nbase, [2,2]);
             % create dataset
             dataset = DataGenerator('normal', prod([frmsize, nlayerFrm])).enableTmode(nframes);
             % create objectives

@@ -60,7 +60,7 @@ classdef UnitAP < AccessPoint
             % % record states
             % obj.packagercd = package;
             
-            if obj.enforceCPU && isa(data, 'gpuArray')
+            if obj.enforceCPU
                 data = double(gather(data));
             end
             

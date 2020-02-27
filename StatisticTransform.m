@@ -265,7 +265,7 @@ classdef StatisticTransform < SISOUnit & BidirectionOperation
                 case {'debias', 'normalize'}
                     obj.O = {UnitAP(obj, obj.dsample)};
                     
-                case {'whiten'}
+                case {'whiten', 'zerophase'}
                     obj.O = {UnitAP(obj, 1)};
             end
             % apply other arguments

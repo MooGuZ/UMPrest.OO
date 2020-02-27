@@ -29,8 +29,8 @@ classdef RSConvPredictor < WorkSpace
             end
             
             obj = RSConvPredictor( ...
-                RSConvCoder.randinit(frmsize, nlayerFrm, basesize, nbase, grid), ...
-                RSConvCoder.randinit(frmsize, nlayerFrm, basesize, nbase, grid));
+                RSConvEncoder.randinit(frmsize, nlayerFrm, basesize, nbase, grid), ...
+                RSConvDecoder.randinit(frmsize, nlayerFrm, basesize, nbase, grid));
         end
     end
 
@@ -39,7 +39,9 @@ classdef RSConvPredictor < WorkSpace
         function obj = connectDataset(obj, dataset, statUnit)
             obj.dataset = dataset;
             % setup framesize to match encoder and predictor
-            dataset.framesize = obj.ENC.framesize;
+            if isfield(dataset, 'framesize')
+                dataset.framesize = obj.ENC.framesize;
+            end
             % Get statistic information directly from dataset, if necessary
             if not(exist('statUnit', 'var'))
                 statUnit = dataset.stat;
@@ -52,7 +54,7 @@ classdef RSConvPredictor < WorkSpace
                 obj.whitenUnit = StatisticTransform(statUnit, 'mode', 'zerophase');
             end
             % Get statistic information
-            statInfo = obj.whitenUnit.getKernel(dataset.framesize);
+            statInfo = obj.whitenUnit.getKernel(obj.ENC.framesize);
             % Create connection parts
             obj.inputSlicer = FrameSlicer().appendto(dataset.data).aheadof(obj.whitenUnit);
             obj.whitenUnit.aheadof(obj.ENC.DI{1}).freeze();
@@ -67,7 +69,9 @@ classdef RSConvPredictor < WorkSpace
         
         function obj = frameConfig(obj, nframeEncoder, nframePredict)
             % Setup dataset
-            obj.dataset.nframes = nframeEncoder + nframePredict;
+            if isfield(obj.dataset, 'nframes')
+                obj.dataset.nframes = nframeEncoder + nframePredict;
+            end
             % Setup frame slicers
             obj.inputSlicer.setup(nframeEncoder, 'front', 0);
             obj.outputSlicer.setup(nframePredict, 'front', nframeEncoder);
