@@ -353,8 +353,8 @@ classdef SConvEncoder < MISOUnit & FeedforwardOperation & Evolvable
             obj.T = HyperParam(theta);
             obj.B = HyperParam(bias);
             % Input-Output Interfaces
-            obj.I = {UnitAP(obj, 3, '-recdata'), UnitAP(obj, 4, '-recdata')};
-            obj.O = {UnitAP(obj, 3)};
+            obj.I = {UnitAP(obj, 3, '-recdata', '-cpu'), UnitAP(obj, 4, '-recdata', '-cpu')};
+            obj.O = {UnitAP(obj, 3, '-cpu')};
             % Temporary Memory
             obj.calcRcd = Container();
             % initialize as normal mode
@@ -444,7 +444,7 @@ classdef SConvEncoder < MISOUnit & FeedforwardOperation & Evolvable
     end
     methods
         function value = get.alpha(obj)
-            value = obj.A.get();
+            value = obj.A.getcpu();
         end
         function set.alpha(obj, value)
             obj.A.set(value);
@@ -452,7 +452,7 @@ classdef SConvEncoder < MISOUnit & FeedforwardOperation & Evolvable
         end
         
         function value = get.theta(obj)
-            value = obj.T.get();
+            value = obj.T.getcpu();
         end
         function set.theta(obj, value)
             obj.T.set(value);
@@ -460,7 +460,7 @@ classdef SConvEncoder < MISOUnit & FeedforwardOperation & Evolvable
         end
         
         function value = get.bias(obj)
-            value = obj.B.get();
+            value = obj.B.getcpu();
         end
         function set.bias(obj, value)
             obj.B.set(value);

@@ -44,26 +44,12 @@ classdef UnitAP < AccessPoint
                 package.datasize, package.dsample, package.taxis);
             % unpack packge according to their class
             switch class(package)
-              case {'DataPackage'}
+              case {'DataPackage', 'ErrorPackage'}
                 if needReshape
                     data = reshape(package.data, datashape);
                 else
                     data = package.data;
                 end
-                if obj.recdata
-                    obj.datarcd.push(data);
-                end
-                
-              case {'ErrorPackage'}
-                if needReshape
-                    data = reshape(package.data, datashape);
-                else
-                    data = package.data;
-                end
-                % % apply prior to gradient
-                % if not(isempty(obj.priorSet))
-                %     data = data + obj.priorDelta(obj.datarcd.fetch(-1));
-                % end
                                 
               case {'SizePackage'}
                 data = datashape;
@@ -73,6 +59,14 @@ classdef UnitAP < AccessPoint
             end
             % % record states
             % obj.packagercd = package;
+            
+            if obj.enforceCPU && isa(data, 'gpuArray')
+                data = double(gather(data));
+            end
+            
+            if obj.recdata && isa(package, 'DataPackage')
+                obj.datarcd.push(data);
+            end
         end
         
         function package = packup(obj, data)
@@ -205,6 +199,7 @@ classdef UnitAP < AccessPoint
             obj.expandable = conf.pop('expandable', false);
             obj.recdata    = conf.pop('recdata', false);
             obj.absent     = conf.pop('absent', false);
+            obj.enforceCPU = conf.pop('cpu', false);
             
             if obj.recdata
                 obj.datarcdlen = conf.pop('dataRecordLength', 1);
@@ -223,7 +218,8 @@ classdef UnitAP < AccessPoint
         parent     % handle of a SimpleUnit, the host of this AccessPoint
         dsample    % dimension of data pass through this AccessPoint
         expandable % TRUE/FALSE, indicating dimension of data can be expanded
-        no = 0     % series number, 0 represent independent, otherwise in cooperate mode        
+        no = 0     % series number, 0 represent independent, otherwise in cooperate mode
+        enforceCPU % TRUE/FALSE, indicating whether or not keep data in CPU memory
     end
     properties (Dependent)
         recdata    % TRUE/FALSE, indicating this AccessPoint would record passed data

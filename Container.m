@@ -121,6 +121,8 @@ classdef Container < handle
         function obj = init(obj, n)
             if isinf(n)
                 obj.C = cell(1, obj.expandSize);
+            elseif n == 1
+                obj.simple()
             else
                 assert(MathLib.isinteger(n) && n > 0, 'ILLEGAL ARGUMENT');
                 obj.C = cell(1, n);

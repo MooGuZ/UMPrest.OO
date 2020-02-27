@@ -74,6 +74,9 @@ classdef RSConvPredictor < WorkSpace
             % Setup auxiliary data sources
             obj.zerogen.enableTmode(nframePredict);
             obj.errgen.enableTmode(nframeEncoder);
+            % setup memory length of encoder and predictor
+            obj.ENC.recrtmode(nframeEncoder);
+            obj.PRD.recrtmode(nframePredict);
         end
     end
 
