@@ -90,7 +90,7 @@ classdef RSConvPredictor < WorkSpace
             conf = Config(varargin);
             % Setup Default Values
             saveInterval  = conf.pop('saveInterval', inf);
-            estch         = conf.pop('estimatedChange', 1e-2);
+            estch         = conf.pop('estimatedChange', 1e-3);
             gradmode      = conf.pop('gradmode', 'adam');
             batchsize     = conf.pop('batchsize', 32);
             validsize     = conf.pop('validsize', 128);
