@@ -25,33 +25,47 @@ classdef Transform2D < Dataset
     end
 
     methods
+        function [X,Y] = getgrid(self)
+            [X,Y] = meshgrid( ...
+                linspace(-1, 1, self.framesize(2)), ...
+                linspace(1, -1, self.framesize(1)));
+            X = X * self.canvasScale.x;
+            Y = Y * self.canvasScale.y;
+        end
+
         function anim = generate(self)
             for i = 1 : numel(self.cache)
                 conf = self.cache(i);
-                % canvas initialization
-                [X,Y]  = meshgrid( ...
-                    linspace(-1, 1, self.framesize(2)), ...
-                    linspace(1, -1, self.framesize(1)));
-                xscale = self.canvasScale.x / conf.scale;
-                yscale = self.canvasScale.y / conf.scale;
-                Z      = complex(xscale * X, yscale * Y);
+                
+                [X,Y] = self.getgrid();
+                % initialize phase field with specific scale
+                Z = complex(X / conf.scale, Y / conf.scale);
                 % adapt initial object position
-                Z = Z - conf.position * [xscale; 1j*yscale];
+                Z = Z - conf.position / conf.scale * [1; 1j];
                 % adapt initial object orientation
                 Z = Z * exp(-1j * conf.orient);
                 % calculate translation vector
-                T = conf.translation * [xscale; 1j*yscale] / (self.nframes - 1);
+                T = conf.translation * [1; 1j] / (conf.scale * self.nframes);
                 T = T * exp(-1j * conf.orient);
                 % calculate rotation multiplexer
-                R = exp(-2j * pi * conf.rotation / (self.nframes - 1));
+                R = exp(-1j * conf.rotation / (self.nframes));
                 % calculate scaling factor
-                S = conf.scaling ^ (1 / (self.nframes - 1));
+                S = conf.scaling ^ (1 / (self.nframes));
                 % initialize animation data
                 buffer = zeros([self.framesize, self.nframes]);
                 % transforming frame by frame
                 for f = 1 : self.nframes
                     % generate current frame accordint to the shape
                     buffer(:, :, f) = self.(conf.shape)(Z, conf);
+                    % apply texture if exist
+                    if not(isempty(self.textureImage))
+                        index  = buffer(:,:,f) > 0;
+                        crds   = Z(index);
+                        pixels = self.drawTexture(imag(crds), real(crds));
+                        temp   = zeros(size(index));
+                        temp(index) = pixels(:);
+                        buffer(:,:,f) = temp .* buffer(:,:,f);
+                    end
                     % update Z and T
                     Z = (Z - T) * R / S;
                     T = T * R / S;                    
@@ -112,6 +126,11 @@ classdef Transform2D < Dataset
             index = layer > 0;
             anim(index) = layer(index);
             % anim = max(anim, layer);
+        end
+        
+        function pixels = drawTexture(self, y, x)
+            [M, N] = size(coef);
+            pixels = idct2func(y * (M-1)/2 + (M+1)/2, x * (N-1)/2 + (N+1)/2, self.textureCoef);
         end
     end
     
@@ -179,9 +198,16 @@ classdef Transform2D < Dataset
                         buffer.edgeOrient   = self.randort(buffer.nedges);
                         buffer.edgeDistance = self.randval(self.edgeDistance, buffer.nedges);
                     end
-                    buffer.scale       = self.randval(self.scale);
-                    buffer.position    = self.randval(self.position, 2);
-                    buffer.orient      = self.randval(self.orient);
+                    % generate random start position if necessary
+                    if self.randstart
+                        buffer.scale       = self.randval(self.scale);
+                        buffer.position    = self.randval(self.position, 2);
+                        buffer.orient      = self.randval(self.orient);
+                    else
+                        buffer.scale       = 1;
+                        buffer.position    = [0,0];
+                        buffer.orient      = 0;
+                    end
                     buffer.translation = self.randval(self.translation, 2);
                     buffer.scaling     = self.randval(self.scaling);
                     buffer.rotation    = self.randval(self.rotation);
@@ -230,7 +256,7 @@ classdef Transform2D < Dataset
         function conf = decodeConfig(code)
             index = 2;
             conf  = cell(1, code(1));
-            for i = 1 : numel(cell)
+            for i = 1 : numel(conf)
                 cfg.shape        = Transform2D.shapeset(code(index));
                 cfg.nedges       = code(index + 1);
                 index = index + 1;
@@ -265,7 +291,7 @@ classdef Transform2D < Dataset
             self.orient       = [-pi, pi];
             self.translation  = [-1.3, 1.3];
             self.scaling      = [0.3, 3];
-            self.rotation     = [-3, 3];
+            self.rotation     = [-6, 6] * pi;
             self.count        = 0;
         end
         
@@ -335,8 +361,12 @@ classdef Transform2D < Dataset
         nframes   = 30           % frame quantity in a sequence
         nobjects                 % number of objects in the sequence
         tzwidth                  % width of transition zone
+        randstart = false        % switch for random start status
         shape, nedges, edgeDistance
         scale, position, orient, translation, scaling, rotation
+        textureImage = []
+        textureCoef  = []
+        textureTransform = false
     end
     methods
         function value = get.islabelled(~)
@@ -345,6 +375,20 @@ classdef Transform2D < Dataset
         
         function value = get.volume(~)
             value = inf;
+        end
+        
+        function value = get.textureCoef(self)
+            if isempty(self.textureCoef)
+                if not(isempty(self.textureImage))
+                    if size(self.textureImage, 3) ~= 1
+                        img = rgb2gray(self.textureImage);
+                    else
+                        img = self.textureImage;
+                    end
+                    self.textureCoef = dct2(im2double(img));
+                end
+            end
+            value = self.textureCoef;
         end
         
         function set.framesize(self, value)
