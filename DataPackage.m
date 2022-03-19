@@ -73,6 +73,13 @@ classdef DataPackage < Package
                 error('This operation can not be completed');
             end
         end
+
+        function obj = enableTaxis(obj)
+            if not(obj.taxis)
+                obj.data = reshape(obj.data, [obj.smpsize, 1, obj.batchsize]);
+                obj.taxis = true;
+            end
+        end
         
         function clone = copy(obj)
             clone = DataPackage(obj.data, obj.dsample, obj.taxis);

@@ -104,6 +104,12 @@ classdef Model < BuildingBlock & Evolvable
                 obj.evolvable{i}.unfreeze();
             end
         end
+
+        function refresh(obj)
+            for i = 1 : numel(obj.evolvable)
+                obj.evolvable{i}.refresh();
+            end
+        end
     end
     
     methods (Static)

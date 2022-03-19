@@ -33,6 +33,10 @@ classdef HyperParam < Tensor & ProbabilityDescription
                 obj.gradient = 0;
             end
         end
+        
+        function addnoise(obj, stdvar)
+            obj.data = obj.data + randn(size(obj.data)) * stdvar;
+        end
     end
     
     methods
@@ -90,7 +94,7 @@ classdef HyperParam < Tensor & ProbabilityDescription
                     if ratio >= 30
                         step = step / ratio;
                     elseif ratio >= 10
-                        step = step / 2;
+                        step = step / 3;
                     elseif ratio >= 1
                         step = step * conf.dfactor;
                     elseif ratio > 0

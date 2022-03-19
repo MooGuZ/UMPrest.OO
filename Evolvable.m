@@ -52,5 +52,12 @@ classdef Evolvable < handle
             hpcell = obj.hparam();
             tf = hpcell{1}.frozen;
         end
+        
+        function addnoise(obj, stdvar)
+            hpcell = obj.hparam();
+            for i = 1 : numel(hpcell)
+                hpcell{i}.addnoise(stdvar);
+            end
+        end
     end
 end

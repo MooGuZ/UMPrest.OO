@@ -107,6 +107,7 @@ classdef ConvNet < Model
             refer = ConvNet.randinit(nchannel, nfilter(2 : end), 'filterSize', fltsize, ...
                 'HiddenLayerActType', hactType, 'OutputLayerActType', oactType);
             cellfun(@(hp) hp.set(randn(size(hp))), refer.hparam);
+            refer.update();
             % approximate model
             model = ConvNet.randinit(nchannel, nfilter(2 : end), 'filterSize', fltsize, ...
                 'HiddenLayerActType', hactType, 'OutputLayerActType', oactType);

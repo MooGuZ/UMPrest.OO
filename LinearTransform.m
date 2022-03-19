@@ -58,6 +58,11 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
             obj.I = {UnitAP(obj, 1, '-recdata')};
             obj.O = {UnitAP(obj, 1)};
         end
+
+        function refresh(obj)
+            obj.W.set(HyperParam.randlt(size(obj.W,1),size(obj.W,2)));
+            obj.B.set(zeros(size(obj.B)));
+        end
     end
     
     methods (Static)

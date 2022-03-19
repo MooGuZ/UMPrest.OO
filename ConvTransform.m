@@ -61,6 +61,8 @@ classdef ConvTransform < SISOUnit & FeedforwardOperation & Evolvable
                 obj.stride = [1, 1];
             elseif numel(stride) == 1
                 obj.stride = stride * [1, 1];
+            else
+                obj.stride = stride;
             end
             % initialize filter and bias
             obj.W = HyperParam(weight);
@@ -209,15 +211,18 @@ classdef ConvTransform < SISOUnit & FeedforwardOperation & Evolvable
     end
     
     methods (Static)
-        function obj = randinit(fltsize, nchannel, nfilter)
+        function obj = randinit(fltsize, nchannel, nfilter, stride)
+            if not(exist('stride', 'var')), stride = 1; end
             obj = ConvTransform( ...
                 HyperParam.randct(fltsize, nchannel, nfilter), ...
-                zeros(nfilter, 1));
+                zeros(nfilter, 1), ...
+                stride);
         end
         
-        function debug(probScale, niter, batchsize, validsize)
-            if not(exist('probScale', 'var')), probScale = 16;  end
+        function debug(niter, probScale, stride, batchsize, validsize)
             if not(exist('niter',     'var')), niter     = 3e2; end
+            if not(exist('probScale', 'var')), probScale = 16;  end
+            if not(exist('stride',    'var')), stride    = 2;   end
             if not(exist('batchsize', 'var')), batchsize = 16;  end
             if not(exist('validsize', 'var')), validsize = 128; end
             
@@ -226,11 +231,10 @@ classdef ConvTransform < SISOUnit & FeedforwardOperation & Evolvable
             fltsize  = ceil(sqrt(sizein));
             nchannel = nfilter;
             % reference model
-            refer = ConvTransform.randinit(fltsize, nchannel, nfilter);
+            refer = ConvTransform.randinit(fltsize, nchannel, nfilter, stride);
             cellfun(@(hp) hp.set(randn(size(hp))), refer.hparam);
-            refer.update();
             % approximate model
-            model = ConvTransform.randinit(fltsize, nchannel, nfilter);
+            model = ConvTransform.randinit(fltsize, nchannel, nfilter, stride);
             % data generator
             dataset = DataGenerator('normal', [sizein, nchannel]);
             % objective function

@@ -26,7 +26,7 @@
 	    "downFactor": 0.95,
 	    "maxInitStep": 100,
 	    "estimatedChange": 0.01,
-	    "minimalEstimatedChange": 0
+	    "minimalEstimatedChange": 0.000001
 	}
     },
     "momentum": {
@@ -38,6 +38,3 @@
         "n": 3
     }
 }}
-
-
-    

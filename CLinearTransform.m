@@ -40,7 +40,7 @@ classdef CLinearTransform < MISOUnit & FeedforwardOperation & Evolvable
                 re = self.realW.get();
                 im = self.imagW.get();
                 % GS orthogonalization
-                im = im - re * diag(sum(re .* im ./ sum(re.^2)));
+                im = im - re * diag(sum(re .* im) ./ sum(re.^2));
                 % renormalize length of bases
                 re = bsxfun(@rdivide, re, sqrt(sum(re.^2)));
                 im = bsxfun(@rdivide, im, sqrt(sum(im.^2)));

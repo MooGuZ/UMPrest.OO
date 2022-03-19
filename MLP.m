@@ -34,8 +34,8 @@ classdef MLP < Model
                 'UMPrest:ArgumentError', 'Quantity list of percetrons is invalid');
             
             conf = Config(varargin);
-            hactType = conf.pop('HiddenLayerActType', 'ReLU');
-            oactType = conf.pop('OutputLayerActType', 'Logistic');
+            hactType = conf.pop('HiddenLayerActType', 'tanh');
+            oactType = conf.pop('OutputLayerActType', 'Sigmoid');
             
             units    = cell(1, numel(perceptronQuantityList));
             sizeinfo = [inputSize, perceptronQuantityList];
@@ -54,34 +54,108 @@ classdef MLP < Model
     end
     
     methods (Static)
-        function debug(probScale, niter, batchsize, validsize)
+        function [refer, model] = debug(nlayer, probScale, niter, batchsize, validsize)
             if not(exist('probScale', 'var')), probScale = 16;  end
-            if not(exist('niter',     'var')), niter     = 3e2; end
-            if not(exist('batchsize', 'var')), batchsize = 16;  end
+            if not(exist('niter',     'var')), niter     = 1e3; end
+            if not(exist('batchsize', 'var')), batchsize = 64;  end
             if not(exist('validsize', 'var')), validsize = 128; end
             
-            % model parameters
-            nlayer   = ceil(log2(probScale));
-            nunits   = probScale * ones(1, nlayer + 1);
-            hactType = 'ReLU';
-            oactType = 'tanh';
+            hactType = 'linear';
+            oactType = 'linear';
             % create reference model
-            refer = MLP.randinit(nunits(1), nunits(2:end), ...
+            refer = MLP.randinit(probScale, probScale * ones(1,nlayer), ...
                 'HiddenLayerActType', hactType, ...
                 'OutputLayerActType', oactType);
             cellfun(@(hp) hp.set(randn(size(hp))), refer.hparam);
+            refer.update();
             % create approximate model
-            model = MLP.randinit(nunits(1), nunits(2:end), ...
+            model = MLP.randinit(probScale, probScale * ones(1,nlayer), ...
                 'HiddenLayerActType', hactType, ...
                 'OutputLayerActType', oactType);
             % data generator
-            dataset = DataGenerator('normal', nunits(1));
+            dataset = DataGenerator('normal', probScale);
             % objective funtion
             objective = Likelihood('mse');
             % create simulation task
             task = SimulationTest(model, refer, dataset, objective);
             % run test
             task.run(niter, batchsize, validsize);
+        end
+        
+        function [refer, model] = simshape(hidunit, niter, batchsize, validsize)
+            if not(exist('niter',     'var')), niter     = 1e3; end
+            if not(exist('batchsize', 'var')), batchsize = 64;  end
+            if not(exist('validsize', 'var')), validsize = 128; end
+            
+            % create reference model
+            refer = SimpleShape.randinit('circle');
+            % create MLP
+            model = MLP.randinit(2, [hidunit, 2], ...
+                'HiddenLayerActType', 'tanh', ...
+                'OutputLayerActType', 'softmax');
+            % data generator
+            dataset = DataGenerator('normal', 2);
+            % objective funtion
+            objective = Likelihood('mse');
+            % create simulation task
+            task = SimulationTest(model, refer, dataset, objective);
+            task.rawcompare = false;
+            % run test
+            task.run(niter, batchsize, validsize);
+            % draw the result
+            resolution = 512;
+            [X, Y] = meshgrid(linspace(-3, 3, resolution), linspace(3, -3, resolution));
+            I = DataPackage([X(:), Y(:)]', 1, false);
+            O = refer.forward(I);
+            P = model.forward(I);
+            figure();
+            set(gcf, 'Position', [680 690 580 290]);
+            subplot(1,2,1);
+            imshow(reshape(O.data(1, :), resolution * [1,1]));
+            title('Ground Truth');
+            subplot(1,2,2);
+            imshow(reshape(P.data(1, :), resolution * [1,1]));
+            title('Model Simulation');
+        end
+
+        function [refer, model] = simPhaseField(hidunit, niter, batchsize, validsize)
+            if not(exist('niter',     'var')), niter     = 1e3; end
+            if not(exist('batchsize', 'var')), batchsize = 64;  end
+            if not(exist('validsize', 'var')), validsize = 128; end
+            
+            % create reference model
+            % refer = PhaseField.randinit().getEquivalentLinearTransform();
+            refer = PhaseField.randinit();
+            % create MLP
+            model = RUnit(MLP.randinit(2, [hidunit, 2], ...
+                'HiddenLayerActType', 'ReLU', ...
+                'OutputLayerActType', 'Linear'));
+            % setup number of frames used in optimization
+            refer.nframes = 5;
+            model.nframes = 5;
+            % data generator
+            dataset = DataGenerator('normal', 2).enableTmode(1);
+            % objective funtion
+            objective = Likelihood('mse');
+            % create simulation task
+            task = SimulationTest(model, refer, dataset, objective);
+            task.rawcompare = false;
+            % run test
+            task.run(niter, batchsize, validsize);
+            % illustrate the results
+            refer.nframes = 30;
+            model.nframes = 30;
+            txtrnd = iDCT2Function.randinit(32,32);
+            maskpt = SimpleShape.randinit('circle');
+            [X,Y] = meshgrid(linspace(-1,1,256), linspace(1,-1,256));
+            pfinit = DataPackage([X(:), Y(:)]', 1, false).enableTaxis();
+            pfref  = refer.forward(pfinit);
+            pfmod  = model.forward(pfinit);
+            output = txtrnd.forward(pfref).data .* maskpt.forward(pfref).data;
+            animrf = permute(output, [3,2,1]);
+            output = txtrnd.forward(pfmod).data .* maskpt.forward(pfmod).data;
+            animmd = permute(output, [3,2,1]);
+            animview({animrf, animmd});
         end
     end
 end

@@ -372,7 +372,7 @@ classdef SConvEncoder < MISOUnit & FeedforwardOperation & Evolvable
     
     % Debugger
     methods (Static)
-        function debug(niter, probScale, batchsize, validsize)
+        function [model, refer] = debug(niter, probScale, batchsize, validsize)
             if not(exist('niter',     'var')), niter     = 5e2; end
             if not(exist('probScale', 'var')), probScale = 16;  end
             if not(exist('batchsize', 'var')), batchsize = 16;  end
