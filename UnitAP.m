@@ -64,7 +64,7 @@ classdef UnitAP < AccessPoint
                 data = double(gather(data));
             end
             
-            if obj.recdata && isa(package, 'DataPackage')
+            if obj.recdata && not(isa(package, 'ErrorPackage')) && not(isa(package, 'SizePackage'))
                 obj.datarcd.push(data);
             end
         end

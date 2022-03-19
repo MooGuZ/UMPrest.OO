@@ -1,4 +1,5 @@
 % PRP: add field for derivative from prior
+% BUG: ErrorPackage should derived from Package not DataPackage
 classdef ErrorPackage < DataPackage
     methods
         function merge(obj, package)
