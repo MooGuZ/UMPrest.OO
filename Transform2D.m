@@ -129,8 +129,8 @@ classdef Transform2D < Dataset
         end
         
         function pixels = drawTexture(self, y, x)
-            [M, N] = size(coef);
-            pixels = idct2func(y * (M-1)/2 + (M+1)/2, x * (N-1)/2 + (N+1)/2, self.textureCoef);
+            [M, N] = size(self.textureCoef);
+            pixels = idct2func(y * (M-1)/2 + (M-1)/2, x * (N-1)/2 + (N-1)/2, self.textureCoef);
         end
     end
     
@@ -302,6 +302,16 @@ classdef Transform2D < Dataset
         
         function conf = getLastConfig(self)
             conf = self.cache;
+        end
+
+        function [anim, conf] = getLastAnim(self)
+            if isempty(self.cache)
+                anim = [];
+                conf = [];
+            else
+                self.count   = self.count + 1;
+                [anim, conf] = self.next();
+            end
         end
         
         function self = useConfig(self, conf, lifetime)
