@@ -314,7 +314,7 @@ classdef Transform2D < Dataset
             end
         end
         
-        function self = useConfig(self, conf, lifetime)
+        function useConfig(self, conf, lifetime)
             if not(exist('lifetime', 'var'))
                 lifetime = false;
             end
