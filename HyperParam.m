@@ -46,7 +46,19 @@ classdef HyperParam < Tensor & ProbabilityDescription
         end
         
         function obj = cleanup(obj)
-            obj.gradient = 0;
+            obj.t            = 0;
+            obj.timestamp    = -inf;
+            obj.gradient     = 0;
+            obj.momentum     = 0;
+            obj.moment1stOrd = 0;
+            obj.moment2ndOrd = 0;
+            obj.conf         = [];
+            obj.laststep     = [];
+        end
+
+        function set(obj, value)
+            set@Tensor(obj, value);
+            obj.cleanup();
         end
     end
     
@@ -112,6 +124,7 @@ classdef HyperParam < Tensor & ProbabilityDescription
     methods
         function obj = HyperParam(data)
             obj@Tensor(data);
+            obj.cleanup();
         end
     end
     
@@ -119,12 +132,8 @@ classdef HyperParam < Tensor & ProbabilityDescription
         frozen = false
     end
     properties (Hidden)
-        t            = 0
-        timestamp    = -inf
-        gradient     = 0
-        momentum     = 0
-        moment1stOrd = 0
-        moment2ndOrd = 0
+        t, timestamp
+        gradient, momentum, moment1stOrd, moment2ndOrd
         conf, laststep
     end
     properties (Constant)
