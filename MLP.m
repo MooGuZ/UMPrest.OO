@@ -82,13 +82,13 @@ classdef MLP < Model
             task.run(niter, batchsize, validsize);
         end
         
-        function [refer, model] = simshape(hidunit, niter, batchsize, validsize)
+        function [refer, model] = simshape(type, hidunit, niter, batchsize, validsize)
             if not(exist('niter',     'var')), niter     = 1e3; end
             if not(exist('batchsize', 'var')), batchsize = 64;  end
             if not(exist('validsize', 'var')), validsize = 128; end
             
             % create reference model
-            refer = SimpleShape.randinit('circle');
+            refer = SimpleShape.randinit(type);
             % create MLP
             model = MLP.randinit(2, [hidunit, 2], ...
                 'HiddenLayerActType', 'tanh', ...
