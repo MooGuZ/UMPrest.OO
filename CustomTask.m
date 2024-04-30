@@ -109,7 +109,7 @@ classdef CustomTask < Task
             value = sum(cellfun(@evaluate, obj.objective)) + sum(cellfun(@evaluate, obj.priors));
             if obj.verbose
                 fprintf('[%s] Objective Value after [%04d] iterations : %.2e ', ...
-                    datestr(now), obj.iteration, value);
+                    datetime, obj.iteration, value);
                 if obj.optimizer.cache.rcdmode.status
                     obj.optimizer.record(value);
                     fprintf('[ESTCH : %.2e]\n', obj.optimizer.cache.stepmode.estch);
@@ -186,7 +186,7 @@ classdef CustomTask < Task
         end
 
         function set.dir(obj, value)
-            if not(isdir(value))
+            if not(isfolder(value))
                 [success, message, messageid] = mkdir(value);
                 if not(success)
                     error(messageid, 'Directory Creation Failed: %s', message);

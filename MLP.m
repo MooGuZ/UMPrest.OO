@@ -118,21 +118,23 @@ classdef MLP < Model
             title('Model Simulation');
         end
 
-        function [refer, model] = simPhaseField(hidunit, niter, batchsize, validsize)
+        function [refer, model] = simPhaseField(hidunit, nframes, niter, batchsize, validsize)
             if not(exist('niter',     'var')), niter     = 1e3; end
             if not(exist('batchsize', 'var')), batchsize = 64;  end
             if not(exist('validsize', 'var')), validsize = 128; end
             
             % create reference model
-            % refer = PhaseField.randinit().getEquivalentLinearTransform();
             refer = PhaseField.randinit();
             % create MLP
-            model = RUnit(MLP.randinit(2, [hidunit, 2], ...
-                'HiddenLayerActType', 'ReLU', ...
-                'OutputLayerActType', 'Linear'));
+            in = DataPoint();
+            mlp = MLP.randinit(2, [hidunit,2], ...
+                'HiddenLayerActType', 'relu', ...
+                'OutputLayerActType', 'Linear').appendto(in);
+            out = PlusUnit().appendto(in, mlp);
+            model = RUnit(Model(in, mlp, out));
             % setup number of frames used in optimization
-            refer.nframes = 5;
-            model.nframes = 5;
+            refer.nframes = nframes;
+            model.nframes = nframes;
             % data generator
             dataset = DataGenerator('normal', 2).enableTmode(1);
             % objective funtion
@@ -143,19 +145,13 @@ classdef MLP < Model
             % run test
             task.run(niter, batchsize, validsize);
             % illustrate the results
-            refer.nframes = 30;
-            model.nframes = 30;
-            txtrnd = iDCT2Function.randinit(32,32);
-            maskpt = SimpleShape.randinit('circle');
-            [X,Y] = meshgrid(linspace(-1,1,256), linspace(1,-1,256));
-            pfinit = DataPackage([X(:), Y(:)]', 1, false).enableTaxis();
-            pfref  = refer.forward(pfinit);
-            pfmod  = model.forward(pfinit);
-            output = txtrnd.forward(pfref).data .* maskpt.forward(pfref).data;
-            animrf = permute(output, [3,2,1]);
-            output = txtrnd.forward(pfmod).data .* maskpt.forward(pfmod).data;
-            animmd = permute(output, [3,2,1]);
-            animview({animrf, animmd});
+            resolution  = [256, 256];
+            canvasRange = [-1.5, 1.5];
+
+            mpref = pfprocdisp(refer, resolution, canvasRange);
+            mpmdl = pfprocdisp(model, resolution, canvasRange);
+
+            animview({mpref, mpmdl});
         end
     end
 end

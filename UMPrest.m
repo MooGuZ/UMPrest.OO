@@ -31,6 +31,14 @@ classdef UMPrest < handle
             end
             p = param;
         end
+
+        function opt = getGlobalOptimizer()
+            persistent optimizer
+            if isempty(optimizer)
+                optimizer = HyperParamOptimizer();
+            end
+            opt = optimizer;
+        end
         
         function debug(probScale)
             if not(exist('probScale', 'var'))

@@ -1,6 +1,6 @@
 classdef SimulationTest < Task
     methods
-        function objval = run(obj, iteration, batchsize, validsize)
+        function exprcd = run(obj, iteration, batchsize, validsize)
             if iscell(obj.dataset)
                 validset.data = cellfun(@(ds) ds.next(validsize), obj.dataset, 'UniformOutput', false);
             else
@@ -8,13 +8,12 @@ classdef SimulationTest < Task
             end
             if iscell(obj.objective)
                 validset.label = cell(1, numel(obj.objective));
-                [validset.label{:}] = obj.ref.forward(validset.data{:});
+                [validset.label{:}] = obj.refer.forward(validset.data{:});
             else                
-                validset.label = obj.ref.forward(validset.data{:});
+                validset.label = obj.refer.forward(validset.data{:});
             end
-            % get optimizer and reserve current setting
-            opt = HyperParam.getOptimizer();
-            opt.push();
+            % reserve current setting
+            obj.optimizer.push();
             % check objective value of current state
             if iscell(obj.objective)
                 objval = 0;
@@ -26,14 +25,17 @@ classdef SimulationTest < Task
             else                
                 objval = obj.objective.evaluate(obj.model.forward(validset.data{:}), validset.label);
             end
-            % compare hyperparam
+            % compare hyper-parameter
             if obj.rawcompare
-                distinfo(abs(obj.ref.dumpraw() - obj.model.dumpraw()), 'HPARAM ERROR', false);
+                distinfo(abs(obj.refer.dumpraw() - obj.model.dumpraw()), 'HPARAM ERROR', false);
             end
-            disp(repmat('=', 1, 100));
-            fprintf('Initial objective value : %.2e\n', objval);
-            if opt.cache.rcdmode.status
-                opt.record(objval, false);
+
+            % start to record the process
+            exprcd = ExperimentRecord(iteration);
+            if obj.recordParam
+                exprcd.record(0, objval, obj.model.getParam());
+            else
+                exprcd.record(0, objval);
             end
             % start simulation process
             for i = 1 : iteration
@@ -46,14 +48,14 @@ classdef SimulationTest < Task
                     label = cell(1, numel(obj.objective));
                     odata = cell(1, numel(label));
                     delta = cell(1, numel(label));
-                    [label{:}] = obj.ref.forward(data{:});
+                    [label{:}] = obj.refer.forward(data{:});
                     [odata{:}] = obj.model.forward(data{:});
                     for j = 1 : numel(delta)
                         delta{j} = obj.objective{j}.delta(odata{j}, label{j});
                     end
                     obj.model.backward(delta{:});
                 else
-                    label = obj.ref.forward(data{:});
+                    label = obj.refer.forward(data{:});
                     odata = obj.model.forward(data{:});
                     obj.model.backward(obj.objective.delta(odata, label));
                 end                
@@ -70,44 +72,40 @@ classdef SimulationTest < Task
                     else
                         objval = obj.objective.evaluate(obj.model.forward(validset.data{:}), validset.label);
                     end
-                    fprintf('Objective Value after [%04d] turns: %.2e ', i, objval);
-                    if opt.cache.rcdmode.status
-                        fprintf('[ESTCH : %.2e]\n', opt.cache.stepmode.estch);
-                        opt.record(objval, false);
+                    
+                    if obj.recordParam
+                        exprcd.record(i, objval, obj.model.getParam());
                     else
-                        fprintf('\n');
+                        exprcd.record(i, objval);
                     end
                 end
             end
-            disp(repmat('=', 1, 100));
+
             if obj.rawcompare
-                distinfo(abs(obj.ref.dumpraw() - obj.model.dumpraw()), 'HPARAM ERROR', false);
+                distinfo(abs(obj.refer.dumpraw() - obj.model.dumpraw()), 'HPARAM ERROR', false);
             end
             % restore optimization setting reserved at beginning
-            opt.pop();
+            obj.optimizer.pop();
         end
     end
     
     methods
-        function obj = SimulationTest(model, ref, dataset, objective)
+        function obj = SimulationTest(model, refer, dataset, objective)
             obj.model     = model;
-            obj.ref       = ref;
+            obj.refer     = refer;
             obj.dataset   = dataset;
             obj.objective = objective;
         end
     end
     
     properties
-        rawcompare = true
+        rawcompare  = true
+        recordParam = false
     end
-    
     properties (SetAccess = protected)
-        ref
+        refer
     end
-    methods
-        function set.ref(obj, value)
-            assert(isa(value, 'BuildingBlock'), 'ILLEGAL ASSIGNMENT');
-            obj.ref = value;
-        end
+    properties (Constant)
+        optimizer = UMPrest.getGlobalOptimizer()
     end
 end

@@ -27,6 +27,25 @@ classdef DataGenerator < handle
                 obj.data.send(datapkg);
             end
         end
+
+        function crds = gridgen(obj, datasize)
+            ndim = prod(obj.smpsize);
+            nsmp = prod(datasize) / ndim;
+            nelm = ceil(nsmp ^ (1/ndim));
+            args = cell(1, ndim);
+            for i = 1 : numel(args)
+                args{i} = linspace(obj.gridRange(i,1), obj.gridRange(i,2), nelm);
+            end
+            outs = cell(1,ndim);
+            [outs{:}] = ndgrid(args{:});
+            for i = 1 : ndim
+                outs{i} = outs{i}(:);
+            end
+            crds = cat(2,outs{:})';
+            % add noise
+            crds = crds + bsxfun(@times, randval([-1,1] * obj.gridNoiseRatio,size(crds)), ...
+                diff(obj.gridRange,1,2) / (nelm-1));
+        end
     end
     
     properties (SetAccess = protected)
@@ -60,22 +79,27 @@ classdef DataGenerator < handle
         function obj = DataGenerator(type, smpsize, varargin)
             conf = Config(varargin);
             switch lower(type)
-              case {'uniform'}
-                obj.datagen = @rand;
-                    
-              case {'gauss', 'gaussian', 'normal'}
-                obj.datagen = @randn;
-                    
-              case {'cauchy'}
-                obj.datagen = @MathLib.randcc;
-                
-              case {'laplace'}
-                obj.datagen = @MathLib.randll;
-                
-              case {'zero'}
-                obj.datagen = @zeros;
-                
-              otherwise
+                case {'uniform'}
+                    obj.datagen = @rand;
+
+                case {'gauss', 'gaussian', 'normal'}
+                    obj.datagen = @randn;
+
+                case {'cauchy'}
+                    obj.datagen = @MathLib.randcc;
+
+                case {'laplace'}
+                    obj.datagen = @MathLib.randll;
+
+                case {'zero'}
+                    obj.datagen = @zeros;
+
+                case {'grid'}
+                    obj.gridRange = smpsize;
+                    smpsize       = size(smpsize,1);
+                    obj.datagen   = @obj.gridgen;
+
+                otherwise
                     error('UMPrest:ArgumentError', ...
                         'Unrecognized distribution : %s', upper(type));
             end
@@ -97,6 +121,8 @@ classdef DataGenerator < handle
     
     properties
         errmode
+        gridRange
+        gridNoiseRatio = 0.5 % the noise level comparing to grid width
     end
     properties (Access = private)
         datagen

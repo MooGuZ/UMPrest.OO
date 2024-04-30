@@ -25,6 +25,7 @@ classdef Container < handle
                     obj.expand();
                 end
                 obj.C{obj.tail} = element;
+                obj.tail = obj.seek(obj.tail, 1);
                 obj.isempty = false;
             end
         end

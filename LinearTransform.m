@@ -72,7 +72,7 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
     end
     
     methods (Static)
-        function debug(probScale, niter, batchsize, validsize)
+        function exprcd = debug(probScale, niter, batchsize, validsize)
             if not(exist('probScale', 'var')), probScale = 16;  end
             if not(exist('niter',     'var')), niter     = 3e2; end
             if not(exist('batchsize', 'var')), batchsize = 16;  end
@@ -91,7 +91,7 @@ classdef LinearTransform < SISOUnit & FeedforwardOperation & Evolvable
             objective = Likelihood('mse');
             % create task and run experiment
             task = SimulationTest(model, refer, dataset, objective);
-            task.run(niter, batchsize, validsize);
+            exprcd = task.run(niter, batchsize, validsize);
         end
         
         function gdebug(probScale, niter, batchsize, validsize)

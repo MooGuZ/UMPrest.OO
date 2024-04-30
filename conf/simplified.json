@@ -1,0 +1,30 @@
+{
+    "conf": {
+        "grad": {
+            "mode": "adam",
+            "adam": {
+                "beta1": 0.9,
+                "beta2": 0.999
+            }
+        },
+        "step": {
+            "mode": "decay",
+            "static": {
+                "step": 0.01
+            },
+            "decay": {
+                "initStep": 0.1,
+                "minStep": 0.0000001,
+                "downFactor": 0.5,
+                "windowSize": 100
+            },
+            "adapt": {
+                "step": 0.01,
+                "maxStep": 1,
+                "minStep": 0.0000001,
+                "upFactor": 1.1,
+                "downFactor": 0.8
+            }
+        }
+    }
+}

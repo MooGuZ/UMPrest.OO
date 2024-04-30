@@ -45,17 +45,17 @@ classdef Transform2D < Dataset
                 % adapt initial object orientation
                 Z = Z * exp(-1j * conf.orient);
                 % calculate translation vector
-                T = conf.translation * [1; 1j] / (conf.scale * self.nframes);
+                T = conf.translation * [1; 1j] / (conf.scale * self.samplerate);
                 T = T * exp(-1j * conf.orient);
                 % calculate rotation multiplexer
-                R = exp(-1j * conf.rotation / (self.nframes));
+                R = exp(-1j * conf.rotation / (self.samplerate));
                 % calculate scaling factor
-                S = conf.scaling ^ (1 / (self.nframes));
+                S = conf.scaling ^ (1 / (self.samplerate));
                 % initialize animation data
                 buffer = zeros([self.framesize, self.nframes]);
                 % transforming frame by frame
                 for f = 1 : self.nframes
-                    % generate current frame accordint to the shape
+                    % generate current frame according to the shape
                     buffer(:, :, f) = self.(conf.shape)(Z, conf);
                     % apply texture if exist
                     if not(isempty(self.textureImage))
@@ -131,6 +131,41 @@ classdef Transform2D < Dataset
         function pixels = drawTexture(self, y, x)
             [M, N] = size(self.textureCoef);
             pixels = idct2func(y * (M-1)/2 + (M-1)/2, x * (N-1)/2 + (N-1)/2, self.textureCoef);
+        end
+
+        function texture = getTexture(self, resolution, canvasRange)
+            if not(exist('resolution', 'var')),  resolution  = size(self.textureCoef); end
+            if not(exist('canvasRange', 'var')), canvasRange = [-1,1];                 end
+            % generate grids
+            [X,Y] = meshgrid( ...
+                linspace(canvasRange(1), canvasRange(2), resolution(2)), ...
+                linspace(canvasRange(2), canvasRange(1), resolution(1)));
+            % get texture image
+            [M, N] = size(self.textureCoef);
+            texture = idct2func(Y * (M-1)/2 + (M-1)/2, X * (N-1)/2 + (N-1)/2, self.textureCoef);
+        end
+
+        function [texture, shape, motion] = draw(self, resolution, canvasRange)
+            if not(exist('resolution', 'var')),  resolution  = [256,256];  end
+            if not(exist('canvasRange', 'var')), canvasRange = [-1.5,1.5]; end
+
+            conf = self.cache(1);
+            % generate grids
+            [X,Y] = meshgrid( ...
+                linspace(canvasRange(1), canvasRange(2), resolution(2)), ...
+                linspace(canvasRange(2), canvasRange(1), resolution(1)));
+            % initialize phase field with specific scale
+            Z = complex(X, Y);
+            shape = self.(conf.shape)(Z, conf);
+            % get texture image
+            texture = self.getTexture(resolution, canvasRange);
+            % get motion pattern
+            Phi = PhaseField( ...
+                conf.translation' / self.samplerate, ...
+                conf.rotation / self.samplerate, ...
+                conf.scaling .^ (1 / self.samplerate));
+            Phi.nframes = self.nframes;
+            motion = pfprocdisp(Phi, resolution);
         end
     end
     
@@ -285,11 +320,11 @@ classdef Transform2D < Dataset
             self.tzwidth      = 0.2;
             self.shape        = Transform2D.shapeset();
             self.nedges       = [3, 5];
-            self.edgeDistance = [0.5, 1.5];
+            self.edgeDistance = [0.2, 1.2];
             self.scale        = [0.5, 2];
             self.position     = [-0.8, 0.8];
             self.orient       = [-pi, pi];
-            self.translation  = [-1.3, 1.3];
+            self.translation  = [-1, 1];
             self.scaling      = [0.3, 3];
             self.rotation     = [-6, 6] * pi;
             self.count        = 0;
@@ -333,6 +368,10 @@ classdef Transform2D < Dataset
                 error('ILLEGAL ARGUMENT');
             end
         end
+
+        function randomConfig(self)
+            self.count = 0;
+        end
     end
 
     methods
@@ -351,10 +390,56 @@ classdef Transform2D < Dataset
         end
     end
 
+    properties (Hidden)
+        nfrms      = 25
+        timelen    = 1.0
+        framerate  = 25
+        samplerate = 25
+    end
+    properties (Dependent)
+        nframes, duration, fps
+    end
+    methods
+        function value = get.nframes(self)
+            value = self.nfrms;
+        end
+        function set.nframes(self, value)
+            self.nfrms   = round(value);
+            self.timelen = self.nfrms / self.framerate;
+        end
+
+        function value = get.duration(self)
+            value = self.timelen;
+        end
+        function set.duration(self, value)
+        % the duration may slightly different from setting value, because
+        % number of frames need to be integer. The total duration equals to
+        % number of frames divide frame per second.
+            self.nfrms = round(value * self.framerate);
+            value = self.nfrms / self.framerate;
+            self.resample(value / self.timelen);
+            self.timelen = value;
+        end
+            
+        function value = get.fps(self)
+            value = self.framerate;
+        end
+        function set.fps(self, value)
+            self.nfrms = round(value * self.timelen);
+            self.resample(value / self.framerate);
+            self.framerate = value;
+            self.timelen = self.nfrms / value;
+        end
+
+        function resample(self, ratio)         
+            self.samplerate = self.samplerate * ratio;
+        end
+    end
+
     properties (Constant)
         taxis       = true
         dsample     = 2
-        canvasScale = struct('x', 3, 'y', 3)
+        canvasScale = struct('x', 1.5, 'y', 1.5)
     end
     properties (Access = protected)
         cache = [], count = 0         % cache and its lifetime
@@ -367,8 +452,7 @@ classdef Transform2D < Dataset
         volume
     end
     properties
-        framesize = [32, 32]     % size of each frame
-        nframes   = 30           % frame quantity in a sequence
+        framesize = [64, 64]     % size of each frame
         nobjects                 % number of objects in the sequence
         tzwidth                  % width of transition zone
         randstart = false        % switch for random start status
@@ -407,11 +491,11 @@ classdef Transform2D < Dataset
             self.framesize = value;
         end
         
-        function set.nframes(self, value)
-            assert(isscalar(value) && MathLib.isinteger(value) && value >= 3, ...
-                'ILLEGAL ASSIGNMENT');
-            self.nframes = value;
-        end
+        % function set.nframes(self, value)
+        %     assert(isscalar(value) && MathLib.isinteger(value) && value >= 3, ...
+        %         'ILLEGAL ASSIGNMENT');
+        %     self.nframes = value;
+        % end
         
         function set.nobjects(self, value)
             assert(MathLib.isinteger(value), 'ILLEGAL ASSIGNMENT');

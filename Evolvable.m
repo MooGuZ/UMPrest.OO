@@ -5,6 +5,21 @@ classdef Evolvable < handle
         % CompoundUnit and Model would defined as cycle over its sub-units.
         hpcell = hparam(obj)
     end
+    % !!!NEED TO BE TESTED!!!
+    % automatically list all parameter members
+    methods
+        function hpcell = paramlist(obj)
+            if isempty(obj.hpmem)
+                proplist = properties(obj);
+                index = cellfun(@(pname) isa(obj.(pname), 'HyperParam'), proplist);
+                obj.hpmem = cellfun(@(pname) obj.(pname), proplist(index));
+            end
+            hpcell = obj.hpmem;
+        end
+    end
+    properties (Hidden, Access=private)
+        hpmem
+    end
     
     % NOTE: implementation of following methods is for SimpleUnit. Rewriting is needed to
     %       them work properly in CompoundUnit and Model.

@@ -1,59 +1,45 @@
 classdef HyperParam < Tensor & ProbabilityDescription
     methods
-       function addgrad(obj, grad)
+        function addgrad(obj, grad)
             if not(obj.frozen)
-                obj.gradient = obj.gradient + grad;
+                obj.gradient(:) = obj.gradient(:) + grad(:);
             end
         end
         
         function update(obj)
             if not(obj.frozen)
                 obj.t = obj.t + 1;
-                % get latest configuration
-                if obj.timestamp < obj.optimizer.timestamp
-                    obj.conf = obj.optimizer.getconf();
-                end
-                % apply prior if exist
+                % Gradient from Prior
                 if not(isempty(obj.priorSet))
                     obj.addgrad(obj.priorDelta(obj.data));
                 end
-                % calculate gradient
-                % NOTE: correctness of following line is based on the fact that
-                %       MATLAB evaluate expresion from left to the right. Because,
-                %       some step size calculation require updated gradient.
-                grad = obj.gradcalc(obj.conf.gradmode) * obj.stepcalc(obj.conf.stepmode);
-                % apply momentum if feasible
-                if obj.conf.momentum.status
-                    grad = grad + obj.momentum * obj.conf.momentum.inertia;
-                    obj.momentum = grad;
-                end
-                % update hyper parameter
-                obj.data = obj.data - grad;
+                % Gradient obtained from Optimization Algorithm
+                grad = obj.gradcalc(obj.optimizer.conf.grad);
+                % Apply Step Scheduling
+                grad = obj.stepcalc(obj.optimizer.conf.step) * grad;
+                % Update Parameters
+                obj.data(:) = obj.data(:) - grad(:);
                 % reset gradient
-                obj.gradient = 0;
+                obj.gradient(:) = 0;
             end
         end
         
         function addnoise(obj, stdvar)
-            obj.data = obj.data + randn(size(obj.data)) * stdvar;
+            obj.data(:) = obj.data(:) + randn(numel(obj.data),1) * stdvar;
         end
     end
     
     methods
         function obj = normalize(obj, dim)
-            mat = obj.data;
-            obj.data = bsxfun(@rdivide, mat, sqrt(sum(mat.^2, dim)));
+            obj.data(:) = vec(normalize(obj.data, dim));
         end
         
         function obj = cleanup(obj)
-            obj.t            = 0;
-            obj.timestamp    = -inf;
-            obj.gradient     = 0;
-            obj.momentum     = 0;
-            obj.moment1stOrd = 0;
-            obj.moment2ndOrd = 0;
-            obj.conf         = [];
-            obj.laststep     = [];
+            obj.t        = 0;
+            obj.gradient = zeros(size(obj.data), class(obj.data));
+            obj.momentum = zeros(size(obj.data), class(obj.data));
+            obj.sigmasqr = zeros(size(obj.data), class(obj.data));
+            obj.laststep = [];
         end
 
         function set(obj, value)
@@ -62,61 +48,58 @@ classdef HyperParam < Tensor & ProbabilityDescription
         end
     end
     
-    methods
+    methods (Access = protected)
         function grad = gradcalc(obj, conf)
             switch conf.mode
-              case {'basic', 'sgd'}
-                % do nothing
-                
-              case {'rmsprop'}
-                obj.moment2ndOrd = conf.decay2ndOrd * obj.moment2ndOrd + ...
-                    (1 - conf.decay2ndOrd) * (obj.gradient.^2);
-                obj.gradient = obj.gradient ./ sqrt(1e-6 + obj.moment2ndOrd);
-                                
-              case {'adam'}
-                obj.moment1stOrd = conf.decay1stOrd * obj.moment1stOrd + ...
-                    (1 - conf.decay1stOrd) * obj.gradient;
-                obj.moment2ndOrd = conf.decay2ndOrd * obj.moment2ndOrd + ...
-                    (1 - conf.decay2ndOrd) * (obj.gradient.^2);
-                moment1stOrdBC = obj.moment1stOrd / (1 - conf.decay1stOrd^obj.t);
-                moment2ndOrdBC = obj.moment2ndOrd / (1 - conf.decay2ndOrd^obj.t);
-                obj.gradient = moment1stOrdBC ./ (sqrt(moment2ndOrdBC) + 1e-8);
-                
-              otherwise
-                error('UNRECOGNIZED PARAMETER');
+                case {'basic', 'sgd'}
+
+                case {'adam'}
+                    obj.momentum(:) = conf.beta1 * obj.momentum(:) + (1 - conf.beta1) * obj.gradient(:);
+                    obj.sigmasqr(:) = conf.beta2 * obj.sigmasqr(:) + (1 - conf.beta2) * (obj.gradient(:).^2);
+                    alpha1 = 1 - conf.beta1^obj.t;
+                    alpha2 = sqrt(1 - conf.beta2^obj.t);
+                    obj.gradient(:) = (alpha2 * obj.momentum(:)) ./ (alpha1 * sqrt(obj.sigmasqr(:)) + 1e-8);
+
+                otherwise
+                    error('UNRECOGNIZED PARAMETER');
             end
+            % return updated gradient
             grad = obj.gradient;
         end
         
         function step = stepcalc(obj, conf)
             switch conf.mode
-              case {'static'}
-                step = conf.step;
-                
-              case {'decline'}
-                step = conf.initstep * conf.dfactor^floor(obj.t / conf.wsize);
-                
-              case {'adapt'}
-                gradmax = max(abs(obj.gradient(:)));
-                if isempty(obj.laststep)
-                    step = min(conf.estch / gradmax, conf.maxstep);
-                else
-                    step = obj.laststep;
-                    ratio = gradmax * step / conf.estch;
-                    if ratio >= 30
-                        step = step / ratio;
-                    elseif ratio >= 10
-                        step = step / 3;
-                    elseif ratio >= 1
-                        step = step * conf.dfactor;
-                    elseif ratio > 0
-                        step = step * conf.ufactor;
+                case {'static'}
+                    step = conf.step;
+
+                case {'decay', 'decline'}
+                    step = conf.initstep * conf.dfactor^floor(obj.t / conf.wsize);
+                    step = max(step, conf.minstep);
+
+                case {'adapt'}
+                    gradmax = max(abs(obj.gradient(:)));
+                    if isempty(obj.laststep)
+                        step = conf.step / gradmax;
+                    else
+                        step = obj.laststep;
+                        ratio = gradmax * step / conf.step;
+                        if ratio >= 30
+                            step = step / ratio;
+                        elseif ratio >= 10
+                            step = step / 3;
+                        elseif ratio >= 1
+                            step = step * 0.95;
+                        elseif ratio > 0
+                            step = step * 1.02;
+                        end
                     end
-                end
-                obj.laststep = step;
-                
-              otherwise
-                error('UNRECOGNIZED PARAMETER');
+                    obj.laststep = step;
+
+                case {'custom'}
+                    step = conf.func(obj.t);
+
+                otherwise
+                    error('UNRECOGNIZED PARAMETER');
             end
         end
     end
@@ -132,28 +115,20 @@ classdef HyperParam < Tensor & ProbabilityDescription
         frozen = false
     end
     properties (Hidden)
-        t, timestamp
-        gradient, momentum, moment1stOrd, moment2ndOrd
-        conf, laststep
+        t
+        gradient
+        momentum
+        sigmasqr
+        laststep
     end
     properties (Constant)
-        optimizer = HyperParam.getOptimizer();
-    end
-    
-    methods (Static)
-        function opt = getOptimizer()
-            persistent cache
-            if isempty(cache)
-                cache = HyperParamOptimizer();
-            end
-            opt = cache;
-        end
+        optimizer = UMPrest.getGlobalOptimizer()
     end
     
     % randomly initialization methods
     methods (Static)
         function M = randlt(row, col)
-            M = (rand(row, col) - 0.5) * (2 / sqrt(col));
+            M = (rand(row, col) - 0.5) * (2.0 / sqrt(col));
         end
         
         function F = randct(fltsize, nchannel, nfilter)

@@ -90,5 +90,6 @@ classdef Tensor < handle
     
     properties (Constant)
         enableGPU = logical(gpuDeviceCount);
+        % enableGPU = false;
     end
 end

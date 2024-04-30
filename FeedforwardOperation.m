@@ -38,7 +38,7 @@ classdef FeedforwardOperation < Operation
     methods (Abstract)
         varargout = dataproc(obj, varargin)
         varargout = deltaproc(obj, varargin)
-        varargout = sizeIn2Out(obj, varargin)
-        varargout = sizeOut2In(obj, varargin)
+        % varargout = sizeIn2Out(obj, varargin)
+        % varargout = sizeOut2In(obj, varargin)
     end
 end
