@@ -40,6 +40,10 @@ classdef CommonPrior < Prior
                     obj.evalfcn  = @(data, mu, ~) (sum(data.^2) - mu).^2;
                     obj.deltafcn = @(data, mu, ~) 4 * (sum(data.^2) - mu) .* data;
 
+                case {'rotmat'}
+                    obj.evalfcn  = @(data, ~, ~) det(data);
+                    obj.deltafcn = @(data, ~, ~) rotmatGradient(data);
+
                 otherwise
                     error('UMPrest:ArgumentError', 'Unrecognized prior : %s', upper(type));
             end
@@ -68,4 +72,10 @@ classdef CommonPrior < Prior
             obj.sigma = value;
         end
     end
+end
+
+% customized gradient for rotation matrix
+function d = rotmatGradient(M)
+[U,~,V] = svd(M);
+d = M - U * eye(size(M)) * V';
 end

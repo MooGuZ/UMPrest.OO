@@ -7,7 +7,7 @@ classdef Dataset < handle
         volume % number of unique samples in the dataset
         islabelled % T/F indicating whether or not there is label with data
     end
-    properties (SetAccess = protected)
+    properties (SetAccess = protected, Hidden)
         data  % AccessPoint for data
         label % AccessPoint for label
     end

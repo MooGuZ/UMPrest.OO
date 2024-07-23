@@ -64,7 +64,11 @@ classdef Config < handle & matlab.mixin.CustomDisplay
         end
         
         function instance = apply(obj, instance)
-            keylist = fieldnames(instance);
+            % Get List of Properties
+            %  Old implementation only get public properties, New one
+            %  get complete list including hidden and private ones
+            % keylist = fieldnames(instance);
+            keylist = {metaclass(instance).PropertyList.Name};
             for i = 1 : numel(keylist)
                 key = keylist{i};
                 if obj.exist(key)

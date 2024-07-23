@@ -5,7 +5,7 @@ classdef ExperimentRecord < handle
     methods
         function obj = ExperimentRecord(niter)
             obj.n   = niter;
-            obj.wbh = waitbar(0, 'Experiment Start');
+            obj.wbh = waitbar(0, 'Experiment Start', 'WindowStyle', 'modal');
             obj.rcd = zeros(2,niter);
             obj.prcd = [];
             obj.index = 1;

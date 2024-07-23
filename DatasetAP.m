@@ -7,7 +7,7 @@ classdef DatasetAP < AccessPoint
         
         function package = packup(obj, data)
         % NOTE: this function may return cell of packages instead of a single package
-            if numel(data) == 1
+            if isscalar(data)
                 package = DataPackage( ...
                     Tensor(data{1}).get(), obj.dsample, obj.taxis);
                 % hide temporal axis

@@ -2,7 +2,7 @@ classdef HyperParamOptimizer < handle
     methods
         function obj = HyperParamOptimizer(jsonfile)
             arguments
-                jsonfile = UMPrest.path('config', 'simplified.json')
+                jsonfile = UMPrest.path('config', 'optimizer.json')
             end
             % load default configuration
             obj.default = loadjson(jsonfile).conf;
@@ -40,14 +40,34 @@ classdef HyperParamOptimizer < handle
         function obj = gradSetup(obj, mode, varargin)
             config = Config(varargin);
             switch lower(mode)
-                case {'basic', 'sgd'}
-                    obj.conf.grad = struct('mode', 'basic');
+                case {'basic', 'vanilla'}
+                    obj.conf.grad = struct('mode', 'vanilla');
+
+                case {'sgd'}
+                    obj.conf.grad = struct( ...
+                        'mode', 'sgd', ...
+                        'beta', config.pop('beta', obj.default.grad.sgd.beta));
 
                 case {'adam'}
                     obj.conf.grad = struct( ...
                         'mode', 'adam', ...
                         'beta1', config.pop('beta1', obj.default.grad.adam.beta1), ...
-                        'beta2', config.pop('beta2', obj.default.grad.adam.beta2));
+                        'beta2', config.pop('beta2', obj.default.grad.adam.beta2), ...
+                        'eta', config.pop('eta', obj.default.grad.adam.eta));
+
+                case {'radam'}
+                    obj.conf.grad = struct( ...
+                        'mode', 'radam', ...
+                        'beta1', config.pop('beta1', obj.default.grad.radam.beta1), ...
+                        'beta2', config.pop('beta2', obj.default.grad.radam.beta2), ...
+                        'eta', config.pop('eta', obj.default.grad.radam.eta));
+
+                case {'adai'}
+                    obj.conf.grad = struct( ...
+                        'mode', 'adai', ...
+                        'beta0', config.pop('beta0', obj.default.grad.adai.beta0), ...
+                        'beta2', config.pop('beta2', obj.default.grad.adai.beta2), ...
+                        'eta', config.pop('eta', obj.default.grad.adai.eta));
 
                 otherwise
                     error('UNRECOGNIZED MODE');

@@ -8,19 +8,19 @@ classdef Likelihood < Objective
                 x   = obj.x.pop();
                 ref = obj.ref.pop();
             end
+
             if isa(x, 'DataPackage')
-                if isempty(obj.weight)
-                    value = obj.evalFunction(x.data, ref.data);
-                else
-                    value = obj.evalFunction(x.data, ref.data, obj.weight);
-                end   
+                [xdata, refdata] = ignoreMissing(x.data, ref.data);
             else
-                if isempty(obj.weight)
-                    value = obj.evalFunction(x, ref);
-                else
-                    value = obj.evalFunction(x, ref, obj.weight);
-                end
+                [xdata, refdata] = ignoreMissing(x, ref);
             end
+
+            if isempty(obj.weight)
+                value = obj.evalFunction(xdata, refdata);
+            else
+                value = obj.evalFunction(xdata, refdata, obj.weight);
+            end
+
             if isa(value, 'gpuArray')
                 value = double(gather(value));
             end
@@ -31,21 +31,23 @@ classdef Likelihood < Objective
                 x   = obj.x.pop();
                 ref = obj.ref.pop();
             end
+
             if isa(x, 'DataPackage')
-                if isempty(obj.weight)
-                    d = obj.deltaFunction(x.data, ref.data);
-                else
-                    d = obj.deltaFunction(x.data, ref.data, obj.weight);
-                end
+                [xdata, refdata] = ignoreMissing(x.data, ref.data);
+            else
+                [xdata, refdata] = ignoreMissing(x, ref);
+            end
+
+            if isempty(obj.weight)
+                d = obj.deltaFunction(xdata, refdata);
+            else
+                d = obj.deltaFunction(xdata, refdata, obj.weight);
+            end
+
+            if isa(x, 'DataPackage')
                 d = ErrorPackage(d, x.dsample, x.taxis, true);
                 if nargout == 0
                     obj.x.send(d);
-                end
-            else
-                if isempty(obj.weight)
-                    d = obj.deltaFunction(x, ref);
-                else
-                    d = obj.deltaFunction(x, ref, obj.weight);
                 end
             end
         end
@@ -130,4 +132,17 @@ classdef Likelihood < Objective
             obj.deltaFunction = fhandle;
         end
     end
+end
+
+% Remove NaN and Inf from data
+function [A,B] = ignoreMissing(A,B)
+iNaN = isnan(A) | isnan(B);
+iInf = isinf(A) | isinf(B);
+index = iNaN | iInf;
+A(index) = 0;
+B(index) = 0;
+
+if any(iNaN, 'all')
+    warning('NaN should not appear!');
+end
 end
